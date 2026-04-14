@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
@@ -18,6 +19,8 @@ export default function SuperadminUserEditPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [row, setRow] = useState<UserDetail | null>(null);
+  const [churches, setChurches] = useState<ChurchRecord[]>([]);
+  const [churchIds, setChurchIds] = useState<string[]>([]);
   const [fullName, setFullName] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -31,6 +34,17 @@ export default function SuperadminUserEditPage() {
     setRow(u);
     setFullName(u.fullName || '');
     setIsActive(u.isActive !== false);
+    if (u.role === 'ADMIN') {
+      const ids =
+        u.adminChurches && u.adminChurches.length > 0
+          ? u.adminChurches.map((c) => c._id)
+          : typeof u.church === 'object' && u.church && '_id' in u.church
+            ? [u.church._id]
+            : [];
+      setChurchIds(ids);
+      const allChurches = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
+      setChurches(allChurches);
+    }
   }, [token, userId]);
 
   useEffect(() => {
@@ -47,14 +61,18 @@ export default function SuperadminUserEditPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
+    if (!token || !row) return;
     setErr(null);
     setBusy(true);
     try {
       await apiFetch(`/api/superadmin/users/${userId}`, {
         method: 'PUT',
         token,
-        body: JSON.stringify({ fullName, isActive }),
+        body: JSON.stringify({
+          fullName,
+          isActive,
+          ...(row.role === 'ADMIN' ? { churchIds } : {}),
+        }),
       });
       router.replace('/dashboard/superadmin/users');
     } catch (e) {
@@ -90,7 +108,7 @@ export default function SuperadminUserEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/superadmin/users"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
@@ -107,9 +125,33 @@ export default function SuperadminUserEditPage() {
         </p>
         <p className="mt-1 text-xs text-neutral-500">You can update display name and whether the account can sign in.</p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+            </div>
+          {row.role === 'ADMIN' ? (
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Churches</label>
+              <select
+                multiple
+                value={churchIds}
+                onChange={(e) =>
+                  setChurchIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))
+                }
+                className={`${field} min-h-[120px]`}
+              >
+                {churches.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-neutral-500">
+                Admin can be assigned to multiple churches. First selected church is primary.
+              </p>
+            </div>
+          ) : null}
           </div>
           <div className="flex items-center gap-2">
             <input

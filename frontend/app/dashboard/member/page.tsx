@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, MapPin, User } from 'lucide-react';
+import { ArrowRight, CreditCard, MapPin, UserRound } from 'lucide-react';
 import { apiFetch, type MemberAddress } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,7 +20,11 @@ type Church = {
 type Profile = {
   id: string;
   email: string;
+  firstName?: string;
+  surname?: string;
   fullName: string;
+  idNumber?: string;
+  contactPhone?: string;
   gender?: string | null;
   dateOfBirth?: string | null;
   address?: MemberAddress;
@@ -74,16 +78,14 @@ export default function MemberDashboardPage() {
     return null;
   }
 
-  const publicSlug = church?.slug;
-
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-6xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-          Overview
+          Member dashboard
         </h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Your profile and church details—like an account home in an online store.
+          Storefront-style account home with quick actions and subscription management.
         </p>
       </div>
 
@@ -93,10 +95,55 @@ export default function MemberDashboardPage() {
         </p>
       ) : null}
 
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <Link
+          href="/dashboard/member/subscriptions"
+          className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-neutral-700">Subscription</p>
+            <CreditCard className="size-4 text-neutral-500" />
+          </div>
+          <p className="mt-2 text-lg font-semibold text-neutral-900">
+            {profile?.fullName ? 'Manage plan' : 'Open'}
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
+            View plans and billing cycle
+            <ArrowRight className="size-3.5" />
+          </p>
+        </Link>
+        <Link
+          href="/dashboard/member/account"
+          className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-neutral-700">Account details</p>
+            <UserRound className="size-4 text-neutral-500" />
+          </div>
+          <p className="mt-2 text-lg font-semibold text-neutral-900">
+            {profile?.fullName || 'Complete profile'}
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
+            Update personal and contact details
+            <ArrowRight className="size-3.5" />
+          </p>
+        </Link>
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-neutral-700">Church</p>
+            <MapPin className="size-4 text-neutral-500" />
+          </div>
+          <p className="mt-2 text-lg font-semibold text-neutral-900">{church?.name || '—'}</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            {[church?.city, church?.country].filter(Boolean).join(', ') || 'No location'}
+          </p>
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-2 text-neutral-500">
-            <User className="size-4" aria-hidden />
+            <UserRound className="size-4" aria-hidden />
             <h2 className="text-xs font-semibold uppercase tracking-wide">Profile</h2>
           </div>
           {profile ? (
@@ -104,6 +151,14 @@ export default function MemberDashboardPage() {
               <div>
                 <dt className="text-neutral-500">Name</dt>
                 <dd className="font-medium text-neutral-900">{profile.fullName || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-neutral-500">ID</dt>
+                <dd className="text-neutral-800">{profile.idNumber || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-neutral-500">Contact phone</dt>
+                <dd className="text-neutral-800">{profile.contactPhone || '—'}</dd>
               </div>
               <div>
                 <dt className="text-neutral-500">Email</dt>
@@ -145,15 +200,6 @@ export default function MemberDashboardPage() {
               </p>
               {church.phone ? (
                 <p className="mt-2 text-sm text-neutral-600">Phone: {church.phone}</p>
-              ) : null}
-              {publicSlug ? (
-                <Link
-                  href={`/${publicSlug}`}
-                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-800"
-                >
-                  View public site
-                  <ExternalLink className="size-3.5" aria-hidden />
-                </Link>
               ) : null}
             </div>
           ) : (

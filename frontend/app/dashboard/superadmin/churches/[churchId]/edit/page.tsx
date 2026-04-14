@@ -21,8 +21,13 @@ export default function SuperadminChurchEditPage() {
   const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [stateOrProvince, setStateOrProvince] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,8 +42,13 @@ export default function SuperadminChurchEditPage() {
     setSlug(c.slug || '');
     setAddress(c.address || '');
     setCity(c.city || '');
+    setStateOrProvince(c.stateOrProvince || '');
+    setPostalCode(c.postalCode || '');
     setCountry(c.country || '');
     setPhone(c.phone || '');
+    setEmail(c.email || '');
+    setWebsite(c.website || '');
+    setContactPerson(c.contactPerson || '');
     setIsActive(c.isActive !== false);
   }, [token, churchId]);
 
@@ -68,8 +78,13 @@ export default function SuperadminChurchEditPage() {
           slug,
           address,
           city,
+          stateOrProvince,
+          postalCode,
           country,
           phone,
+          email,
+          website,
+          contactPerson,
           isActive,
         }),
       });
@@ -107,7 +122,7 @@ export default function SuperadminChurchEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/superadmin/churches"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
@@ -117,11 +132,12 @@ export default function SuperadminChurchEditPage() {
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Edit church</h1>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Name</label>
             <input required value={name} onChange={(e) => setName(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">URL slug</label>
             <input
               value={slug}
@@ -130,22 +146,47 @@ export default function SuperadminChurchEditPage() {
               placeholder="grace-church"
             />
             <p className="mt-1 text-xs text-neutral-500">Lowercase letters, numbers, hyphens only.</p>
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Address</label>
             <input value={address} onChange={(e) => setAddress(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
             <input value={city} onChange={(e) => setCity(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
+            <input
+              value={stateOrProvince}
+              onChange={(e) => setStateOrProvince(e.target.value)}
+              className={field}
+            />
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
+            <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={field} />
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
             <input value={country} onChange={(e) => setCountry(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Phone</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Website</label>
+            <input value={website} onChange={(e) => setWebsite(e.target.value)} className={field} />
+            </div>
+            <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>
+            <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <input

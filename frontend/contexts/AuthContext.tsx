@@ -20,8 +20,21 @@ import {
 type RegisterInput = {
   email: string;
   password: string;
-  churchSlug: string;
-  fullName?: string;
+  churchId: string;
+  firstName: string;
+  surname: string;
+  idNumber: string;
+  dateOfBirth: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY';
+  contactPhone: string;
+  address: {
+    line1: string;
+    line2?: string;
+    city: string;
+    stateOrProvince: string;
+    postalCode: string;
+    country: string;
+  };
 };
 
 type AuthContextValue = {

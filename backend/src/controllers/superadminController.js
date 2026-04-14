@@ -47,7 +47,21 @@ async function getChurch(req, res) {
 
 async function createChurch(req, res) {
   try {
-    const { name, address, city, country, phone, slug } = req.body;
+    const {
+      name,
+      address,
+      city,
+      stateOrProvince,
+      postalCode,
+      country,
+      phone,
+      email,
+      website,
+      contactPerson,
+      latitude,
+      longitude,
+      slug,
+    } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Church name is required' });
     }
@@ -58,8 +72,15 @@ async function createChurch(req, res) {
       slug: finalSlug,
       address: address || '',
       city: city || '',
+      stateOrProvince: stateOrProvince || '',
+      postalCode: postalCode || '',
       country: country || '',
       phone: phone || '',
+      email: email || '',
+      website: website || '',
+      contactPerson: contactPerson || '',
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
     });
     return res.status(201).json(church);
   } catch (err) {
@@ -76,7 +97,22 @@ async function createChurch(req, res) {
 
 async function updateChurch(req, res) {
   try {
-    const allowed = ['name', 'address', 'city', 'country', 'phone', 'isActive', 'slug'];
+    const allowed = [
+      'name',
+      'address',
+      'city',
+      'stateOrProvince',
+      'postalCode',
+      'country',
+      'phone',
+      'email',
+      'website',
+      'contactPerson',
+      'latitude',
+      'longitude',
+      'isActive',
+      'slug',
+    ];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -110,7 +146,10 @@ async function updateChurch(req, res) {
 
 async function deleteChurch(req, res) {
   try {
-    const admins = await User.countDocuments({ church: req.params.id, role: 'ADMIN' });
+    const admins = await User.countDocuments({
+      role: 'ADMIN',
+      $or: [{ church: req.params.id }, { adminChurches: req.params.id }],
+    });
     const members = await User.countDocuments({ church: req.params.id, role: 'MEMBER' });
     if (admins > 0 || members > 0) {
       return res.status(400).json({
@@ -120,6 +159,12 @@ async function deleteChurch(req, res) {
     const churchId = req.params.id;
     await Event.deleteMany({ church: churchId });
     await GalleryItem.deleteMany({ church: churchId });
+    await User.updateMany({ adminChurches: churchId }, { $pull: { adminChurches: churchId } });
+    const adminsWithoutPrimary = await User.find({ role: 'ADMIN', church: churchId });
+    for (const admin of adminsWithoutPrimary) {
+      admin.church = admin.adminChurches?.[0] || null;
+      await admin.save();
+    }
     const church = await Church.findByIdAndDelete(churchId);
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
@@ -138,6 +183,7 @@ function toUserListItem(u) {
     fullName: u.fullName,
     role: u.role,
     church: u.church,
+    adminChurches: u.adminChurches || [],
     isActive: u.isActive,
   };
 }
@@ -146,6 +192,7 @@ async function listUsers(req, res) {
   try {
     const users = await User.find()
       .populate('church', 'name slug')
+      .populate('adminChurches', 'name slug')
       .sort({ role: 1, email: 1 })
       .select('-password');
     return res.json(users.map((u) => toUserListItem(u)));
@@ -159,6 +206,7 @@ async function getUser(req, res) {
   try {
     const user = await User.findById(req.params.id)
       .populate('church', 'name slug')
+      .populate('adminChurches', 'name slug')
       .select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -172,7 +220,7 @@ async function getUser(req, res) {
 
 async function updateUser(req, res) {
   try {
-    const { fullName, isActive } = req.body;
+    const { fullName, isActive, churchIds } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -186,9 +234,21 @@ async function updateUser(req, res) {
     if (isActive !== undefined) {
       user.isActive = Boolean(isActive);
     }
+    if (user.role === 'ADMIN' && churchIds !== undefined) {
+      if (!Array.isArray(churchIds) || churchIds.length === 0) {
+        return res.status(400).json({ message: 'At least one church is required for admin' });
+      }
+      const valid = await Church.find({ _id: { $in: churchIds } }).select('_id');
+      if (valid.length !== churchIds.length) {
+        return res.status(400).json({ message: 'One or more selected churches are invalid' });
+      }
+      user.adminChurches = churchIds;
+      user.church = churchIds[0];
+    }
     await user.save();
     const populated = await User.findById(user._id)
       .populate('church', 'name slug')
+      .populate('adminChurches', 'name slug')
       .select('-password');
     return res.json(toUserListItem(populated));
   } catch (err) {
@@ -226,13 +286,17 @@ async function deleteUser(req, res) {
 async function createChurchAdmin(req, res) {
   try {
     const { churchId } = req.params;
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, churchIds = [] } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
-    const church = await Church.findById(churchId);
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
+    const selectedIds = Array.from(new Set([churchId, ...churchIds].filter(Boolean)));
+    if (selectedIds.length === 0) {
+      return res.status(400).json({ message: 'Select at least one church for admin' });
+    }
+    const churches = await Church.find({ _id: { $in: selectedIds } }).select('_id');
+    if (churches.length !== selectedIds.length) {
+      return res.status(404).json({ message: 'One or more churches not found' });
     }
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
@@ -243,7 +307,8 @@ async function createChurchAdmin(req, res) {
       password,
       fullName: fullName || '',
       role: 'ADMIN',
-      church: church._id,
+      church: selectedIds[0],
+      adminChurches: selectedIds,
     });
     const safe = admin.toObject();
     delete safe.password;

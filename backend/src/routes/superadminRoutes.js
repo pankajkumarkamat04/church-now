@@ -18,6 +18,10 @@ const {
 const frontendController = require('../controllers/frontendController');
 const eventController = require('../controllers/eventController');
 const galleryController = require('../controllers/galleryController');
+const mediaController = require('../controllers/mediaController');
+const subscriptionController = require('../controllers/subscriptionController');
+const churchChangeController = require('../controllers/churchChangeController');
+const titheController = require('../controllers/titheController');
 
 const router = express.Router();
 
@@ -28,6 +32,24 @@ router.post('/churches', asyncHandler(createChurch));
 
 router.get('/frontend/site', asyncHandler(frontendController.getGlobalSite));
 router.put('/frontend/site', asyncHandler(frontendController.putGlobalSite));
+router.get('/media', asyncHandler(mediaController.list));
+router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadOne));
+router.delete('/media/:fileName', asyncHandler(mediaController.remove));
+router.get('/subscriptions/plans', asyncHandler(subscriptionController.listSuperadminPlans));
+router.get('/subscriptions/plans/:planId', asyncHandler(subscriptionController.getSuperadminPlan));
+router.post('/subscriptions/plans', asyncHandler(subscriptionController.createSuperadminPlan));
+router.put('/subscriptions/plans/:planId', asyncHandler(subscriptionController.updateSuperadminPlan));
+router.delete('/subscriptions/plans/:planId', asyncHandler(subscriptionController.removeSuperadminPlan));
+router.get('/subscriptions', asyncHandler(subscriptionController.listSuperadminSubscriptions));
+router.get('/tithes', asyncHandler(titheController.listSuperadminTithes));
+router.post('/tithes', asyncHandler(titheController.createSuperadminTithe));
+router.put('/tithes/:titheId', asyncHandler(titheController.updateSuperadminTithe));
+router.delete('/tithes/:titheId', asyncHandler(titheController.removeSuperadminTithe));
+router.get('/church-change-requests', asyncHandler(churchChangeController.listSuperadminChurchChangeRequests));
+router.post(
+  '/church-change-requests/:requestId/decision',
+  asyncHandler(churchChangeController.decideChurchChangeRequest)
+);
 router.get('/churches/:churchId/events', asyncHandler(eventController.listSuperadmin));
 router.get('/churches/:churchId/events/:eventId', asyncHandler(eventController.getSuperadmin));
 router.post('/churches/:churchId/events', asyncHandler(eventController.createSuperadmin));

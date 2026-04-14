@@ -25,6 +25,24 @@ async function listPublic(req, res) {
   }
 }
 
+async function listPublicGlobal(req, res) {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 18, 60);
+    const homeOnly = req.query.home === '1' || req.query.home === 'true';
+    const q = { published: true };
+    if (homeOnly) q.showOnHome = true;
+    const items = await GalleryItem.find(q)
+      .populate('church', 'name slug isActive')
+      .sort({ sortOrder: 1, createdAt: -1 })
+      .limit(limit);
+    const active = items.filter((item) => item.church && item.church.isActive !== false);
+    return res.json(active);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to list gallery' });
+  }
+}
+
 async function listAdmin(req, res) {
   try {
     const id = churchId(req);
@@ -211,6 +229,7 @@ async function removeSuperadmin(req, res) {
 }
 
 module.exports = {
+  listPublicGlobal,
   listPublic,
   listAdmin,
   create,

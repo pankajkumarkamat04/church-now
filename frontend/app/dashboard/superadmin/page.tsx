@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Building2, Users } from 'lucide-react';
+import { ArrowRight, Building2, CreditCard, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminData } from './useSuperadminData';
 
@@ -38,6 +38,14 @@ export default function SuperadminOverviewPage() {
       icon: Users,
       count: users.length,
       countLabel: 'users',
+    },
+    {
+      href: '/dashboard/superadmin/subscriptions',
+      title: 'Subscriptions',
+      description: 'Monitor plans and member subscriptions across all churches.',
+      icon: CreditCard,
+      count: 0,
+      countLabel: 'module',
     },
   ];
 

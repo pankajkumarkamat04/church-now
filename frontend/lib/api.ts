@@ -14,7 +14,11 @@ export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY';
 export type AuthUser = {
   id: string;
   email: string;
+  firstName?: string;
+  surname?: string;
   fullName: string;
+  idNumber?: string;
+  contactPhone?: string;
   gender?: Gender | null;
   dateOfBirth?: string | null;
   address?: MemberAddress;
@@ -27,11 +31,23 @@ export type AuthUser = {
         slug?: string;
         address?: string;
         city?: string;
+        stateOrProvince?: string;
+        postalCode?: string;
         country?: string;
         phone?: string;
+        email?: string;
+        website?: string;
+        contactPerson?: string;
+        latitude?: number | null;
+        longitude?: number | null;
         isActive?: boolean;
       }
     | null;
+  adminChurches?: Array<{
+    _id: string;
+    name: string;
+    slug?: string;
+  }>;
   isActive?: boolean;
 };
 

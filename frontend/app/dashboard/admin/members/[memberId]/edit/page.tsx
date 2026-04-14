@@ -109,7 +109,7 @@ export default function AdminMemberEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/admin/members"
         className="text-sm font-medium text-sky-700 hover:text-sky-900"

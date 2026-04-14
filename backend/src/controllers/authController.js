@@ -4,7 +4,7 @@ const Church = require('../models/Church');
 const { signToken } = require('../utils/token');
 const { toProfileResponse } = require('../utils/memberProfile');
 
-const CHURCH_FIELDS = 'name slug address city country phone isActive';
+const CHURCH_FIELDS = 'name slug address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
 
 const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
@@ -14,22 +14,53 @@ function hashResetToken(token) {
 }
 
 /**
- * POST /api/auth/register — self-serve member signup for an existing church (by public slug).
+ * POST /api/auth/register — self-serve member signup for an existing church.
  */
 async function register(req, res) {
   try {
-    const { email, password, churchSlug, fullName } = req.body;
-    if (!email || !password || !churchSlug) {
+    const {
+      email,
+      password,
+      churchId,
+      churchSlug,
+      firstName,
+      surname,
+      idNumber,
+      dateOfBirth,
+      gender,
+      contactPhone,
+      address,
+    } = req.body;
+    if (!email || !password || (!churchId && !churchSlug)) {
       return res
         .status(400)
-        .json({ message: 'Email, password, and church URL slug are required' });
+        .json({ message: 'Email, password, and church selection are required' });
     }
-    const slug = String(churchSlug).toLowerCase().trim();
-    const church = await Church.findOne({ slug, isActive: true });
-    if (!church) {
+    if (!firstName || !surname || !idNumber || !dateOfBirth || !gender || !contactPhone) {
       return res.status(400).json({
         message:
-          'Church not found or inactive. Ask your church for the site URL slug (the part after / in their public link).',
+          'firstName, surname, idNumber, dateOfBirth, gender and contactPhone are required',
+      });
+    }
+    const requiredAddress =
+      address &&
+      address.line1 &&
+      address.city &&
+      address.stateOrProvince &&
+      address.postalCode &&
+      address.country;
+    if (!requiredAddress) {
+      return res.status(400).json({
+        message:
+          'Residential address is required (line1, city, stateOrProvince, postalCode, country)',
+      });
+    }
+    const church = churchId
+      ? await Church.findOne({ _id: churchId, isActive: true })
+      : await Church.findOne({ slug: String(churchSlug).toLowerCase().trim(), isActive: true });
+    if (!church) {
+      return res.status(400).json({
+        message: 'Selected church was not found or is inactive.',
       });
     }
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
@@ -40,7 +71,14 @@ async function register(req, res) {
     const user = await User.create({
       email: email.toLowerCase().trim(),
       password,
-      fullName: String(fullName || '').trim(),
+      firstName: String(firstName).trim(),
+      surname: String(surname).trim(),
+      fullName: `${String(firstName).trim()} ${String(surname).trim()}`.trim(),
+      idNumber: String(idNumber).trim(),
+      contactPhone: String(contactPhone).trim(),
+      gender,
+      dateOfBirth: new Date(dateOfBirth),
+      address,
       role: 'MEMBER',
       church: church._id,
     });
@@ -73,7 +111,8 @@ async function login(req, res) {
     }
     const user = await User.findOne({ email: email.toLowerCase() })
       .select('+password')
-      .populate('church', CHURCH_FIELDS);
+      .populate('church', CHURCH_FIELDS)
+      .populate('adminChurches', CHURCH_FIELDS);
     if (!user || !user.isActive) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -97,7 +136,9 @@ async function login(req, res) {
 
 async function me(req, res) {
   try {
-    const user = await User.findById(req.user._id).populate('church', CHURCH_FIELDS);
+    const user = await User.findById(req.user._id)
+      .populate('church', CHURCH_FIELDS)
+      .populate('adminChurches', CHURCH_FIELDS);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

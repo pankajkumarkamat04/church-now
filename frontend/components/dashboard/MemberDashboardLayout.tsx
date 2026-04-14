@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Church,
+  CircleUserRound,
+  CreditCard,
+  HandCoins,
+  Home,
   LayoutDashboard,
   LogOut,
   Menu,
-  Package,
   X,
 } from 'lucide-react';
 import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
@@ -18,11 +20,6 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
-  const churchSlug =
-    user?.church && typeof user.church === 'object' && user.church && 'slug' in user.church
-      ? String((user.church as { slug?: string }).slug || '')
-      : null;
 
   useEffect(() => {
     if (loading) return;
@@ -50,176 +47,112 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  const navLinkClass = (active: boolean) =>
-    `text-sm font-medium transition-colors ${
-      active ? 'text-neutral-900' : 'text-neutral-600 hover:text-neutral-900'
+  const overviewActive = pathname === '/dashboard/member';
+  const subscriptionsActive = pathname === '/dashboard/member/subscriptions';
+  const tithesActive = pathname === '/dashboard/member/tithes';
+  const accountActive = pathname === '/dashboard/member/account';
+
+  const itemClass = (active: boolean) =>
+    `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+      active
+        ? 'bg-emerald-50 text-emerald-700'
+        : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
     }`;
 
-  const overviewActive = pathname === '/dashboard/member';
-
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-100 text-neutral-900">
-      <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-8">
-          <div className="flex min-w-0 flex-1 items-center gap-6">
-            <Link
-              href="/dashboard/member"
-              className="flex shrink-0 items-center gap-2 text-neutral-900"
-            >
-              <span className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50">
-                <Church className="size-4 text-neutral-700" aria-hidden />
-              </span>
-              <span className="hidden font-semibold tracking-tight sm:inline">Member portal</span>
-            </Link>
-
-            <nav className="hidden items-center gap-8 md:flex" aria-label="Member">
-              <Link
-                href="/dashboard/member"
-                className={`inline-flex items-center gap-2 ${navLinkClass(overviewActive)}`}
-              >
-                <LayoutDashboard className="size-4 opacity-70" aria-hidden />
-                Overview
-              </Link>
-              {churchSlug ? (
-                <Link
-                  href={`/${churchSlug}`}
-                  className={`inline-flex items-center gap-2 ${navLinkClass(false)}`}
-                >
-                  <Package className="size-4 opacity-70" aria-hidden />
-                  Church site
-                </Link>
-              ) : null}
-            </nav>
-          </div>
-
+    <div className="min-h-screen bg-neutral-100 text-neutral-900">
+      <header className="border-b border-neutral-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="hidden max-w-[200px] truncate text-right sm:block">
-              <p className="truncate text-sm font-medium text-neutral-900">
-                {user.fullName || 'Member'}
-              </p>
-              <p className="truncate text-xs text-neutral-500">{user.email}</p>
-            </div>
             <button
               type="button"
-              onClick={() => {
-                logout();
-                router.replace('/login');
-              }}
-              className="hidden items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 sm:inline-flex"
-            >
-              <LogOut className="size-4" aria-hidden />
-              Sign out
-            </button>
-            <button
-              type="button"
-              className="rounded-lg p-2 text-neutral-700 hover:bg-neutral-100 md:hidden"
-              aria-expanded={mobileNavOpen}
-              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
-              onClick={() => setMobileNavOpen((o) => !o)}
+              className="rounded-lg p-2 text-neutral-700 hover:bg-neutral-100 lg:hidden"
+              onClick={() => setMobileNavOpen((v) => !v)}
             >
               {mobileNavOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-          </div>
-        </div>
-
-        {mobileNavOpen ? (
-          <div className="border-t border-neutral-200 bg-white px-4 py-3 md:hidden">
-            <nav className="flex flex-col gap-1" aria-label="Member mobile">
-              <Link
-                href="/dashboard/member"
-                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Overview
+            <Link href="/" className="text-xl font-bold text-emerald-600">
+              ChurchNow
+            </Link>
+            <nav className="hidden items-center gap-6 pl-6 text-sm text-neutral-600 md:flex">
+              <Link href="/" className="hover:text-neutral-900">
+                Home
               </Link>
-              {churchSlug ? (
-                <Link
-                  href={`/${churchSlug}`}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
-                  onClick={() => setMobileNavOpen(false)}
-                >
-                  Church site
-                </Link>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  logout();
-                  router.replace('/login');
-                }}
-                className="mt-2 flex items-center justify-center gap-2 rounded-lg border border-neutral-200 py-2.5 text-sm font-medium text-neutral-800"
-              >
-                <LogOut className="size-4" aria-hidden />
-                Sign out
-              </button>
+              <Link href="/dashboard/member" className="hover:text-neutral-900">
+                Dashboard
+              </Link>
+              <Link href="/dashboard/member/subscriptions" className="hover:text-neutral-900">
+                Subscription
+              </Link>
+              <Link href="/dashboard/member/tithes" className="hover:text-neutral-900">
+                Tithes
+              </Link>
             </nav>
           </div>
-        ) : null}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/member/account"
+              className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+            >
+              My Account
+            </Link>
+          </div>
+        </div>
       </header>
 
-      <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">{children}</div>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="grid gap-6 lg:grid-cols-12">
+          <aside className={`lg:col-span-3 ${mobileNavOpen ? 'block' : 'hidden lg:block'}`}>
+            <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 border-b border-neutral-100 pb-4">
+                <p className="truncate text-sm font-semibold text-neutral-900">{user.fullName || 'Member'}</p>
+                <p className="truncate text-xs text-neutral-500">{user.email}</p>
+              </div>
+              <nav className="space-y-1">
+                <Link href="/dashboard/member" className={itemClass(overviewActive)}>
+                  <LayoutDashboard className="size-4" />
+                  Dashboard
+                </Link>
+                <Link href="/dashboard/member/account" className={itemClass(accountActive)}>
+                  <CircleUserRound className="size-4" />
+                  My Account
+                </Link>
+                <Link href="/dashboard/member/subscriptions" className={itemClass(subscriptionsActive)}>
+                  <CreditCard className="size-4" />
+                  Subscription
+                </Link>
+                <Link href="/dashboard/member/tithes" className={itemClass(tithesActive)}>
+                  <HandCoins className="size-4" />
+                  Tithes
+                </Link>
+              </nav>
+              <div className="mt-4 border-t border-neutral-100 pt-4 space-y-2">
+                <Link href="/" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900">
+                  <Home className="size-4" />
+                  Main website
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    router.replace('/login');
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="size-4" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </aside>
+          <section className="lg:col-span-9">{children}</section>
+        </div>
       </main>
 
-      <footer className="mt-auto border-t border-neutral-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 lg:px-8">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="lg:col-span-2">
-              <div className="flex items-center gap-2 text-neutral-900">
-                <Church className="size-5 text-neutral-600" aria-hidden />
-                <span className="font-semibold">Member portal</span>
-              </div>
-              <p className="mt-3 max-w-sm text-sm leading-relaxed text-neutral-600">
-                Manage your profile and stay connected with your church—similar to a storefront
-                account dashboard, tuned for members.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Quick links
-              </h3>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <Link href="/dashboard/member" className="text-neutral-600 hover:text-neutral-900">
-                    Overview
-                  </Link>
-                </li>
-                {churchSlug ? (
-                  <li>
-                    <Link href={`/${churchSlug}`} className="text-neutral-600 hover:text-neutral-900">
-                      Public church site
-                    </Link>
-                  </li>
-                ) : null}
-                <li>
-                  <Link href="/" className="text-neutral-600 hover:text-neutral-900">
-                    Home
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Account
-              </h3>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <Link href="/login" className="text-neutral-600 hover:text-neutral-900">
-                    Sign in
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/forgot-password" className="text-neutral-600 hover:text-neutral-900">
-                    Reset password
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-10 flex flex-col gap-2 border-t border-neutral-200 pt-8 text-xs text-neutral-500 sm:flex-row sm:justify-between">
-            <p>© {new Date().getFullYear()} Church OS · Member area</p>
-            <p className="text-neutral-400">Secure member dashboard</p>
-          </div>
+      <footer className="mt-10 bg-slate-900 text-slate-200">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <p>© {new Date().getFullYear()} Church OS</p>
+          <p className="text-slate-300">Member dashboard</p>
         </div>
       </footer>
     </div>

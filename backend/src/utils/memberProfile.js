@@ -12,7 +12,11 @@ function toProfileResponse(userDoc) {
   return {
     id: u._id,
     email: u.email,
+    firstName: u.firstName || '',
+    surname: u.surname || '',
     fullName: u.fullName || '',
+    idNumber: u.idNumber || '',
+    contactPhone: u.contactPhone || '',
     gender: u.gender ?? null,
     dateOfBirth: u.dateOfBirth ? u.dateOfBirth.toISOString().slice(0, 10) : null,
     address: u.address
@@ -34,6 +38,7 @@ function toProfileResponse(userDoc) {
         },
     role: u.role,
     church: u.church ?? null,
+    adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
     isActive: u.isActive,
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
@@ -68,8 +73,20 @@ function mergeAddress(existing, patch) {
 function applyMemberProfilePatch(user, body, options = {}) {
   const { allowAdminFields = false } = options;
 
+  if (body.firstName !== undefined) {
+    user.firstName = String(body.firstName ?? '').trim();
+  }
+  if (body.surname !== undefined) {
+    user.surname = String(body.surname ?? '').trim();
+  }
   if (body.fullName !== undefined) {
     user.fullName = String(body.fullName ?? '').trim();
+  }
+  if (body.idNumber !== undefined) {
+    user.idNumber = String(body.idNumber ?? '').trim();
+  }
+  if (body.contactPhone !== undefined) {
+    user.contactPhone = String(body.contactPhone ?? '').trim();
   }
 
   if (body.gender !== undefined) {
@@ -97,6 +114,14 @@ function applyMemberProfilePatch(user, body, options = {}) {
 
   if (allowAdminFields && body.isActive !== undefined) {
     user.isActive = Boolean(body.isActive);
+  }
+
+  if (body.fullName === undefined) {
+    const auto = [String(user.firstName || '').trim(), String(user.surname || '').trim()]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (auto) user.fullName = auto;
   }
 
   return {};

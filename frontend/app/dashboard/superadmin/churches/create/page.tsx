@@ -16,8 +16,13 @@ export default function SuperadminChurchCreatePage() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [stateOrProvince, setStateOrProvince] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +41,18 @@ export default function SuperadminChurchCreatePage() {
       await apiFetch('/api/superadmin/churches', {
         method: 'POST',
         token,
-        body: JSON.stringify({ name, address, city, country, phone }),
+        body: JSON.stringify({
+          name,
+          address,
+          city,
+          stateOrProvince,
+          postalCode,
+          country,
+          phone,
+          email,
+          website,
+          contactPerson,
+        }),
       });
       router.replace('/dashboard/superadmin/churches');
     } catch (e) {
@@ -51,7 +67,7 @@ export default function SuperadminChurchCreatePage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/superadmin/churches"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
@@ -64,25 +80,51 @@ export default function SuperadminChurchCreatePage() {
           The public URL slug is generated automatically from the church name.
         </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Name</label>
             <input required value={name} onChange={(e) => setName(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Address</label>
             <input value={address} onChange={(e) => setAddress(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
             <input value={city} onChange={(e) => setCity(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
+            <input
+              value={stateOrProvince}
+              onChange={(e) => setStateOrProvince(e.target.value)}
+              className={field}
+            />
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
+            <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={field} />
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
             <input value={country} onChange={(e) => setCountry(e.target.value)} className={field} />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Phone</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Website</label>
+            <input value={website} onChange={(e) => setWebsite(e.target.value)} className={field} />
+            </div>
+            <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>
+            <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} />
+            </div>
           </div>
           {err ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

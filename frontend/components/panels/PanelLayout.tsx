@@ -6,6 +6,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2,
   Calendar,
+  CreditCard,
+  HandCoins,
+  FolderOpen,
   Home,
   Image as ImageIcon,
   LayoutDashboard,
@@ -69,6 +72,12 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (href === '/dashboard/admin/members') {
       return pathname === href || pathname.startsWith('/dashboard/admin/members/');
     }
+    if (href === '/dashboard/admin/subscriptions') {
+      return pathname === href || pathname.startsWith('/dashboard/admin/subscriptions/');
+    }
+    if (href === '/dashboard/admin/tithes') {
+      return pathname === href || pathname.startsWith('/dashboard/admin/tithes/');
+    }
     return pathname === href;
   }
   if (href === '/dashboard/superadmin') {
@@ -90,12 +99,12 @@ function navItemsFor(variant: PanelVariant, churchSlug?: string | null): NavItem
       },
       {
         href: '/dashboard/superadmin/churches',
-        label: 'Church management',
+        label: 'Church',
         icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
         href: '/dashboard/superadmin/users',
-        label: 'User management',
+        label: 'User',
         icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
@@ -109,8 +118,28 @@ function navItemsFor(variant: PanelVariant, churchSlug?: string | null): NavItem
         icon: <ImageIcon className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
+        href: '/dashboard/superadmin/media',
+        label: 'Media',
+        icon: <FolderOpen className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/subscriptions',
+        label: 'Subscriptions',
+        icon: <CreditCard className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/tithes',
+        label: 'Tithes',
+        icon: <HandCoins className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/church-change-requests',
+        label: 'Church change',
+        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
         href: '/dashboard/superadmin/frontend',
-        label: 'Frontend setting',
+        label: 'Frontend',
         icon: <LayoutTemplate className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
     ];
@@ -124,6 +153,17 @@ function navItemsFor(variant: PanelVariant, churchSlug?: string | null): NavItem
       icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
     },
   ];
+
+  items.push({
+    href: '/dashboard/admin/subscriptions',
+    label: 'Subscriptions',
+    icon: <CreditCard className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
+    href: '/dashboard/admin/tithes',
+    label: 'Tithes',
+    icon: <HandCoins className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
 
   if (churchSlug) {
     items.push({

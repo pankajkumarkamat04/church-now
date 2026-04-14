@@ -118,9 +118,11 @@ export default function SuperadminUsersListPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-neutral-600">
-                    {typeof u.church === 'object' && u.church && 'name' in u.church
-                      ? u.church.name
-                      : '—'}
+                    {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0
+                      ? u.adminChurches.map((c) => c.name).join(', ')
+                      : typeof u.church === 'object' && u.church && 'name' in u.church
+                        ? u.church.name
+                        : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <span

@@ -2,7 +2,8 @@ const Church = require('../models/Church');
 const User = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
-const CHURCH_FIELDS = 'name slug address city country phone isActive';
+const CHURCH_FIELDS =
+  'name slug address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
 
 async function getProfile(req, res) {
   try {

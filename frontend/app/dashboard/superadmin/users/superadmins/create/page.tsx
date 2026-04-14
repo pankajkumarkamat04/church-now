@@ -50,7 +50,7 @@ export default function SuperadminCreateSuperadminPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/superadmin/users"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
@@ -61,7 +61,8 @@ export default function SuperadminCreateSuperadminPage() {
         <h1 className="text-xl font-semibold text-neutral-900">Add superadmin</h1>
         <p className="mt-1 text-sm text-neutral-600">Superadmins can manage all churches and users.</p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input
               type="email"
@@ -70,8 +71,8 @@ export default function SuperadminCreateSuperadminPage() {
               onChange={(e) => setEmail(e.target.value)}
               className={field}
             />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
             <PasswordInput
               required
@@ -80,10 +81,11 @@ export default function SuperadminCreateSuperadminPage() {
               autoComplete="new-password"
               className={field}
             />
-          </div>
-          <div>
+            </div>
+            <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+            </div>
           </div>
           {err ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

@@ -46,6 +46,24 @@ async function listPublic(req, res) {
   }
 }
 
+async function listPublicGlobal(req, res) {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 12, 40);
+    const homeOnly = req.query.home === '1' || req.query.home === 'true';
+    const q = { published: true };
+    if (homeOnly) q.featuredOnHome = true;
+    const events = await Event.find(q)
+      .populate('church', 'name slug isActive')
+      .sort({ startsAt: -1, createdAt: -1 })
+      .limit(limit);
+    const active = events.filter((ev) => ev.church && ev.church.isActive !== false);
+    return res.json(active);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to list events' });
+  }
+}
+
 async function getPublicOne(req, res) {
   try {
     const { churchSlug, eventSlug } = req.params;
@@ -328,6 +346,7 @@ async function removeSuperadmin(req, res) {
 }
 
 module.exports = {
+  listPublicGlobal,
   listPublic,
   getPublicOne,
   listAdmin,

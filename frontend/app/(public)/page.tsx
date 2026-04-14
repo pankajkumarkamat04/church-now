@@ -3,7 +3,7 @@ import { ArrowRight, Calendar, Heart, Users } from 'lucide-react';
 import { publicGet } from '@/lib/publicApi';
 
 type GlobalPublicSitePayload = {
-  site: Record<string, string>;
+  site: Record<string, string | undefined>;
 };
 
 const FALLBACK_HERO_TITLE = 'A simple home for your church online';
@@ -13,54 +13,31 @@ const FALLBACK_ABOUT_TITLE = 'About';
 const FALLBACK_ABOUT_TEXT =
   'Church OS helps you share who you are, what you do, and when you meet. Leaders manage content; members see a clear profile and church details—nothing flashy, just what you need.';
 
-const sampleEvents = [
-  {
-    title: 'Community worship',
-    date: 'Sundays · 10:00 AM',
-    desc: 'Music, prayer, and fellowship for everyone.',
-  },
-  {
-    title: 'Youth gathering',
-    date: 'Monthly · 4:00 PM',
-    desc: 'Food, games, and small groups for young people.',
-  },
-  {
-    title: 'Serve day',
-    date: 'First Saturday · 9:00 AM',
-    desc: 'Volunteer together in the neighborhood.',
-  },
-];
+type PublicHomepageEvent = {
+  _id: string;
+  title: string;
+  excerpt?: string;
+  startsAt?: string;
+  church?: { name?: string; slug?: string };
+};
 
-const galleryImages = [
-  {
-    src: 'https://images.unsplash.com/photo-1438232992991-995b7058c3ba?w=600&q=80',
-    alt: 'Church interior',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1507692049940-4ca576c11114?w=600&q=80',
-    alt: 'Prayer',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=600&q=80',
-    alt: 'Outdoor gathering',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=600&q=80',
-    alt: 'Celebration',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1478147427282-58a87a120781?w=600&q=80',
-    alt: 'Stained glass',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=600&q=80',
-    alt: 'Small group',
-  },
-];
+type PublicHomepageGalleryItem = {
+  _id: string;
+  title?: string;
+  imageUrl: string;
+  caption?: string;
+  church?: { name?: string; slug?: string };
+};
 
 export default async function HomePage() {
-  const data = await publicGet<GlobalPublicSitePayload>('/api/public/site');
+  const [data, eventsData, galleryData] = await Promise.all([
+    publicGet<GlobalPublicSitePayload>('/api/public/site'),
+    publicGet<PublicHomepageEvent[]>('/api/public/events?home=1&limit=6'),
+    publicGet<PublicHomepageGalleryItem[]>('/api/public/gallery?home=1&limit=9'),
+  ]);
   const s = data?.site ?? {};
+  const events = eventsData ?? [];
+  const galleryImages = galleryData ?? [];
 
   const heroTitle = (s.heroTitle && s.heroTitle.trim()) || FALLBACK_HERO_TITLE;
   const heroSubtitle = (s.heroSubtitle && s.heroSubtitle.trim()) || FALLBACK_HERO_SUB;
@@ -68,6 +45,23 @@ export default async function HomePage() {
   const aboutTitle = (s.miniAboutTitle && s.miniAboutTitle.trim()) || FALLBACK_ABOUT_TITLE;
   const aboutText = (s.miniAboutText && s.miniAboutText.trim()) || FALLBACK_ABOUT_TEXT;
   const aboutImageUrl = (s.miniAboutImageUrl && s.miniAboutImageUrl.trim()) || '';
+  const aboutBoxes = [
+    {
+      icon: Heart,
+      title: (s.aboutBox1Title && s.aboutBox1Title.trim()) || 'Plain and clear',
+      text: (s.aboutBox1Text && s.aboutBox1Text.trim()) || 'Interfaces that stay out of the way.',
+    },
+    {
+      icon: Users,
+      title: (s.aboutBox2Title && s.aboutBox2Title.trim()) || 'Roles that fit',
+      text: (s.aboutBox2Text && s.aboutBox2Text.trim()) || 'Superadmin, church admin, and member views.',
+    },
+    {
+      icon: Calendar,
+      title: (s.aboutBox3Title && s.aboutBox3Title.trim()) || 'Life together',
+      text: (s.aboutBox3Text && s.aboutBox3Text.trim()) || 'Events and photos tell your story.',
+    },
+  ];
 
   return (
     <main className="bg-white">
@@ -154,23 +148,7 @@ export default async function HomePage() {
             </div>
           </div>
           <ul className="mt-10 grid gap-6 sm:grid-cols-3">
-            {[
-              {
-                icon: Heart,
-                title: 'Plain and clear',
-                text: 'Interfaces that stay out of the way.',
-              },
-              {
-                icon: Users,
-                title: 'Roles that fit',
-                text: 'Superadmin, church admin, and member views.',
-              },
-              {
-                icon: Calendar,
-                title: 'Life together',
-                text: 'Events and photos tell your story.',
-              },
-            ].map((item) => (
+            {aboutBoxes.map((item) => (
               <li
                 key={item.title}
                 className="rounded-lg border border-neutral-200 bg-white p-5"
@@ -199,8 +177,7 @@ export default async function HomePage() {
                 Events
               </h2>
               <p className="mt-2 max-w-xl text-neutral-600">
-                Examples of what you can list. Your church sets real dates and details in the admin
-                tools.
+                Featured events across churches.
               </p>
             </div>
             <Link
@@ -212,18 +189,19 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {sampleEvents.map((ev) => (
-              <article
-                key={ev.title}
-                className="rounded-lg border border-neutral-200 bg-white p-5"
-              >
+            {events.map((ev) => (
+              <article key={ev._id} className="rounded-lg border border-neutral-200 bg-white p-5">
                 <Calendar className="size-5 text-neutral-600" aria-hidden />
                 <h3 className="mt-3 text-base font-semibold text-neutral-900">{ev.title}</h3>
-                <p className="mt-1 text-sm text-neutral-500">{ev.date}</p>
-                <p className="mt-2 text-sm text-neutral-600">{ev.desc}</p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  {ev.startsAt ? new Date(ev.startsAt).toLocaleString() : 'Date TBA'}
+                </p>
+                {ev.church?.name ? <p className="mt-1 text-xs text-neutral-500">{ev.church.name}</p> : null}
+                <p className="mt-2 text-sm text-neutral-600">{ev.excerpt || 'Event details available on church page.'}</p>
               </article>
             ))}
           </div>
+          {events.length === 0 ? <p className="mt-8 text-sm text-neutral-500">No featured events yet.</p> : null}
         </div>
       </section>
 
@@ -241,25 +219,27 @@ export default async function HomePage() {
               Gallery
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-neutral-600">
-              A few sample images. Your congregation replaces these with real photos from the
-              dashboard.
+              Featured gallery photos from churches.
             </p>
           </div>
           <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
             {galleryImages.map((img) => (
               <div
-                key={img.src}
+                key={img._id}
                 className="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={img.src}
-                  alt={img.alt}
+                  src={img.imageUrl}
+                  alt={img.title || img.caption || 'Gallery'}
                   className="aspect-square w-full object-cover"
                 />
               </div>
             ))}
           </div>
+          {galleryImages.length === 0 ? (
+            <p className="mt-8 text-center text-sm text-neutral-500">No featured photos yet.</p>
+          ) : null}
         </div>
       </section>
     </main>

@@ -3,7 +3,8 @@ const Church = require('../models/Church');
 const GlobalSiteContent = require('../models/GlobalSiteContent');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
-const CHURCH_POPULATE = 'name slug address city country phone isActive';
+const CHURCH_POPULATE =
+  'name slug address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
 
 function churchId(req) {
   return req.user?.church;
@@ -21,6 +22,12 @@ async function getOrCreateGlobalSiteContent() {
     miniAboutTitle: 'About us',
     miniAboutText: '',
     miniAboutImageUrl: '',
+    aboutBox1Title: 'Plain and clear',
+    aboutBox1Text: 'Interfaces that stay out of the way.',
+    aboutBox2Title: 'Roles that fit',
+    aboutBox2Text: 'Superadmin, church admin, and member views.',
+    aboutBox3Title: 'Life together',
+    aboutBox3Text: 'Events and photos tell your story.',
     aboutPageTitle: 'About us',
     aboutPageBody: '## Our story\n\nTell your congregation’s story here.',
     contactHeading: 'Contact',
@@ -39,6 +46,12 @@ const SITE_CONTENT_FIELDS = [
   'miniAboutTitle',
   'miniAboutText',
   'miniAboutImageUrl',
+  'aboutBox1Title',
+  'aboutBox1Text',
+  'aboutBox2Title',
+  'aboutBox2Text',
+  'aboutBox3Title',
+  'aboutBox3Text',
   'aboutPageTitle',
   'aboutPageBody',
   'contactHeading',
@@ -48,7 +61,21 @@ const SITE_CONTENT_FIELDS = [
   'contactAddress',
 ];
 
-const CHURCH_PATCH_KEYS = ['name', 'address', 'city', 'country', 'phone', 'slug'];
+const CHURCH_PATCH_KEYS = [
+  'name',
+  'address',
+  'city',
+  'stateOrProvince',
+  'postalCode',
+  'country',
+  'phone',
+  'email',
+  'website',
+  'contactPerson',
+  'latitude',
+  'longitude',
+  'slug',
+];
 
 function applySiteFields(site, body) {
   for (const key of SITE_CONTENT_FIELDS) {
@@ -100,7 +127,21 @@ async function updateMyChurch(req, res) {
     if (!id) {
       return res.status(400).json({ message: 'No church assigned' });
     }
-    const allowed = ['name', 'address', 'city', 'country', 'phone', 'slug'];
+    const allowed = [
+      'name',
+      'address',
+      'city',
+      'stateOrProvince',
+      'postalCode',
+      'country',
+      'phone',
+      'email',
+      'website',
+      'contactPerson',
+      'latitude',
+      'longitude',
+      'slug',
+    ];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -147,9 +188,21 @@ async function listMembers(req, res) {
 
 async function createMember(req, res) {
   try {
-    const { email, password, fullName, gender, dateOfBirth, address } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    const {
+      email,
+      password,
+      firstName,
+      surname,
+      idNumber,
+      contactPhone,
+      gender,
+      dateOfBirth,
+      address,
+    } = req.body;
+    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone) {
+      return res.status(400).json({
+        message: 'Email, password, firstName, surname, idNumber, and contactPhone are required',
+      });
     }
     if (!churchId(req)) {
       return res.status(400).json({ message: 'No church assigned' });
@@ -161,7 +214,11 @@ async function createMember(req, res) {
     const member = new User({
       email: email.toLowerCase(),
       password,
-      fullName: String(fullName || '').trim(),
+      firstName: String(firstName).trim(),
+      surname: String(surname).trim(),
+      fullName: `${String(firstName).trim()} ${String(surname).trim()}`.trim(),
+      idNumber: String(idNumber).trim(),
+      contactPhone: String(contactPhone).trim(),
       role: 'MEMBER',
       church: churchId(req),
     });
@@ -332,6 +389,18 @@ async function getPublicGlobalSite(_req, res) {
   }
 }
 
+async function listPublicChurches(_req, res) {
+  try {
+    const churches = await Church.find({ isActive: true })
+      .sort({ name: 1 })
+      .select('name slug city country');
+    return res.json(churches);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load churches' });
+  }
+}
+
 async function getPublicSite(req, res) {
   try {
     const { churchSlug } = req.params;
@@ -367,6 +436,7 @@ module.exports = {
   putAdminSite,
   getPublicSite,
   getPublicGlobalSite,
+  listPublicChurches,
   getGlobalSite,
   putGlobalSite,
 };

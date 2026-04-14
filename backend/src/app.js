@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 
 const authRoutes = require('./routes/authRoutes');
 const superadminRoutes = require('./routes/superadminRoutes');
@@ -18,6 +19,7 @@ app.use(
 );
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

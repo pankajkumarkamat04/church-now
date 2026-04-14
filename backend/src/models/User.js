@@ -27,7 +27,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     password: { type: String, required: true, minlength: 6, select: false },
+    firstName: { type: String, trim: true, default: '' },
+    surname: { type: String, trim: true, default: '' },
     fullName: { type: String, trim: true, default: '' },
+    idNumber: { type: String, trim: true, default: '' },
+    contactPhone: { type: String, trim: true, default: '' },
     gender: {
       type: String,
       enum: GENDERS,
@@ -44,6 +48,12 @@ const userSchema = new mongoose.Schema(
       ref: 'Church',
       default: null,
     },
+    adminChurches: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Church',
+      },
+    ],
     isActive: { type: Boolean, default: true },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },

@@ -5,6 +5,12 @@ export type SuperadminSiteContentFields = {
   miniAboutTitle?: string;
   miniAboutText?: string;
   miniAboutImageUrl?: string;
+  aboutBox1Title?: string;
+  aboutBox1Text?: string;
+  aboutBox2Title?: string;
+  aboutBox2Text?: string;
+  aboutBox3Title?: string;
+  aboutBox3Text?: string;
   aboutPageTitle?: string;
   aboutPageBody?: string;
   contactHeading?: string;

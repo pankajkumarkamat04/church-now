@@ -16,7 +16,18 @@ export default function AdminMemberCreatePage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [surname, setSurname] = useState('');
+  const [idNumber, setIdNumber] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY'>('MALE');
+  const [contactPhone, setContactPhone] = useState('');
+  const [line1, setLine1] = useState('');
+  const [line2, setLine2] = useState('');
+  const [city, setCity] = useState('');
+  const [stateOrProvince, setStateOrProvince] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [country, setCountry] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,7 +46,17 @@ export default function AdminMemberCreatePage() {
       await apiFetch('/api/admin/members', {
         method: 'POST',
         token,
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({
+          email,
+          password,
+          firstName,
+          surname,
+          idNumber,
+          dateOfBirth,
+          gender,
+          contactPhone,
+          address: { line1, line2, city, stateOrProvince, postalCode, country },
+        }),
       });
       router.replace('/dashboard/admin/members');
     } catch (e) {
@@ -50,7 +71,7 @@ export default function AdminMemberCreatePage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/admin/members"
         className="text-sm font-medium text-sky-700 hover:text-sky-900"
@@ -63,7 +84,8 @@ export default function AdminMemberCreatePage() {
           New members are saved to your church via the API and can sign in immediately.
         </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input
               type="email"
@@ -72,8 +94,8 @@ export default function AdminMemberCreatePage() {
               onChange={(e) => setEmail(e.target.value)}
               className={field}
             />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
             <PasswordInput
               required
@@ -82,10 +104,60 @@ export default function AdminMemberCreatePage() {
               autoComplete="new-password"
               className={field}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
+              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Surname</label>
+              <input required value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">ID</label>
+              <input required value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
+              <input required type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+              <select value={gender} onChange={(e) => setGender(e.target.value as 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY')} className={field}>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+                <option value="PREFER_NOT_SAY">Prefer not to say</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>
+              <input required value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
+              <input required value={line1} onChange={(e) => setLine1(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
+              <input value={line2} onChange={(e) => setLine2(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
+              <input required value={city} onChange={(e) => setCity(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
+              <input required value={stateOrProvince} onChange={(e) => setStateOrProvince(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
+              <input required value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
+              <input required value={country} onChange={(e) => setCountry(e.target.value)} className={field} />
+            </div>
           </div>
           {err ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

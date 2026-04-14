@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Church, Menu, X } from 'lucide-react';
+import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
 
 const marketingNav = [
   { href: '#about', label: 'About' },
@@ -16,7 +17,10 @@ export type MarketingHeaderProps = {
 
 export function MarketingHeader({ variant = 'marketing' }: MarketingHeaderProps) {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
   const showMarketingNav = variant === 'marketing';
+  const dashboardHref = user ? dashboardPathForRole(user.role) : '/login';
+  const ctaLabel = user ? 'Dashboard' : 'Login / Register';
 
   return (
     <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 backdrop-blur-sm">
@@ -46,22 +50,10 @@ export function MarketingHeader({ variant = 'marketing' }: MarketingHeaderProps)
 
         <div className="flex items-center gap-2">
           <Link
-            href="/login"
-            className="hidden text-sm font-medium text-neutral-600 hover:text-neutral-900 sm:inline"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="hidden text-sm font-medium text-neutral-600 hover:text-neutral-900 sm:inline"
-          >
-            Sign up
-          </Link>
-          <Link
-            href="/login"
+            href={dashboardHref}
             className="rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
           >
-            Dashboard
+            {ctaLabel}
           </Link>
           <button
             type="button"
@@ -91,18 +83,11 @@ export function MarketingHeader({ variant = 'marketing' }: MarketingHeaderProps)
                 ))
               : null}
             <Link
-              href="/signup"
+              href={dashboardHref}
               className="rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
               onClick={() => setOpen(false)}
             >
-              Sign up
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-md px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
-              onClick={() => setOpen(false)}
-            >
-              Sign in
+              {ctaLabel}
             </Link>
           </nav>
         </div>

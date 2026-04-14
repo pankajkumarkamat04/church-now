@@ -16,7 +16,7 @@ export default function SuperadminCreateChurchAdminPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [churches, setChurches] = useState<ChurchRecord[]>([]);
-  const [churchId, setChurchId] = useState('');
+  const [churchIds, setChurchIds] = useState<string[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -27,7 +27,7 @@ export default function SuperadminCreateChurchAdminPage() {
     if (!token) return;
     const c = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
     setChurches(c);
-    setChurchId((prev) => prev || (c[0]?._id ?? ''));
+    setChurchIds((prev) => (prev.length ? prev : c[0]?._id ? [c[0]._id] : []));
   }, [token]);
 
   useEffect(() => {
@@ -44,14 +44,14 @@ export default function SuperadminCreateChurchAdminPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token || !churchId) return;
+    if (!token || churchIds.length === 0) return;
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch(`/api/superadmin/churches/${churchId}/admins`, {
+      await apiFetch(`/api/superadmin/churches/${churchIds[0]}/admins`, {
         method: 'POST',
         token,
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({ email, password, fullName, churchIds }),
       });
       router.replace('/dashboard/superadmin/users');
     } catch (e) {
@@ -66,7 +66,7 @@ export default function SuperadminCreateChurchAdminPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-4xl">
       <Link
         href="/dashboard/superadmin/users"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
@@ -77,23 +77,29 @@ export default function SuperadminCreateChurchAdminPage() {
         <h1 className="text-xl font-semibold text-neutral-900">Add church admin</h1>
         <p className="mt-1 text-sm text-neutral-600">Admins can manage members and content for the selected church.</p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Church</label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Churches</label>
             <select
+              multiple
+              value={churchIds}
+              onChange={(e) =>
+                setChurchIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))
+              }
+              className={`${field} min-h-[120px]`}
               required
-              value={churchId}
-              onChange={(e) => setChurchId(e.target.value)}
-              className={field}
             >
-              <option value="">Select church</option>
               {churches.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
                 </option>
               ))}
             </select>
-          </div>
-          <div>
+            <p className="mt-1 text-xs text-neutral-500">
+              Select one or more churches. The first selected church is primary.
+            </p>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input
               type="email"
@@ -102,8 +108,8 @@ export default function SuperadminCreateChurchAdminPage() {
               onChange={(e) => setEmail(e.target.value)}
               className={field}
             />
-          </div>
-          <div>
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
             <PasswordInput
               required
@@ -112,10 +118,11 @@ export default function SuperadminCreateChurchAdminPage() {
               autoComplete="new-password"
               className={field}
             />
-          </div>
-          <div>
+            </div>
+            <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+            </div>
           </div>
           {err ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -125,7 +132,7 @@ export default function SuperadminCreateChurchAdminPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              disabled={busy || !churchId}
+              disabled={busy || churchIds.length === 0}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
