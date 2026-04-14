@@ -1,0 +1,69 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const ROLES = ['SUPERADMIN', 'ADMIN', 'MEMBER'];
+
+const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_SAY'];
+
+const addressSchema = new mongoose.Schema(
+  {
+    line1: { type: String, trim: true, default: '' },
+    line2: { type: String, trim: true, default: '' },
+    city: { type: String, trim: true, default: '' },
+    stateOrProvince: { type: String, trim: true, default: '' },
+    postalCode: { type: String, trim: true, default: '' },
+    country: { type: String, trim: true, default: '' },
+  },
+  { _id: false }
+);
+
+const userSchema = new mongoose.Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: { type: String, required: true, minlength: 6, select: false },
+    fullName: { type: String, trim: true, default: '' },
+    gender: {
+      type: String,
+      enum: GENDERS,
+    },
+    dateOfBirth: { type: Date, default: null },
+    address: { type: addressSchema, default: () => ({}) },
+    role: {
+      type: String,
+      enum: ROLES,
+      required: true,
+    },
+    church: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Church',
+      default: null,
+    },
+    isActive: { type: Boolean, default: true },
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
+  },
+  { timestamps: true }
+);
+
+userSchema.pre('save', async function hashPassword() {
+  if (this.isModified('password')) {
+    this.passwordResetToken = undefined;
+    this.passwordResetExpires = undefined;
+  }
+  if (!this.isModified('password')) return;
+  this.password = await bcrypt.hash(this.password, 12);
+});
+
+userSchema.methods.comparePassword = function comparePassword(candidate) {
+  return bcrypt.compare(candidate, this.password);
+};
+
+module.exports = mongoose.model('User', userSchema);
+module.exports.ROLES = ROLES;
+module.exports.GENDERS = GENDERS;
