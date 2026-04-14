@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  Building2,
   CircleUserRound,
   CreditCard,
   HandCoins,
@@ -51,6 +52,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const subscriptionsActive = pathname === '/dashboard/member/subscriptions';
   const tithesActive = pathname === '/dashboard/member/tithes';
   const accountActive = pathname === '/dashboard/member/account';
+  const conferencesActive = pathname === '/dashboard/member/conferences';
 
   const itemClass = (active: boolean) =>
     `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
@@ -83,6 +85,9 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
               </Link>
               <Link href="/dashboard/member/subscriptions" className="hover:text-neutral-900">
                 Subscription
+              </Link>
+              <Link href="/dashboard/member/conferences" className="hover:text-neutral-900">
+                Conferences
               </Link>
               <Link href="/dashboard/member/tithes" className="hover:text-neutral-900">
                 Tithes
@@ -120,6 +125,10 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                 <Link href="/dashboard/member/subscriptions" className={itemClass(subscriptionsActive)}>
                   <CreditCard className="size-4" />
                   Subscription
+                </Link>
+                <Link href="/dashboard/member/conferences" className={itemClass(conferencesActive)}>
+                  <Building2 className="size-4" />
+                  Conferences
                 </Link>
                 <Link href="/dashboard/member/tithes" className={itemClass(tithesActive)}>
                   <HandCoins className="size-4" />

@@ -13,12 +13,21 @@ type SignupChurch = {
   _id: string;
   name: string;
 };
+type Conference = { _id: string; name: string };
+type Council = { _id: string; name: string };
 
 export default function SignupPage() {
   const { register, user, loading } = useAuth();
   const router = useRouter();
   const [churchId, setChurchId] = useState('');
   const [churches, setChurches] = useState<SignupChurch[]>([]);
+  const [conferenceIds, setConferenceIds] = useState<string[]>([]);
+  const [conferences, setConferences] = useState<Conference[]>([]);
+  const [councils, setCouncils] = useState<Council[]>([]);
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
+  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>(
+    'MEMBER'
+  );
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [idNumber, setIdNumber] = useState('');
@@ -43,22 +52,60 @@ export default function SignupPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    async function loadChurches() {
+    async function loadBaseData() {
       try {
-        const res = await fetch(`${getApiBase()}/api/public/churches`);
-        if (!res.ok) return;
-        const rows = (await res.json()) as SignupChurch[];
-        setChurches(rows);
-        setChurchId((prev) => prev || rows[0]?._id || '');
+        const [churchRes, confRes] = await Promise.all([
+          fetch(`${getApiBase()}/api/public/churches`),
+          fetch(`${getApiBase()}/api/public/conferences`),
+        ]);
+        if (churchRes.ok) {
+          const rows = (await churchRes.json()) as SignupChurch[];
+          setChurches(rows);
+          setChurchId((prev) => prev || rows[0]?._id || '');
+        }
+        if (confRes.ok) {
+          const rows = (await confRes.json()) as Conference[];
+          setConferences(rows);
+          setConferenceIds((prev) => (prev.length ? prev : rows[0]?._id ? [rows[0]._id] : []));
+        }
       } catch {
         // keep form usable even if dropdown fails
       }
     }
-    loadChurches();
+    loadBaseData();
   }, []);
+
+  useEffect(() => {
+    async function loadConferenceData() {
+      if (!conferenceIds.length) {
+        setCouncils([]);
+        setCouncilIds([]);
+        return;
+      }
+      try {
+        const responses = await Promise.all(
+          conferenceIds.map((id) => fetch(`${getApiBase()}/api/public/conferences/${id}/councils`))
+        );
+        const rows = await Promise.all(
+          responses.map(async (res) => (res.ok ? ((await res.json()) as Council[]) : []))
+        );
+        const merged = new Map<string, Council>();
+        rows.flat().forEach((row) => merged.set(row._id, row));
+        setCouncils(Array.from(merged.values()));
+        setCouncilIds([]);
+      } catch {
+        setCouncils([]);
+      }
+    }
+    loadConferenceData();
+  }, [conferenceIds]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (conferenceIds.length === 0) {
+      setError('Please select at least one conference');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -66,6 +113,9 @@ export default function SignupPage() {
         email,
         password,
         churchId: churchId.trim(),
+        conferenceIds,
+        memberCategory,
+        councilIds,
         firstName: firstName.trim(),
         surname: surname.trim(),
         idNumber: idNumber.trim(),
@@ -100,6 +150,62 @@ export default function SignupPage() {
       <p className="mt-1 text-center text-sm text-neutral-600">Create your member account.</p>
 
       <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+        <div className="md:col-span-2">
+          <label htmlFor="conference" className="mb-1 block text-sm font-medium text-neutral-700">
+            Conferences (you can select multiple)
+          </label>
+          <select
+            id="conference"
+            multiple
+            value={conferenceIds}
+            onChange={(e) => setConferenceIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
+            required
+            className="min-h-[110px] w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+          >
+            {conferences.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="memberCategory" className="mb-1 block text-sm font-medium text-neutral-700">
+            Member category
+          </label>
+          <select
+            id="memberCategory"
+            value={memberCategory}
+            onChange={(e) =>
+              setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR')
+            }
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+          >
+            <option value="MEMBER">Member</option>
+            <option value="PRESIDENT">President</option>
+            <option value="MODERATOR">Moderator</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label htmlFor="councils" className="mb-1 block text-sm font-medium text-neutral-700">
+            Councils (you can select multiple)
+          </label>
+          <select
+            id="councils"
+            multiple
+            value={councilIds}
+            onChange={(e) =>
+              setCouncilIds(Array.from(e.target.selectedOptions).map((o) => o.value))
+            }
+            className="min-h-[110px] w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+          >
+            {councils.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="md:col-span-2">
           <label htmlFor="church" className="mb-1 block text-sm font-medium text-neutral-700">
             Church

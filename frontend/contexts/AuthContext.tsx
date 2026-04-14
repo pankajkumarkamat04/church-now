@@ -21,6 +21,9 @@ type RegisterInput = {
   email: string;
   password: string;
   churchId: string;
+  conferenceIds: string[];
+  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR';
+  councilIds?: string[];
   firstName: string;
   surname: string;
   idNumber: string;

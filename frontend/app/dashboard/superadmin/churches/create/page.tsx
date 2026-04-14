@@ -76,9 +76,6 @@ export default function SuperadminChurchCreatePage() {
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Add church</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          The public URL slug is generated automatically from the church name.
-        </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div>

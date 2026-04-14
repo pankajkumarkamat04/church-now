@@ -78,13 +78,13 @@ async function listChurchSubscriptions(req, res) {
 
 async function listSuperadminPlans(req, res) {
   const plans = await SubscriptionPlan.find({})
-    .populate('church', 'name slug')
+    .populate('church', 'name')
     .sort({ createdAt: -1 });
   return res.json(plans);
 }
 
 async function getSuperadminPlan(req, res) {
-  const plan = await SubscriptionPlan.findById(req.params.planId).populate('church', 'name slug');
+  const plan = await SubscriptionPlan.findById(req.params.planId).populate('church', 'name');
   if (!plan) return res.status(404).json({ message: 'Plan not found' });
   return res.json(plan);
 }
@@ -102,7 +102,7 @@ async function createSuperadminPlan(req, res) {
     currency: String(currency || 'USD').toUpperCase(),
     isActive: isActive !== false,
   });
-  const populated = await SubscriptionPlan.findById(plan._id).populate('church', 'name slug');
+  const populated = await SubscriptionPlan.findById(plan._id).populate('church', 'name');
   return res.status(201).json(populated);
 }
 
@@ -120,7 +120,7 @@ async function updateSuperadminPlan(req, res) {
     }
   }
   await plan.save();
-  const populated = await SubscriptionPlan.findById(plan._id).populate('church', 'name slug');
+  const populated = await SubscriptionPlan.findById(plan._id).populate('church', 'name');
   return res.json(populated);
 }
 
@@ -136,7 +136,7 @@ async function removeSuperadminPlan(req, res) {
 
 async function listSuperadminSubscriptions(req, res) {
   const subs = await UserSubscription.find({})
-    .populate('church', 'name slug')
+    .populate('church', 'name')
     .populate('user', 'email fullName')
     .populate('plan', 'name monthlyPrice currency')
     .sort({ createdAt: -1 });

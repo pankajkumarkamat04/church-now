@@ -1,7 +1,6 @@
 export type ChurchRecord = {
   _id: string;
   name: string;
-  slug?: string;
   address?: string;
   city?: string;
   stateOrProvince?: string;

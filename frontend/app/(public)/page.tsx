@@ -18,7 +18,7 @@ type PublicHomepageEvent = {
   title: string;
   excerpt?: string;
   startsAt?: string;
-  church?: { name?: string; slug?: string };
+  church?: { name?: string };
 };
 
 type PublicHomepageGalleryItem = {
@@ -26,7 +26,7 @@ type PublicHomepageGalleryItem = {
   title?: string;
   imageUrl: string;
   caption?: string;
-  church?: { name?: string; slug?: string };
+  church?: { name?: string };
 };
 
 export default async function HomePage() {

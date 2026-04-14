@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 type Church = {
   _id: string;
   name: string;
-  slug?: string;
   address?: string;
   city?: string;
   country?: string;

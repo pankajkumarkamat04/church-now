@@ -1,10 +1,13 @@
 const User = require('../models/User');
 const Church = require('../models/Church');
 const GlobalSiteContent = require('../models/GlobalSiteContent');
+const Conference = require('../models/Conference');
+const Council = require('../models/Council');
+const { MEMBER_CATEGORIES } = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
 const CHURCH_POPULATE =
-  'name slug address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
+  'name address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
 
 function churchId(req) {
   return req.user?.church;
@@ -74,7 +77,6 @@ const CHURCH_PATCH_KEYS = [
   'contactPerson',
   'latitude',
   'longitude',
-  'slug',
 ];
 
 function applySiteFields(site, body) {
@@ -88,13 +90,6 @@ async function applyChurchPatchFromBody(church, body, churchId) {
   for (const key of CHURCH_PATCH_KEYS) {
     if (body.church && body.church[key] !== undefined) {
       churchUpdates[key] = body.church[key];
-    }
-  }
-  if (churchUpdates.slug) {
-    churchUpdates.slug = String(churchUpdates.slug).toLowerCase().trim();
-    const taken = await Church.findOne({ slug: churchUpdates.slug, _id: { $ne: churchId } });
-    if (taken) {
-      return { error: 'That site URL slug is already in use', status: 409 };
     }
   }
   if (Object.keys(churchUpdates).length) {
@@ -140,18 +135,10 @@ async function updateMyChurch(req, res) {
       'contactPerson',
       'latitude',
       'longitude',
-      'slug',
     ];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
-    if (updates.slug) {
-      updates.slug = String(updates.slug).toLowerCase().trim();
-      const taken = await Church.findOne({ slug: updates.slug, _id: { $ne: id } });
-      if (taken) {
-        return res.status(409).json({ message: 'That site URL slug is already in use' });
-      }
     }
     const church = await Church.findByIdAndUpdate(id, { $set: updates }, {
       new: true,
@@ -178,7 +165,9 @@ async function listMembers(req, res) {
     })
       .sort({ email: 1 })
       .select('-password')
-      .populate('church', CHURCH_POPULATE);
+      .populate('church', CHURCH_POPULATE)
+      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
+      .populate('councils', 'name');
     return res.json(members.map((m) => toProfileResponse(m)));
   } catch (err) {
     console.error(err);
@@ -195,13 +184,17 @@ async function createMember(req, res) {
       surname,
       idNumber,
       contactPhone,
+      conferenceIds,
+      councilIds,
+      memberCategory,
       gender,
       dateOfBirth,
       address,
     } = req.body;
-    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone) {
+    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone || !Array.isArray(conferenceIds) || conferenceIds.length === 0) {
       return res.status(400).json({
-        message: 'Email, password, firstName, surname, idNumber, and contactPhone are required',
+        message:
+          'Email, password, firstName, surname, idNumber, contactPhone, and conferenceIds are required',
       });
     }
     if (!churchId(req)) {
@@ -222,12 +215,42 @@ async function createMember(req, res) {
       role: 'MEMBER',
       church: churchId(req),
     });
-    const patchResult = applyMemberProfilePatch(member, { gender, dateOfBirth, address });
+    const selectedConferenceIds = Array.from(new Set(conferenceIds.map((id) => String(id)).filter(Boolean)));
+    const conferences = await Conference.find({ _id: { $in: selectedConferenceIds }, isActive: true }).select('_id');
+    if (conferences.length !== selectedConferenceIds.length) {
+      return res.status(400).json({ message: 'One or more selected conferences are invalid' });
+    }
+    const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
+    if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
+      return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
+    }
+    const validatedCouncilIds = Array.isArray(councilIds) ? councilIds : [];
+    if (validatedCouncilIds.length > 0) {
+      const councils = await Council.find({
+        _id: { $in: validatedCouncilIds },
+        conference: { $in: selectedConferenceIds },
+        isActive: true,
+      }).select('_id');
+      if (councils.length !== validatedCouncilIds.length) {
+        return res.status(400).json({ message: 'One or more selected councils are invalid' });
+      }
+    }
+    const patchResult = applyMemberProfilePatch(member, {
+      conferenceIds: selectedConferenceIds,
+      councilIds: validatedCouncilIds,
+      memberCategory: normalizedCategory,
+      gender,
+      dateOfBirth,
+      address,
+    });
     if (patchResult.error) {
       return res.status(400).json({ message: patchResult.error });
     }
     await member.save();
-    const populated = await User.findById(member._id).populate('church', CHURCH_POPULATE);
+    const populated = await User.findById(member._id)
+      .populate('church', CHURCH_POPULATE)
+      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
+      .populate('councils', 'name');
     return res.status(201).json(toProfileResponse(populated));
   } catch (err) {
     if (err.code === 11000) {
@@ -249,7 +272,9 @@ async function getMember(req, res) {
       role: 'MEMBER',
     })
       .select('-password')
-      .populate('church', CHURCH_POPULATE);
+      .populate('church', CHURCH_POPULATE)
+      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
+      .populate('councils', 'name');
     if (!member) {
       return res.status(404).json({ message: 'Member not found' });
     }
@@ -275,7 +300,10 @@ async function updateMember(req, res) {
       return res.status(400).json({ message: patchResult.error });
     }
     await member.save();
-    const populated = await User.findById(member._id).populate('church', CHURCH_POPULATE);
+    const populated = await User.findById(member._id)
+      .populate('church', CHURCH_POPULATE)
+      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
+      .populate('councils', 'name');
     return res.json(toProfileResponse(populated));
   } catch (err) {
     console.error(err);
@@ -393,34 +421,11 @@ async function listPublicChurches(_req, res) {
   try {
     const churches = await Church.find({ isActive: true })
       .sort({ name: 1 })
-      .select('name slug city country');
+      .select('name city country');
     return res.json(churches);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load churches' });
-  }
-}
-
-async function getPublicSite(req, res) {
-  try {
-    const { churchSlug } = req.params;
-    const church = await Church.findOne({ slug: churchSlug, isActive: true });
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
-    }
-    const site = await getOrCreateGlobalSiteContent();
-    return res.json({
-      church: {
-        name: church.name,
-        slug: church.slug,
-        city: church.city,
-        country: church.country,
-      },
-      site: site.toObject(),
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load site' });
   }
 }
 
@@ -434,7 +439,6 @@ module.exports = {
   deactivateMember,
   getAdminSite,
   putAdminSite,
-  getPublicSite,
   getPublicGlobalSite,
   listPublicChurches,
   getGlobalSite,

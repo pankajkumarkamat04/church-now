@@ -13,13 +13,13 @@ type PlanRow = {
   monthlyPrice: number;
   currency: string;
   isActive: boolean;
-  church?: { name?: string; slug?: string };
+  church?: { name?: string };
 };
 
 type SubscriptionRow = {
   _id: string;
   status: string;
-  church?: { name?: string; slug?: string };
+  church?: { name?: string };
   user?: { fullName?: string; email?: string };
   plan?: { name?: string; monthlyPrice?: number; currency?: string };
   startDate?: string;

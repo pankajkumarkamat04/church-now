@@ -4,8 +4,8 @@ const ChurchChangeRequest = require('../models/ChurchChangeRequest');
 
 async function listMyChurchChangeRequests(req, res) {
   const rows = await ChurchChangeRequest.find({ user: req.user._id })
-    .populate('fromChurch', 'name slug')
-    .populate('toChurch', 'name slug')
+    .populate('fromChurch', 'name')
+    .populate('toChurch', 'name')
     .populate('reviewedBy', 'fullName email')
     .sort({ createdAt: -1 });
   return res.json(rows);
@@ -42,8 +42,8 @@ async function createChurchChangeRequest(req, res) {
     status: 'PENDING',
   });
   const populated = await ChurchChangeRequest.findById(row._id)
-    .populate('fromChurch', 'name slug')
-    .populate('toChurch', 'name slug');
+    .populate('fromChurch', 'name')
+    .populate('toChurch', 'name');
   return res.status(201).json(populated);
 }
 
@@ -55,8 +55,8 @@ async function listSuperadminChurchChangeRequests(req, res) {
   }
   const rows = await ChurchChangeRequest.find(filter)
     .populate('user', 'fullName email')
-    .populate('fromChurch', 'name slug')
-    .populate('toChurch', 'name slug')
+    .populate('fromChurch', 'name')
+    .populate('toChurch', 'name')
     .populate('reviewedBy', 'fullName email')
     .sort({ createdAt: -1 });
   return res.json(rows);
@@ -93,8 +93,8 @@ async function decideChurchChangeRequest(req, res) {
 
   const populated = await ChurchChangeRequest.findById(row._id)
     .populate('user', 'fullName email')
-    .populate('fromChurch', 'name slug')
-    .populate('toChurch', 'name slug')
+    .populate('fromChurch', 'name')
+    .populate('toChurch', 'name')
     .populate('reviewedBy', 'fullName email');
   return res.json(populated);
 }

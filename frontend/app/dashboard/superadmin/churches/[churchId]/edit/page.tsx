@@ -18,7 +18,6 @@ export default function SuperadminChurchEditPage() {
   const router = useRouter();
   const [row, setRow] = useState<ChurchRecord | null>(null);
   const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [stateOrProvince, setStateOrProvince] = useState('');
@@ -39,7 +38,6 @@ export default function SuperadminChurchEditPage() {
     const c = await apiFetch<ChurchRecord>(`/api/superadmin/churches/${churchId}`, { token });
     setRow(c);
     setName(c.name || '');
-    setSlug(c.slug || '');
     setAddress(c.address || '');
     setCity(c.city || '');
     setStateOrProvince(c.stateOrProvince || '');
@@ -75,7 +73,6 @@ export default function SuperadminChurchEditPage() {
         token,
         body: JSON.stringify({
           name,
-          slug,
           address,
           city,
           stateOrProvince,
@@ -136,16 +133,6 @@ export default function SuperadminChurchEditPage() {
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Name</label>
             <input required value={name} onChange={(e) => setName(e.target.value)} className={field} />
-            </div>
-            <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">URL slug</label>
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-              className={field}
-              placeholder="grace-church"
-            />
-            <p className="mt-1 text-xs text-neutral-500">Lowercase letters, numbers, hyphens only.</p>
             </div>
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Address</label>

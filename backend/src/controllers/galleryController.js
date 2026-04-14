@@ -1,28 +1,8 @@
 const GalleryItem = require('../models/GalleryItem');
-const Church = require('../models/Church');
 const { assertChurchById } = require('../utils/assertChurch');
 
 function churchId(req) {
   return req.user?.church;
-}
-
-async function listPublic(req, res) {
-  try {
-    const { churchSlug } = req.params;
-    const church = await Church.findOne({ slug: churchSlug, isActive: true });
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
-    }
-    const limit = Math.min(Number(req.query.limit) || 80, 120);
-    const homeOnly = req.query.home === '1' || req.query.home === 'true';
-    const q = { church: church._id, published: true };
-    if (homeOnly) q.showOnHome = true;
-    const items = await GalleryItem.find(q).sort({ sortOrder: 1, createdAt: -1 }).limit(limit);
-    return res.json(items);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to list gallery' });
-  }
 }
 
 async function listPublicGlobal(req, res) {
@@ -32,7 +12,7 @@ async function listPublicGlobal(req, res) {
     const q = { published: true };
     if (homeOnly) q.showOnHome = true;
     const items = await GalleryItem.find(q)
-      .populate('church', 'name slug isActive')
+      .populate('church', 'name isActive')
       .sort({ sortOrder: 1, createdAt: -1 })
       .limit(limit);
     const active = items.filter((item) => item.church && item.church.isActive !== false);
@@ -230,7 +210,6 @@ async function removeSuperadmin(req, res) {
 
 module.exports = {
   listPublicGlobal,
-  listPublic,
   listAdmin,
   create,
   update,

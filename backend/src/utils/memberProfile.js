@@ -1,4 +1,4 @@
-const { GENDERS } = require('../models/User');
+const { GENDERS, MEMBER_CATEGORIES } = require('../models/User');
 
 /**
  * Safe JSON shape for member / profile responses (no secrets).
@@ -38,6 +38,9 @@ function toProfileResponse(userDoc) {
         },
     role: u.role,
     church: u.church ?? null,
+    conferences: Array.isArray(u.conferences) ? u.conferences : [],
+    memberCategory: u.memberCategory || 'MEMBER',
+    councils: Array.isArray(u.councils) ? u.councils : [],
     adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
     isActive: u.isActive,
     createdAt: u.createdAt,
@@ -87,6 +90,19 @@ function applyMemberProfilePatch(user, body, options = {}) {
   }
   if (body.contactPhone !== undefined) {
     user.contactPhone = String(body.contactPhone ?? '').trim();
+  }
+  if (body.memberCategory !== undefined) {
+    const v = String(body.memberCategory || '').toUpperCase();
+    if (!MEMBER_CATEGORIES.includes(v)) {
+      return { error: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` };
+    }
+    user.memberCategory = v;
+  }
+  if (body.conferenceIds !== undefined) {
+    user.conferences = Array.isArray(body.conferenceIds) ? body.conferenceIds : [];
+  }
+  if (body.councilIds !== undefined) {
+    user.councils = Array.isArray(body.councilIds) ? body.councilIds : [];
   }
 
   if (body.gender !== undefined) {

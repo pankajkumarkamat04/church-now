@@ -1,5 +1,4 @@
 const Event = require('../models/Event');
-const Church = require('../models/Church');
 const { assertChurchById } = require('../utils/assertChurch');
 
 function slugify(text) {
@@ -27,25 +26,6 @@ function churchId(req) {
   return req.user?.church;
 }
 
-async function listPublic(req, res) {
-  try {
-    const { churchSlug } = req.params;
-    const church = await Church.findOne({ slug: churchSlug, isActive: true });
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
-    }
-    const limit = Math.min(Number(req.query.limit) || 50, 100);
-    const homeOnly = req.query.home === '1' || req.query.home === 'true';
-    const q = { church: church._id, published: true };
-    if (homeOnly) q.featuredOnHome = true;
-    const events = await Event.find(q).sort({ startsAt: -1, createdAt: -1 }).limit(limit);
-    return res.json(events);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to list events' });
-  }
-}
-
 async function listPublicGlobal(req, res) {
   try {
     const limit = Math.min(Number(req.query.limit) || 12, 40);
@@ -53,7 +33,7 @@ async function listPublicGlobal(req, res) {
     const q = { published: true };
     if (homeOnly) q.featuredOnHome = true;
     const events = await Event.find(q)
-      .populate('church', 'name slug isActive')
+      .populate('church', 'name isActive')
       .sort({ startsAt: -1, createdAt: -1 })
       .limit(limit);
     const active = events.filter((ev) => ev.church && ev.church.isActive !== false);
@@ -61,28 +41,6 @@ async function listPublicGlobal(req, res) {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list events' });
-  }
-}
-
-async function getPublicOne(req, res) {
-  try {
-    const { churchSlug, eventSlug } = req.params;
-    const church = await Church.findOne({ slug: churchSlug, isActive: true });
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
-    }
-    const event = await Event.findOne({
-      church: church._id,
-      slug: eventSlug,
-      published: true,
-    });
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    return res.json(event);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load event' });
   }
 }
 
@@ -347,8 +305,6 @@ async function removeSuperadmin(req, res) {
 
 module.exports = {
   listPublicGlobal,
-  listPublic,
-  getPublicOne,
   listAdmin,
   create,
   update,

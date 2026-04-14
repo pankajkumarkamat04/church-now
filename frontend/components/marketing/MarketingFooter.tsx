@@ -2,24 +2,14 @@ import Link from 'next/link';
 import { Church } from 'lucide-react';
 
 export type MarketingFooterProps = {
-  /** Church microsite slug — Explore links target that site instead of the marketing homepage */
-  churchSlug?: string;
 };
 
-export function MarketingFooter({ churchSlug }: MarketingFooterProps) {
-  const explore = churchSlug
-    ? [
-        { href: `/${churchSlug}`, label: 'Home' },
-        { href: `/${churchSlug}/about`, label: 'About' },
-        { href: `/${churchSlug}/events`, label: 'Events' },
-        { href: `/${churchSlug}/gallery`, label: 'Gallery' },
-        { href: `/${churchSlug}/contact`, label: 'Contact' },
-      ]
-    : [
-        { href: '/#about', label: 'About' },
-        { href: '/#events', label: 'Events' },
-        { href: '/#gallery', label: 'Gallery' },
-      ];
+export function MarketingFooter(_: MarketingFooterProps) {
+  const explore = [
+    { href: '/#about', label: 'About' },
+    { href: '/#events', label: 'Events' },
+    { href: '/#gallery', label: 'Gallery' },
+  ];
 
   return (
     <footer className="border-t border-neutral-200 bg-neutral-50">

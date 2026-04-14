@@ -22,13 +22,27 @@ export type AuthUser = {
   gender?: Gender | null;
   dateOfBirth?: string | null;
   address?: MemberAddress;
+  conferences?: Array<
+    | {
+        _id: string;
+        conferenceId?: string;
+        name: string;
+        description?: string;
+        email?: string;
+        phone?: string;
+        website?: string;
+        contactPerson?: string;
+      }
+    | string
+  >;
+  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR';
+  councils?: Array<{ _id: string; name: string } | string>;
   role: Role;
   church:
     | string
     | {
         _id: string;
         name: string;
-        slug?: string;
         address?: string;
         city?: string;
         stateOrProvince?: string;
@@ -46,7 +60,6 @@ export type AuthUser = {
   adminChurches?: Array<{
     _id: string;
     name: string;
-    slug?: string;
   }>;
   isActive?: boolean;
 };

@@ -89,7 +89,7 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function navItemsFor(variant: PanelVariant, churchSlug?: string | null): NavItem[] {
+function navItemsFor(variant: PanelVariant): NavItem[] {
   if (variant === 'superadmin') {
     return [
       {
@@ -100,6 +100,11 @@ function navItemsFor(variant: PanelVariant, churchSlug?: string | null): NavItem
       {
         href: '/dashboard/superadmin/churches',
         label: 'Church',
+        icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/conferences',
+        label: 'Conference',
         icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
@@ -165,14 +170,6 @@ function navItemsFor(variant: PanelVariant, churchSlug?: string | null): NavItem
     icon: <HandCoins className="size-4 shrink-0 opacity-80" aria-hidden />,
   });
 
-  if (churchSlug) {
-    items.push({
-      href: `/${churchSlug}`,
-      label: 'Public site',
-      icon: <Home className="size-4 shrink-0 opacity-80" aria-hidden />,
-    });
-  }
-
   return items;
 }
 
@@ -189,12 +186,6 @@ export function PanelLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const required = roleForVariant[variant];
   const meta = panelMeta[variant];
-
-  const churchSlug =
-    user?.church && typeof user.church === 'object' && user.church && 'slug' in user.church
-      ? String((user.church as { slug?: string }).slug || '')
-      : null;
-  const publicSlug = churchSlug || null;
 
   useEffect(() => {
     if (loading) return;
@@ -222,7 +213,7 @@ export function PanelLayout({
     );
   }
 
-  const nav = navItemsFor(variant, publicSlug);
+  const nav = navItemsFor(variant);
 
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900">

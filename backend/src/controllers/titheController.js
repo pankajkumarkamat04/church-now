@@ -97,7 +97,7 @@ async function removeAdminTithe(req, res) {
 
 async function listSuperadminTithes(_req, res) {
   const rows = await TithePayment.find({})
-    .populate('church', 'name slug')
+    .populate('church', 'name')
     .populate('user', 'fullName email')
     .sort({ monthKey: -1, createdAt: -1 });
   return res.json(rows);
@@ -122,7 +122,7 @@ async function createSuperadminTithe(req, res) {
     createdBy: req.user._id,
   });
   const populated = await TithePayment.findById(row._id)
-    .populate('church', 'name slug')
+    .populate('church', 'name')
     .populate('user', 'fullName email');
   return res.status(201).json(populated);
 }
@@ -137,7 +137,7 @@ async function updateSuperadminTithe(req, res) {
   if (req.body.paidAt !== undefined) row.paidAt = new Date(req.body.paidAt);
   await row.save();
   const populated = await TithePayment.findById(row._id)
-    .populate('church', 'name slug')
+    .populate('church', 'name')
     .populate('user', 'fullName email');
   return res.json(populated);
 }

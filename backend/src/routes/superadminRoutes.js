@@ -22,6 +22,8 @@ const mediaController = require('../controllers/mediaController');
 const subscriptionController = require('../controllers/subscriptionController');
 const churchChangeController = require('../controllers/churchChangeController');
 const titheController = require('../controllers/titheController');
+const conferenceController = require('../controllers/conferenceController');
+const conferenceForumController = require('../controllers/conferenceForumController');
 
 const router = express.Router();
 
@@ -29,6 +31,22 @@ router.use(authenticate, requireRoles('SUPERADMIN'));
 
 router.get('/churches', asyncHandler(listChurches));
 router.post('/churches', asyncHandler(createChurch));
+router.get('/conferences', asyncHandler(conferenceController.listConferences));
+router.get('/conferences/:conferenceId', asyncHandler(conferenceController.getConference));
+router.post('/conferences', asyncHandler(conferenceController.createConference));
+router.put('/conferences/:conferenceId', asyncHandler(conferenceController.updateConference));
+router.delete('/conferences/:conferenceId', asyncHandler(conferenceController.removeConference));
+router.get('/conferences/:conferenceId/groups', asyncHandler(conferenceController.listGroups));
+router.post('/conferences/:conferenceId/groups', asyncHandler(conferenceController.createGroup));
+router.put('/groups/:groupId', asyncHandler(conferenceController.updateGroup));
+router.delete('/groups/:groupId', asyncHandler(conferenceController.removeGroup));
+router.get('/conferences/:conferenceId/councils', asyncHandler(conferenceController.listCouncils));
+router.post('/conferences/:conferenceId/councils', asyncHandler(conferenceController.createCouncil));
+router.put('/councils/:councilId', asyncHandler(conferenceController.updateCouncil));
+router.delete('/councils/:councilId', asyncHandler(conferenceController.removeCouncil));
+router.get('/conferences/:conferenceId/forum/posts', asyncHandler(conferenceForumController.listSuperadminConferencePosts));
+router.post('/conferences/:conferenceId/forum/posts', asyncHandler(conferenceForumController.createSuperadminConferencePost));
+router.delete('/conferences/:conferenceId/forum/posts/:postId', asyncHandler(conferenceForumController.removeSuperadminConferencePost));
 
 router.get('/frontend/site', asyncHandler(frontendController.getGlobalSite));
 router.put('/frontend/site', asyncHandler(frontendController.putGlobalSite));

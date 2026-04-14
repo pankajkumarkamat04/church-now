@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ExternalLink } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 
@@ -61,7 +61,6 @@ export function ChurchContentHub({
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Church</th>
-                <th className="px-4 py-3 font-medium">Public slug</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -69,19 +68,6 @@ export function ChurchContentHub({
               {churches.map((c) => (
                 <tr key={c._id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3 font-medium text-neutral-900">{c.name}</td>
-                  <td className="px-4 py-3">
-                    {c.slug ? (
-                      <Link
-                        href={`/${c.slug}`}
-                        className="inline-flex items-center gap-1 text-violet-700 hover:text-violet-900"
-                      >
-                        {c.slug}
-                        <ExternalLink className="size-3" aria-hidden />
-                      </Link>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`${base}/${c._id}`}

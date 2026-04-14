@@ -1,10 +1,13 @@
 const crypto = require('crypto');
 const User = require('../models/User');
 const Church = require('../models/Church');
+const Conference = require('../models/Conference');
+const Council = require('../models/Council');
+const { MEMBER_CATEGORIES } = require('../models/User');
 const { signToken } = require('../utils/token');
 const { toProfileResponse } = require('../utils/memberProfile');
 
-const CHURCH_FIELDS = 'name slug address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
+const CHURCH_FIELDS = 'name address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
 
 const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
@@ -22,7 +25,9 @@ async function register(req, res) {
       email,
       password,
       churchId,
-      churchSlug,
+      conferenceIds,
+      councilIds,
+      memberCategory,
       firstName,
       surname,
       idNumber,
@@ -31,10 +36,10 @@ async function register(req, res) {
       contactPhone,
       address,
     } = req.body;
-    if (!email || !password || (!churchId && !churchSlug)) {
+    if (!email || !password || !churchId || !Array.isArray(conferenceIds) || conferenceIds.length === 0) {
       return res
         .status(400)
-        .json({ message: 'Email, password, and church selection are required' });
+        .json({ message: 'Email, password, church selection and at least one conference are required' });
     }
     if (!firstName || !surname || !idNumber || !dateOfBirth || !gender || !contactPhone) {
       return res.status(400).json({
@@ -55,13 +60,31 @@ async function register(req, res) {
           'Residential address is required (line1, city, stateOrProvince, postalCode, country)',
       });
     }
-    const church = churchId
-      ? await Church.findOne({ _id: churchId, isActive: true })
-      : await Church.findOne({ slug: String(churchSlug).toLowerCase().trim(), isActive: true });
+    const church = await Church.findOne({ _id: churchId, isActive: true });
     if (!church) {
       return res.status(400).json({
         message: 'Selected church was not found or is inactive.',
       });
+    }
+    const selectedConferenceIds = Array.from(new Set(conferenceIds.map((id) => String(id)).filter(Boolean)));
+    const conferences = await Conference.find({ _id: { $in: selectedConferenceIds }, isActive: true }).select('_id');
+    if (conferences.length !== selectedConferenceIds.length) {
+      return res.status(400).json({ message: 'One or more selected conferences are invalid' });
+    }
+    const validatedCouncilIds = Array.isArray(councilIds) ? councilIds : [];
+    if (validatedCouncilIds.length > 0) {
+      const councils = await Council.find({
+        _id: { $in: validatedCouncilIds },
+        conference: { $in: selectedConferenceIds },
+        isActive: true,
+      }).select('_id');
+      if (councils.length !== validatedCouncilIds.length) {
+        return res.status(400).json({ message: 'One or more selected councils are invalid' });
+      }
+    }
+    const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
+    if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
+      return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
     }
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
@@ -81,6 +104,9 @@ async function register(req, res) {
       address,
       role: 'MEMBER',
       church: church._id,
+      conferences: selectedConferenceIds,
+      memberCategory: normalizedCategory,
+      councils: validatedCouncilIds,
     });
     const populated = await User.findById(user._id).populate('church', CHURCH_FIELDS);
     const token = signToken({
@@ -112,6 +138,8 @@ async function login(req, res) {
     const user = await User.findOne({ email: email.toLowerCase() })
       .select('+password')
       .populate('church', CHURCH_FIELDS)
+      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
+      .populate('councils', 'name conference')
       .populate('adminChurches', CHURCH_FIELDS);
     if (!user || !user.isActive) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -138,6 +166,8 @@ async function me(req, res) {
   try {
     const user = await User.findById(req.user._id)
       .populate('church', CHURCH_FIELDS)
+      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
+      .populate('councils', 'name conference')
       .populate('adminChurches', CHURCH_FIELDS);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

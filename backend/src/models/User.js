@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const ROLES = ['SUPERADMIN', 'ADMIN', 'MEMBER'];
 
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_SAY'];
+const MEMBER_CATEGORIES = ['MEMBER', 'PRESIDENT', 'MODERATOR'];
 
 const addressSchema = new mongoose.Schema(
   {
@@ -48,6 +49,23 @@ const userSchema = new mongoose.Schema(
       ref: 'Church',
       default: null,
     },
+    conferences: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Conference',
+      },
+    ],
+    memberCategory: {
+      type: String,
+      enum: MEMBER_CATEGORIES,
+      default: 'MEMBER',
+    },
+    councils: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Council',
+      },
+    ],
     adminChurches: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -77,3 +95,4 @@ userSchema.methods.comparePassword = function comparePassword(candidate) {
 module.exports = mongoose.model('User', userSchema);
 module.exports.ROLES = ROLES;
 module.exports.GENDERS = GENDERS;
+module.exports.MEMBER_CATEGORIES = MEMBER_CATEGORIES;

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from './types';
@@ -95,7 +95,6 @@ export default function SuperadminChurchesListPage() {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Slug</th>
                 <th className="px-4 py-3 font-medium">Location</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -105,19 +104,6 @@ export default function SuperadminChurchesListPage() {
               {churches.map((c) => (
                 <tr key={c._id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3 font-medium text-neutral-900">{c.name}</td>
-                  <td className="px-4 py-3">
-                    {c.slug ? (
-                      <Link
-                        href={`/${c.slug}`}
-                        className="inline-flex items-center gap-1 font-medium text-violet-700 hover:text-violet-900"
-                      >
-                        {c.slug}
-                        <ExternalLink className="size-3" aria-hidden />
-                      </Link>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
                   <td className="px-4 py-3 text-neutral-600">
                     {[c.city, c.country].filter(Boolean).join(', ') || '—'}
                   </td>

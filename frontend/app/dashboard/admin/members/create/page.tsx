@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
+import { getApiBase } from '@/lib/api';
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
@@ -28,6 +29,13 @@ export default function AdminMemberCreatePage() {
   const [stateOrProvince, setStateOrProvince] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('');
+  const [conferences, setConferences] = useState<Array<{ _id: string; name: string }>>([]);
+  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
+  const [conferenceIds, setConferenceIds] = useState<string[]>([]);
+  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>(
+    'MEMBER'
+  );
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -37,9 +45,55 @@ export default function AdminMemberCreatePage() {
     }
   }, [loading, user, router]);
 
+  useEffect(() => {
+    async function loadConferences() {
+      try {
+        const res = await fetch(`${getApiBase()}/api/public/conferences`);
+        if (!res.ok) return;
+        const rows = (await res.json()) as Array<{ _id: string; name: string }>;
+        setConferences(rows);
+        setConferenceIds((prev) => (prev.length ? prev : rows[0]?._id ? [rows[0]._id] : []));
+      } catch {
+        // no-op
+      }
+    }
+    loadConferences();
+  }, []);
+
+  useEffect(() => {
+    async function loadConferenceData() {
+      if (!conferenceIds.length) {
+        setCouncils([]);
+        setCouncilIds([]);
+        return;
+      }
+      try {
+        const responses = await Promise.all(
+          conferenceIds.map((id) => fetch(`${getApiBase()}/api/public/conferences/${id}/councils`))
+        );
+        const rows = await Promise.all(
+          responses.map(async (res) =>
+            res.ok ? ((await res.json()) as Array<{ _id: string; name: string }>) : []
+          )
+        );
+        const merged = new Map<string, { _id: string; name: string }>();
+        rows.flat().forEach((row) => merged.set(row._id, row));
+        setCouncils(Array.from(merged.values()));
+        setCouncilIds([]);
+      } catch {
+        setCouncils([]);
+      }
+    }
+    loadConferenceData();
+  }, [conferenceIds]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
+    if (conferenceIds.length === 0) {
+      setErr('Select at least one conference');
+      return;
+    }
     setErr(null);
     setBusy(true);
     try {
@@ -52,6 +106,9 @@ export default function AdminMemberCreatePage() {
           firstName,
           surname,
           idNumber,
+          conferenceIds,
+          memberCategory,
+          councilIds,
           dateOfBirth,
           gender,
           contactPhone,
@@ -114,8 +171,52 @@ export default function AdminMemberCreatePage() {
               <input required value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
             </div>
             <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Conferences</label>
+              <select
+                multiple
+                value={conferenceIds}
+                onChange={(e) => setConferenceIds(Array.from(e.target.selectedOptions).map((option) => option.value))}
+                className={`${field} min-h-[110px]`}
+              >
+                {conferences.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Member category</label>
+              <select
+                value={memberCategory}
+                onChange={(e) => setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR')}
+                className={field}
+              >
+                <option value="MEMBER">Member</option>
+                <option value="PRESIDENT">President</option>
+                <option value="MODERATOR">Moderator</option>
+              </select>
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">ID</label>
               <input required value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={field} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
+              <select
+                multiple
+                value={councilIds}
+                onChange={(e) =>
+                  setCouncilIds(Array.from(e.target.selectedOptions).map((option) => option.value))
+                }
+                className={`${field} min-h-[110px]`}
+              >
+                {councils.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>

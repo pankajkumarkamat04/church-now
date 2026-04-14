@@ -3,25 +3,6 @@ const User = require('../models/User');
 const Event = require('../models/Event');
 const GalleryItem = require('../models/GalleryItem');
 
-function slugify(text) {
-  return String(text || '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
-async function uniqueChurchSlug(base) {
-  let slug = base || 'church';
-  let n = 0;
-  for (;;) {
-    const candidate = n === 0 ? slug : `${slug}-${n}`;
-    const exists = await Church.findOne({ slug: candidate });
-    if (!exists) return candidate;
-    n += 1;
-  }
-}
-
 async function listChurches(_req, res) {
   try {
     const churches = await Church.find().sort({ name: 1 });
@@ -60,16 +41,12 @@ async function createChurch(req, res) {
       contactPerson,
       latitude,
       longitude,
-      slug,
     } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Church name is required' });
     }
-    const base = slugify(slug || name);
-    const finalSlug = await uniqueChurchSlug(base);
     const church = await Church.create({
       name,
-      slug: finalSlug,
       address: address || '',
       city: city || '',
       stateOrProvince: stateOrProvince || '',
@@ -84,9 +61,6 @@ async function createChurch(req, res) {
     });
     return res.status(201).json(church);
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ message: 'That church slug is already in use' });
-    }
     console.error(err);
     if (err.name === 'ValidationError') {
       return res.status(400).json({ message: err.message });
@@ -111,18 +85,10 @@ async function updateChurch(req, res) {
       'latitude',
       'longitude',
       'isActive',
-      'slug',
     ];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
-    if (updates.slug) {
-      updates.slug = slugify(updates.slug);
-      const taken = await Church.findOne({ slug: updates.slug, _id: { $ne: req.params.id } });
-      if (taken) {
-        return res.status(409).json({ message: 'That slug is already in use' });
-      }
     }
     const church = await Church.findByIdAndUpdate(req.params.id, { $set: updates }, {
       new: true,
@@ -133,9 +99,6 @@ async function updateChurch(req, res) {
     }
     return res.json(church);
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ message: 'That slug is already in use' });
-    }
     console.error(err);
     if (err.name === 'ValidationError') {
       return res.status(400).json({ message: err.message });
@@ -191,8 +154,8 @@ function toUserListItem(u) {
 async function listUsers(req, res) {
   try {
     const users = await User.find()
-      .populate('church', 'name slug')
-      .populate('adminChurches', 'name slug')
+      .populate('church', 'name')
+      .populate('adminChurches', 'name')
       .sort({ role: 1, email: 1 })
       .select('-password');
     return res.json(users.map((u) => toUserListItem(u)));
@@ -205,8 +168,8 @@ async function listUsers(req, res) {
 async function getUser(req, res) {
   try {
     const user = await User.findById(req.params.id)
-      .populate('church', 'name slug')
-      .populate('adminChurches', 'name slug')
+      .populate('church', 'name')
+      .populate('adminChurches', 'name')
       .select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -247,8 +210,8 @@ async function updateUser(req, res) {
     }
     await user.save();
     const populated = await User.findById(user._id)
-      .populate('church', 'name slug')
-      .populate('adminChurches', 'name slug')
+      .populate('church', 'name')
+      .populate('adminChurches', 'name')
       .select('-password');
     return res.json(toUserListItem(populated));
   } catch (err) {

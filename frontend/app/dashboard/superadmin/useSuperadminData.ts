@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 export type SuperadminChurch = {
   _id: string;
   name: string;
-  slug?: string;
   address?: string;
   city?: string;
   country?: string;
