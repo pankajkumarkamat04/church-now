@@ -99,7 +99,6 @@ export default function SuperadminEventsPage() {
         method: 'DELETE',
         token,
       });
-      if (editingId === id) startCreate();
       await load({ quiet: true });
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to delete');
