@@ -14,6 +14,7 @@ const {
   deleteUser,
   createChurchAdmin,
   createSuperadminUser,
+  createMemberUser,
 } = require('../controllers/superadminController');
 const frontendController = require('../controllers/frontendController');
 const eventController = require('../controllers/eventController');
@@ -86,6 +87,7 @@ router.put('/churches/:id', asyncHandler(updateChurch));
 router.delete('/churches/:id', asyncHandler(deleteChurch));
 
 router.get('/users', asyncHandler(listUsers));
+router.post('/members', asyncHandler(createMemberUser));
 router.get('/users/:id', asyncHandler(getUser));
 router.put('/users/:id', asyncHandler(updateUser));
 router.delete('/users/:id', asyncHandler(deleteUser));

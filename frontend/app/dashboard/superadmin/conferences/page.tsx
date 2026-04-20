@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Building2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -88,6 +88,13 @@ export default function SuperadminConferencesPage() {
                       >
                         <Pencil className="mr-1 size-3.5" />
                         Edit
+                      </Link>
+                      <Link
+                        href={`/dashboard/superadmin/conferences/${r._id}/churches`}
+                        className="inline-flex items-center rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                      >
+                        <Building2 className="mr-1 size-3.5" />
+                        Churches
                       </Link>
                       <button
                         type="button"

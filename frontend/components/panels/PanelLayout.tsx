@@ -109,7 +109,12 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
       },
       {
         href: '/dashboard/superadmin/users',
-        label: 'User',
+        label: 'Members',
+        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/admins',
+        label: 'Admins',
         icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {

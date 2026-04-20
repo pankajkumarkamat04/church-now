@@ -157,6 +157,8 @@ function toUserListItem(u) {
     fullName: u.fullName,
     role: u.role,
     church: u.church,
+    conferences: u.conferences || [],
+    memberCategory: u.memberCategory,
     adminChurches: u.adminChurches || [],
     isActive: u.isActive,
   };
@@ -164,8 +166,20 @@ function toUserListItem(u) {
 
 async function listUsers(req, res) {
   try {
-    const users = await User.find()
-      .populate('church', 'name')
+    const filter = {};
+    if (req.query.role) {
+      filter.role = String(req.query.role).toUpperCase();
+    }
+    if (req.query.churchId) {
+      filter.church = req.query.churchId;
+    }
+    if (req.query.conferenceId) {
+      const churchIds = await Church.find({ conference: req.query.conferenceId }).distinct('_id');
+      filter.church = { $in: churchIds };
+    }
+
+    const users = await User.find(filter)
+      .populate('church', 'name conference')
       .populate('adminChurches', 'name')
       .sort({ role: 1, email: 1 })
       .select('-password');
@@ -179,7 +193,7 @@ async function listUsers(req, res) {
 async function getUser(req, res) {
   try {
     const user = await User.findById(req.params.id)
-      .populate('church', 'name')
+      .populate('church', 'name conference')
       .populate('adminChurches', 'name')
       .select('-password');
     if (!user) {
@@ -194,7 +208,7 @@ async function getUser(req, res) {
 
 async function updateUser(req, res) {
   try {
-    const { fullName, isActive, churchIds } = req.body;
+    const { fullName, isActive, churchIds, conferenceId, churchId, memberCategory } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -219,9 +233,31 @@ async function updateUser(req, res) {
       user.adminChurches = churchIds;
       user.church = churchIds[0];
     }
+    if (user.role === 'MEMBER') {
+      if (conferenceId !== undefined || churchId !== undefined) {
+        const nextConferenceId = String(conferenceId || user.conferences?.[0] || '').trim();
+        const nextChurchId = String(churchId || user.church || '').trim();
+        if (!nextConferenceId || !nextChurchId) {
+          return res.status(400).json({ message: 'conferenceId and churchId are required for member' });
+        }
+        const linkedChurch = await Church.findOne({
+          _id: nextChurchId,
+          conference: nextConferenceId,
+          isActive: true,
+        }).select('_id');
+        if (!linkedChurch) {
+          return res.status(400).json({ message: 'Selected church must belong to selected conference' });
+        }
+        user.church = nextChurchId;
+        user.conferences = [nextConferenceId];
+      }
+      if (memberCategory !== undefined) {
+        user.memberCategory = String(memberCategory || '').toUpperCase();
+      }
+    }
     await user.save();
     const populated = await User.findById(user._id)
-      .populate('church', 'name')
+      .populate('church', 'name conference')
       .populate('adminChurches', 'name')
       .select('-password');
     return res.json(toUserListItem(populated));
@@ -325,6 +361,67 @@ async function createSuperadminUser(req, res) {
   }
 }
 
+async function createMemberUser(req, res) {
+  try {
+    const {
+      email,
+      password,
+      firstName,
+      surname,
+      idNumber,
+      contactPhone,
+      conferenceId,
+      churchId,
+      memberCategory,
+      gender,
+      dateOfBirth,
+      address,
+    } = req.body;
+    if (!email || !password || !conferenceId || !churchId) {
+      return res.status(400).json({ message: 'email, password, conferenceId and churchId are required' });
+    }
+    const church = await Church.findOne({ _id: churchId, conference: conferenceId, isActive: true }).select(
+      '_id conference'
+    );
+    if (!church) {
+      return res.status(400).json({ message: 'Selected church does not belong to selected conference' });
+    }
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(409).json({ message: 'Email already registered' });
+    }
+    const normalizedFirstName = String(firstName || '').trim();
+    const normalizedSurname = String(surname || '').trim();
+    const user = await User.create({
+      email: email.toLowerCase().trim(),
+      password,
+      firstName: normalizedFirstName,
+      surname: normalizedSurname,
+      fullName: `${normalizedFirstName} ${normalizedSurname}`.trim(),
+      idNumber: String(idNumber || '').trim(),
+      contactPhone: String(contactPhone || '').trim(),
+      role: 'MEMBER',
+      church: church._id,
+      conferences: [conferenceId],
+      memberCategory: String(memberCategory || 'MEMBER').toUpperCase(),
+      gender: gender || undefined,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      address: address || {},
+    });
+    const safe = await User.findById(user._id).populate('church', 'name conference').select('-password');
+    return res.status(201).json(toUserListItem(safe));
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'Email already registered' });
+    }
+    console.error(err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
+    }
+    return res.status(500).json({ message: 'Failed to create member' });
+  }
+}
+
 module.exports = {
   listChurches,
   getChurch,
@@ -337,4 +434,5 @@ module.exports = {
   deleteUser,
   createChurchAdmin,
   createSuperadminUser,
+  createMemberUser,
 };

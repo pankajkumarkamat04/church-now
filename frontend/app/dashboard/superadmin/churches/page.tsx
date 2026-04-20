@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from './types';
@@ -153,6 +153,10 @@ export default function SuperadminChurchesListPage() {
                       <Link href={`/dashboard/superadmin/churches/${c._id}/edit`} className={btn}>
                         <Pencil className="mr-1 size-3.5" aria-hidden />
                         Edit
+                      </Link>
+                      <Link href={`/dashboard/superadmin/churches/${c._id}/members`} className={btn}>
+                        <Users className="mr-1 size-3.5" aria-hidden />
+                        Members
                       </Link>
                       <button
                         type="button"

@@ -46,9 +46,7 @@ export function MarketingFooter(_: MarketingFooterProps) {
             </h3>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
-                <Link href="/signup" className="text-neutral-600 hover:text-neutral-900">
-                  Sign up
-                </Link>
+                <p className="text-neutral-500">Contact church for account setup</p>
               </li>
               <li>
                 <Link href="/login" className="text-neutral-600 hover:text-neutral-900">

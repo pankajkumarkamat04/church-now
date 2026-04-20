@@ -16,15 +16,22 @@ export default function SuperadminUsersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [conferenceId, setConferenceId] = useState('');
+  const [churchId, setChurchId] = useState('');
+  const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
+  const [churches, setChurches] = useState<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const u = await apiFetch<UserRow[]>('/api/superadmin/users', { token });
+    const query = new URLSearchParams({ role: 'MEMBER' });
+    if (conferenceId) query.set('conferenceId', conferenceId);
+    if (churchId) query.set('churchId', churchId);
+    const u = await apiFetch<UserRow[]>(`/api/superadmin/users?${query.toString()}`, { token });
     setUsers(u);
-  }, [token]);
+  }, [token, conferenceId, churchId]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -37,6 +44,24 @@ export default function SuperadminUsersListPage() {
       load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load'));
     }
   }, [user, token, load]);
+
+  useEffect(() => {
+    async function loadReferences() {
+      if (!token || user?.role !== 'SUPERADMIN') return;
+      const [conferenceRows, churchRows] = await Promise.all([
+        apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
+          token,
+        }),
+        apiFetch<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>(
+          '/api/superadmin/sub-churches',
+          { token }
+        ),
+      ]);
+      setConferences(conferenceRows);
+      setChurches(churchRows);
+    }
+    loadReferences().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load filters'));
+  }, [token, user]);
 
   async function removeUser(id: string) {
     if (!token || !window.confirm('Permanently delete this user? This cannot be undone.')) {
@@ -63,27 +88,27 @@ export default function SuperadminUsersListPage() {
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
-            User management
+            Member management
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-            Users
+            Members
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">Every account across all churches and roles.</p>
+          <p className="mt-1 text-sm text-neutral-600">Create and manage members across conferences and churches.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/dashboard/superadmin/users/church-admins/create"
+            href="/dashboard/superadmin/users/members/create"
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-900 hover:bg-violet-100"
           >
             <UserCog className="size-4" aria-hidden />
-            Add church admin
+            Add member
           </Link>
           <Link
-            href="/dashboard/superadmin/users/superadmins/create"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
+            href="/dashboard/superadmin/admins"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
           >
             <Shield className="size-4" aria-hidden />
-            Add superadmin
+            Manage admins
           </Link>
         </div>
       </div>
@@ -94,6 +119,50 @@ export default function SuperadminUsersListPage() {
         </p>
       ) : null}
 
+      <div className="mb-4 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Conference filter</label>
+          <select
+            value={conferenceId}
+            onChange={(e) => {
+              setConferenceId(e.target.value);
+              setChurchId('');
+            }}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
+          >
+            <option value="">All conferences</option>
+            {conferences.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+                {c.conferenceId ? ` (${c.conferenceId})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Church filter</label>
+          <select
+            value={churchId}
+            onChange={(e) => setChurchId(e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
+          >
+            <option value="">All churches</option>
+            {churches
+              .filter((church) => {
+                if (!conferenceId) return true;
+                const conf = church.conference;
+                if (!conf) return false;
+                return typeof conf === 'string' ? conf === conferenceId : conf._id === conferenceId;
+              })
+              .map((church) => (
+                <option key={church._id} value={church._id}>
+                  {church.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -101,7 +170,6 @@ export default function SuperadminUsersListPage() {
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Church</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -112,11 +180,6 @@ export default function SuperadminUsersListPage() {
                 <tr key={u.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3">{u.fullName || '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800">
-                      {u.role}
-                    </span>
-                  </td>
                   <td className="px-4 py-3 text-neutral-600">
                     {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0
                       ? u.adminChurches.map((c) => c.name).join(', ')

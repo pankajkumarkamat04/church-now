@@ -20,7 +20,11 @@ export default function SuperadminUserEditPage() {
   const router = useRouter();
   const [row, setRow] = useState<UserDetail | null>(null);
   const [churches, setChurches] = useState<ChurchRecord[]>([]);
+  const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
   const [churchIds, setChurchIds] = useState<string[]>([]);
+  const [conferenceId, setConferenceId] = useState('');
+  const [churchId, setChurchId] = useState('');
+  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>('MEMBER');
   const [fullName, setFullName] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -44,6 +48,27 @@ export default function SuperadminUserEditPage() {
       setChurchIds(ids);
       const allChurches = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
       setChurches(allChurches);
+    }
+    if (u.role === 'MEMBER') {
+      const confId =
+        Array.isArray(u.conferences) && u.conferences.length > 0
+          ? typeof u.conferences[0] === 'string'
+            ? u.conferences[0]
+            : u.conferences[0]._id
+          : '';
+      const cId =
+        typeof u.church === 'object' && u.church && '_id' in u.church ? u.church._id : '';
+      setConferenceId(confId || '');
+      setChurchId(cId || '');
+      setMemberCategory((u.memberCategory as 'MEMBER' | 'PRESIDENT' | 'MODERATOR') || 'MEMBER');
+      const [allConferences, allSubChurches] = await Promise.all([
+        apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
+          token,
+        }),
+        apiFetch<ChurchRecord[]>('/api/superadmin/sub-churches', { token }),
+      ]);
+      setConferences(allConferences);
+      setChurches(allSubChurches);
     }
   }, [token, userId]);
 
@@ -72,6 +97,9 @@ export default function SuperadminUserEditPage() {
           fullName,
           isActive,
           ...(row.role === 'ADMIN' ? { churchIds } : {}),
+          ...(row.role === 'MEMBER'
+            ? { conferenceId, churchId, memberCategory }
+            : {}),
         }),
       });
       router.replace('/dashboard/superadmin/users');
@@ -151,6 +179,53 @@ export default function SuperadminUserEditPage() {
                 Admin can be assigned to multiple churches. First selected church is primary.
               </p>
             </div>
+          ) : null}
+          {row.role === 'MEMBER' ? (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Conference</label>
+                <select value={conferenceId} onChange={(e) => setConferenceId(e.target.value)} className={field}>
+                  <option value="">Select conference</option>
+                  {conferences.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                      {c.conferenceId ? ` (${c.conferenceId})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Church</label>
+                <select value={churchId} onChange={(e) => setChurchId(e.target.value)} className={field}>
+                  <option value="">Select church</option>
+                  {churches
+                    .filter((c) => {
+                      const conf = c.conference;
+                      if (!conferenceId || !conf) return false;
+                      return typeof conf === 'string' ? conf === conferenceId : conf._id === conferenceId;
+                    })
+                    .map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>
+                <select
+                  value={memberCategory}
+                  onChange={(e) =>
+                    setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR')
+                  }
+                  className={field}
+                >
+                  <option value="MEMBER">Member</option>
+                  <option value="PRESIDENT">President</option>
+                  <option value="MODERATOR">Moderator</option>
+                </select>
+              </div>
+            </>
           ) : null}
           </div>
           <div className="flex items-center gap-2">

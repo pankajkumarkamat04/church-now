@@ -53,7 +53,7 @@ export default function SuperadminCreateChurchAdminPage() {
         token,
         body: JSON.stringify({ email, password, fullName, churchIds }),
       });
-      router.replace('/dashboard/superadmin/users');
+      router.replace('/dashboard/superadmin/admins');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -68,10 +68,10 @@ export default function SuperadminCreateChurchAdminPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <Link
-        href="/dashboard/superadmin/users"
+        href="/dashboard/superadmin/admins"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
       >
-        ← Back to users
+        ← Back to admins
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Add church admin</h1>
@@ -139,7 +139,7 @@ export default function SuperadminCreateChurchAdminPage() {
               Create admin
             </button>
             <Link
-              href="/dashboard/superadmin/users"
+              href="/dashboard/superadmin/admins"
               className="inline-flex items-center justify-center rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               Cancel

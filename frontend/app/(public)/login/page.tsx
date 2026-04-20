@@ -110,10 +110,7 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-neutral-600">
-        No account?{' '}
-        <Link href="/signup" className="font-medium text-neutral-900 underline underline-offset-2">
-          Create one
-        </Link>
+        No account? Contact your church admin.
       </p>
     </AuthShell>
   );
