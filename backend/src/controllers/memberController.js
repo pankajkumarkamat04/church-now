@@ -4,7 +4,7 @@ const Conference = require('../models/Conference');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
 const CHURCH_FIELDS =
-  'name address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
+  'name address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive';
 
 async function getProfile(req, res) {
   try {
@@ -12,9 +12,8 @@ async function getProfile(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate(
         'conferences',
-        'conferenceId name description email phone website contactPerson leadership isActive'
-      )
-      .populate('councils', 'name conference');
+        'conferenceId name description email phone contactPerson leadership isActive'
+      );
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -41,9 +40,8 @@ async function updateProfile(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate(
         'conferences',
-        'conferenceId name description email phone website contactPerson leadership isActive'
-      )
-      .populate('councils', 'name conference');
+        'conferenceId name description email phone contactPerson leadership isActive'
+      );
     return res.json(toProfileResponse(fresh));
   } catch (err) {
     console.error(err);
@@ -72,7 +70,7 @@ async function getMyChurchInfo(req, res) {
 
 async function listMyConferences(req, res) {
   try {
-    const user = await User.findById(req.user._id).select('conferences councils');
+    const user = await User.findById(req.user._id).select('conferences');
     if (!user) return res.status(404).json({ message: 'User not found' });
     const conferenceIds = Array.isArray(user.conferences) ? user.conferences : [];
     if (conferenceIds.length === 0) return res.json([]);

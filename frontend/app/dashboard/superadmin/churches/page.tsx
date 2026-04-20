@@ -18,11 +18,25 @@ export default function SuperadminChurchesListPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  function conferenceLabel(row: ChurchRecord) {
+    if (!row.conference || typeof row.conference === 'string') return '—';
+    return row.conference.name || row.conference.conferenceId || '—';
+  }
+
+  function mainChurchLabel(row: ChurchRecord) {
+    if (!row.mainChurch || typeof row.mainChurch === 'string') return '—';
+    return row.mainChurch.name || '—';
+  }
+
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const c = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
-    setChurches(c);
+    const [mainChurches, subChurches] = await Promise.all([
+      apiFetch<ChurchRecord[]>('/api/superadmin/main-churches', { token }),
+      apiFetch<ChurchRecord[]>('/api/superadmin/sub-churches', { token }),
+    ]);
+    const merged = [...mainChurches, ...subChurches].sort((a, b) => a.name.localeCompare(b.name));
+    setChurches(merged);
   }, [token]);
 
   useEffect(() => {
@@ -38,6 +52,8 @@ export default function SuperadminChurchesListPage() {
   }, [user, token, load]);
 
   async function removeChurch(id: string) {
+    const target = churches.find((church) => church._id === id);
+    if (!target) return;
     if (
       !token ||
       !window.confirm(
@@ -49,7 +65,11 @@ export default function SuperadminChurchesListPage() {
     setBusyId(id);
     setErr(null);
     try {
-      await apiFetch(`/api/superadmin/churches/${id}`, { method: 'DELETE', token });
+      const path =
+        target.churchType === 'SUB'
+          ? `/api/superadmin/sub-churches/${id}`
+          : `/api/superadmin/main-churches/${id}`;
+      await apiFetch(path, { method: 'DELETE', token });
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to delete');
@@ -72,7 +92,9 @@ export default function SuperadminChurchesListPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
             Churches
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">All organizations in the system.</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            Manage main churches and sub churches linked to conferences.
+          </p>
         </div>
         <Link
           href="/dashboard/superadmin/churches/create"
@@ -91,10 +113,13 @@ export default function SuperadminChurchesListPage() {
 
       <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Conference</th>
+                <th className="px-4 py-3 font-medium">Main Church</th>
                 <th className="px-4 py-3 font-medium">Location</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -104,6 +129,11 @@ export default function SuperadminChurchesListPage() {
               {churches.map((c) => (
                 <tr key={c._id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3 font-medium text-neutral-900">{c.name}</td>
+                  <td className="px-4 py-3 text-neutral-600">{c.churchType === 'SUB' ? 'Sub' : 'Main'}</td>
+                  <td className="px-4 py-3 text-neutral-600">{conferenceLabel(c)}</td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {c.churchType === 'SUB' ? mainChurchLabel(c) : '—'}
+                  </td>
                   <td className="px-4 py-3 text-neutral-600">
                     {[c.city, c.country].filter(Boolean).join(', ') || '—'}
                   </td>

@@ -40,7 +40,6 @@ function toProfileResponse(userDoc) {
     church: u.church ?? null,
     conferences: Array.isArray(u.conferences) ? u.conferences : [],
     memberCategory: u.memberCategory || 'MEMBER',
-    councils: Array.isArray(u.councils) ? u.councils : [],
     adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
     isActive: u.isActive,
     createdAt: u.createdAt,
@@ -100,9 +99,6 @@ function applyMemberProfilePatch(user, body, options = {}) {
   }
   if (body.conferenceIds !== undefined) {
     user.conferences = Array.isArray(body.conferenceIds) ? body.conferenceIds : [];
-  }
-  if (body.councilIds !== undefined) {
-    user.councils = Array.isArray(body.councilIds) ? body.councilIds : [];
   }
 
   if (body.gender !== undefined) {

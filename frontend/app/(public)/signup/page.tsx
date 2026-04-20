@@ -12,19 +12,22 @@ import { getApiBase } from '@/lib/api';
 type SignupChurch = {
   _id: string;
   name: string;
+  conference?:
+    | string
+    | {
+        _id: string;
+      }
+    | null;
 };
 type Conference = { _id: string; name: string };
-type Council = { _id: string; name: string };
 
 export default function SignupPage() {
   const { register, user, loading } = useAuth();
   const router = useRouter();
   const [churchId, setChurchId] = useState('');
   const [churches, setChurches] = useState<SignupChurch[]>([]);
-  const [conferenceIds, setConferenceIds] = useState<string[]>([]);
+  const [conferenceId, setConferenceId] = useState('');
   const [conferences, setConferences] = useState<Conference[]>([]);
-  const [councils, setCouncils] = useState<Council[]>([]);
-  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>(
     'MEMBER'
   );
@@ -66,7 +69,7 @@ export default function SignupPage() {
         if (confRes.ok) {
           const rows = (await confRes.json()) as Conference[];
           setConferences(rows);
-          setConferenceIds((prev) => (prev.length ? prev : rows[0]?._id ? [rows[0]._id] : []));
+          setConferenceId((prev) => prev || rows[0]?._id || '');
         }
       } catch {
         // keep form usable even if dropdown fails
@@ -76,34 +79,26 @@ export default function SignupPage() {
   }, []);
 
   useEffect(() => {
-    async function loadConferenceData() {
-      if (!conferenceIds.length) {
-        setCouncils([]);
-        setCouncilIds([]);
-        return;
-      }
-      try {
-        const responses = await Promise.all(
-          conferenceIds.map((id) => fetch(`${getApiBase()}/api/public/conferences/${id}/councils`))
-        );
-        const rows = await Promise.all(
-          responses.map(async (res) => (res.ok ? ((await res.json()) as Council[]) : []))
-        );
-        const merged = new Map<string, Council>();
-        rows.flat().forEach((row) => merged.set(row._id, row));
-        setCouncils(Array.from(merged.values()));
-        setCouncilIds([]);
-      } catch {
-        setCouncils([]);
-      }
+    if (!conferenceId) {
+      setChurchId('');
+      return;
     }
-    loadConferenceData();
-  }, [conferenceIds]);
+    const filtered = churches.filter((church) => {
+      const c = church.conference;
+      if (!c) return false;
+      return typeof c === 'string' ? c === conferenceId : c._id === conferenceId;
+    });
+    setChurchId((prev) => (prev && filtered.some((church) => church._id === prev) ? prev : filtered[0]?._id || ''));
+  }, [conferenceId, churches]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (conferenceIds.length === 0) {
-      setError('Please select at least one conference');
+    if (!conferenceId) {
+      setError('Please select a conference');
+      return;
+    }
+    if (!churchId) {
+      setError('Please select a church');
       return;
     }
     setError(null);
@@ -113,9 +108,8 @@ export default function SignupPage() {
         email,
         password,
         churchId: churchId.trim(),
-        conferenceIds,
+        conferenceIds: [conferenceId],
         memberCategory,
-        councilIds,
         firstName: firstName.trim(),
         surname: surname.trim(),
         idNumber: idNumber.trim(),
@@ -139,6 +133,12 @@ export default function SignupPage() {
     }
   }
 
+  const filteredChurches = churches.filter((church) => {
+    const c = church.conference;
+    if (!conferenceId || !c) return false;
+    return typeof c === 'string' ? c === conferenceId : c._id === conferenceId;
+  });
+
   return (
     <AuthShell maxWidthClassName="max-w-4xl">
       <div className="mb-6 flex justify-center">
@@ -152,16 +152,16 @@ export default function SignupPage() {
       <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
         <div className="md:col-span-2">
           <label htmlFor="conference" className="mb-1 block text-sm font-medium text-neutral-700">
-            Conferences (you can select multiple)
+            Conference
           </label>
           <select
             id="conference"
-            multiple
-            value={conferenceIds}
-            onChange={(e) => setConferenceIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
+            value={conferenceId}
+            onChange={(e) => setConferenceId(e.target.value)}
             required
-            className="min-h-[110px] w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
           >
+            <option value="">Select conference</option>
             {conferences.map((c) => (
               <option key={c._id} value={c._id}>
                 {c.name}
@@ -187,26 +187,6 @@ export default function SignupPage() {
           </select>
         </div>
         <div className="md:col-span-2">
-          <label htmlFor="councils" className="mb-1 block text-sm font-medium text-neutral-700">
-            Councils (you can select multiple)
-          </label>
-          <select
-            id="councils"
-            multiple
-            value={councilIds}
-            onChange={(e) =>
-              setCouncilIds(Array.from(e.target.selectedOptions).map((o) => o.value))
-            }
-            className="min-h-[110px] w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
-          >
-            {councils.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="md:col-span-2">
           <label htmlFor="church" className="mb-1 block text-sm font-medium text-neutral-700">
             Church
           </label>
@@ -218,7 +198,7 @@ export default function SignupPage() {
             className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
           >
             <option value="">Select church</option>
-            {churches.map((c) => (
+            {filteredChurches.map((c) => (
               <option key={c._id} value={c._id}>
                 {c.name}
               </option>

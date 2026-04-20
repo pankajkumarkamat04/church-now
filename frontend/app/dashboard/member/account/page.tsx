@@ -21,7 +21,17 @@ const emptyAddress: MemberAddress = {
 type ChurchOption = {
   _id: string;
   name: string;
+  conference?:
+    | string
+    | {
+        _id: string;
+        name?: string;
+        conferenceId?: string;
+      }
+    | null;
 };
+
+type ConferenceOption = { _id: string; name: string; conferenceId?: string };
 
 type ChurchChangeRequest = {
   _id: string;
@@ -32,6 +42,17 @@ type ChurchChangeRequest = {
   fromChurch?: { name?: string };
   toChurch?: { name?: string };
 };
+
+function extractConferenceIdFromChurch(church: AuthUser['church']): string {
+  if (!church || typeof church !== 'object' || !('conference' in church)) return '';
+  const conference = (church as { conference?: unknown }).conference;
+  if (!conference) return '';
+  if (typeof conference === 'string') return conference;
+  if (typeof conference === 'object' && conference && '_id' in conference) {
+    return String((conference as { _id?: string })._id || '');
+  }
+  return '';
+}
 
 export default function MemberAccountPage() {
   const { user, token, loading, refreshUser } = useAuth();
@@ -46,7 +67,9 @@ export default function MemberAccountPage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [address, setAddress] = useState<MemberAddress>(emptyAddress);
   const [churches, setChurches] = useState<ChurchOption[]>([]);
+  const [conferences, setConferences] = useState<ConferenceOption[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChurchChangeRequest[]>([]);
+  const [targetConferenceId, setTargetConferenceId] = useState('');
   const [targetChurchId, setTargetChurchId] = useState('');
   const [reason, setReason] = useState('');
   const [requestBusy, setRequestBusy] = useState(false);
@@ -57,13 +80,15 @@ export default function MemberAccountPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setLoadErr(null);
-    const [p, options, requests] = await Promise.all([
+    const [p, conferenceOptions, churchOptions, requests] = await Promise.all([
       apiFetch<AuthUser>('/api/member/profile', { token }),
+      apiFetch<ConferenceOption[]>('/api/public/conferences'),
       apiFetch<ChurchOption[]>('/api/public/churches'),
       apiFetch<ChurchChangeRequest[]>('/api/member/church-change-requests', { token }),
     ]);
     setProfile(p);
-    setChurches(options);
+    setConferences(conferenceOptions);
+    setChurches(churchOptions);
     setChangeRequests(requests);
     setFirstName(p.firstName || '');
     setSurname(p.surname || '');
@@ -75,9 +100,34 @@ export default function MemberAccountPage() {
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
     const currentChurchId =
       p.church && typeof p.church === 'object' && '_id' in p.church ? String(p.church._id) : '';
-    const firstTarget = options.find((c) => c._id !== currentChurchId)?._id || '';
-    setTargetChurchId(firstTarget);
+    const currentConferenceId = extractConferenceIdFromChurch(p.church);
+    const firstConference =
+      conferenceOptions.find((conference) => conference._id !== currentConferenceId)?._id || '';
+    setTargetConferenceId(firstConference);
+    const firstChurch = churchOptions.find((church) => {
+      const conf = church.conference;
+      const conferenceMatches =
+        conf && (typeof conf === 'string' ? conf === firstConference : conf._id === firstConference);
+      return conferenceMatches && church._id !== currentChurchId;
+    })?._id;
+    setTargetChurchId(firstChurch || '');
   }, [token]);
+
+  useEffect(() => {
+    const currentChurchId =
+      profile?.church && typeof profile.church === 'object' && '_id' in profile.church
+        ? String(profile.church._id)
+        : '';
+    const options = churches.filter((church) => {
+      const conf = church.conference;
+      const conferenceMatches =
+        conf &&
+        targetConferenceId &&
+        (typeof conf === 'string' ? conf === targetConferenceId : conf._id === targetConferenceId);
+      return Boolean(conferenceMatches) && church._id !== currentChurchId;
+    });
+    setTargetChurchId((prev) => (prev && options.some((church) => church._id === prev) ? prev : options[0]?._id || ''));
+  }, [targetConferenceId, churches, profile]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'MEMBER')) {
@@ -128,7 +178,7 @@ export default function MemberAccountPage() {
       await apiFetch('/api/member/church-change-requests', {
         method: 'POST',
         token,
-        body: JSON.stringify({ toChurchId: targetChurchId, reason }),
+        body: JSON.stringify({ toConferenceId: targetConferenceId, toChurchId: targetChurchId, reason }),
       });
       setReason('');
       await load();
@@ -155,6 +205,19 @@ export default function MemberAccountPage() {
       </div>
     );
   }
+
+  const filteredTargetChurches = churches.filter((church) => {
+    const currentChurchId =
+      profile?.church && typeof profile.church === 'object' && '_id' in profile.church
+        ? String(profile.church._id)
+        : '';
+    const conf = church.conference;
+    const conferenceMatches =
+      conf &&
+      targetConferenceId &&
+      (typeof conf === 'string' ? conf === targetConferenceId : conf._id === targetConferenceId);
+    return Boolean(conferenceMatches) && church._id !== currentChurchId;
+  });
 
   return (
     <div className="max-w-5xl">
@@ -283,6 +346,23 @@ export default function MemberAccountPage() {
         </p>
         <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={submitChangeRequest}>
           <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Requested conference</label>
+            <select
+              value={targetConferenceId}
+              onChange={(e) => setTargetConferenceId(e.target.value)}
+              className={field}
+              required
+            >
+              <option value="">Select conference</option>
+              {conferences.map((conference) => (
+                <option key={conference._id} value={conference._id}>
+                  {conference.name}
+                  {conference.conferenceId ? ` (${conference.conferenceId})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Current church</label>
             <input
               value={
@@ -303,7 +383,7 @@ export default function MemberAccountPage() {
               required
             >
               <option value="">Select church</option>
-              {churches.map((c) => (
+              {filteredTargetChurches.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
                 </option>
@@ -321,7 +401,7 @@ export default function MemberAccountPage() {
           </div>
           <button
             type="submit"
-            disabled={requestBusy || !targetChurchId}
+            disabled={requestBusy || !targetConferenceId || !targetChurchId}
             className="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60"
           >
             {requestBusy ? <Loader2 className="size-4 animate-spin" /> : null}

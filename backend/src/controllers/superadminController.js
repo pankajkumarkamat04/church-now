@@ -5,7 +5,10 @@ const GalleryItem = require('../models/GalleryItem');
 
 async function listChurches(_req, res) {
   try {
-    const churches = await Church.find().sort({ name: 1 });
+    const churches = await Church.find()
+      .populate('conference', 'name conferenceId')
+      .populate('mainChurch', 'name')
+      .sort({ name: 1 });
     return res.json(churches);
   } catch (err) {
     console.error(err);
@@ -15,7 +18,9 @@ async function listChurches(_req, res) {
 
 async function getChurch(req, res) {
   try {
-    const church = await Church.findById(req.params.id);
+    const church = await Church.findById(req.params.id)
+      .populate('conference', 'name conferenceId')
+      .populate('mainChurch', 'name');
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
     }
@@ -37,10 +42,12 @@ async function createChurch(req, res) {
       country,
       phone,
       email,
-      website,
       contactPerson,
       latitude,
       longitude,
+      conferenceId,
+      churchType,
+      mainChurchId,
     } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Church name is required' });
@@ -54,10 +61,12 @@ async function createChurch(req, res) {
       country: country || '',
       phone: phone || '',
       email: email || '',
-      website: website || '',
       contactPerson: contactPerson || '',
       latitude: latitude ?? null,
       longitude: longitude ?? null,
+      conference: conferenceId || null,
+      churchType: churchType || 'MAIN',
+      mainChurch: mainChurchId || null,
     });
     return res.status(201).json(church);
   } catch (err) {
@@ -80,11 +89,13 @@ async function updateChurch(req, res) {
       'country',
       'phone',
       'email',
-      'website',
       'contactPerson',
       'latitude',
       'longitude',
       'isActive',
+      'conference',
+      'churchType',
+      'mainChurch',
     ];
     const updates = {};
     for (const key of allowed) {

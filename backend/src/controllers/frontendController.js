@@ -2,12 +2,11 @@ const User = require('../models/User');
 const Church = require('../models/Church');
 const GlobalSiteContent = require('../models/GlobalSiteContent');
 const Conference = require('../models/Conference');
-const Council = require('../models/Council');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
 const CHURCH_POPULATE =
-  'name address city stateOrProvince postalCode country phone email website contactPerson latitude longitude isActive';
+  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive';
 
 function churchId(req) {
   return req.user?.church;
@@ -73,7 +72,6 @@ const CHURCH_PATCH_KEYS = [
   'country',
   'phone',
   'email',
-  'website',
   'contactPerson',
   'latitude',
   'longitude',
@@ -131,7 +129,6 @@ async function updateMyChurch(req, res) {
       'country',
       'phone',
       'email',
-      'website',
       'contactPerson',
       'latitude',
       'longitude',
@@ -166,8 +163,7 @@ async function listMembers(req, res) {
       .sort({ email: 1 })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
-      .populate('councils', 'name');
+      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
     return res.json(members.map((m) => toProfileResponse(m)));
   } catch (err) {
     console.error(err);
@@ -185,16 +181,20 @@ async function createMember(req, res) {
       idNumber,
       contactPhone,
       conferenceIds,
-      councilIds,
       memberCategory,
       gender,
       dateOfBirth,
       address,
     } = req.body;
-    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone || !Array.isArray(conferenceIds) || conferenceIds.length === 0) {
+    const incomingConferenceIds = Array.isArray(conferenceIds)
+      ? conferenceIds
+      : req.body.conferenceId
+        ? [req.body.conferenceId]
+        : [];
+    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone || incomingConferenceIds.length === 0) {
       return res.status(400).json({
         message:
-          'Email, password, firstName, surname, idNumber, contactPhone, and conferenceIds are required',
+          'Email, password, firstName, surname, idNumber, contactPhone, and conference are required',
       });
     }
     if (!churchId(req)) {
@@ -215,29 +215,24 @@ async function createMember(req, res) {
       role: 'MEMBER',
       church: churchId(req),
     });
-    const selectedConferenceIds = Array.from(new Set(conferenceIds.map((id) => String(id)).filter(Boolean)));
+    const selectedConferenceIds = Array.from(new Set(incomingConferenceIds.map((id) => String(id)).filter(Boolean)));
+    if (selectedConferenceIds.length !== 1) {
+      return res.status(400).json({ message: 'Select exactly one conference' });
+    }
     const conferences = await Conference.find({ _id: { $in: selectedConferenceIds }, isActive: true }).select('_id');
     if (conferences.length !== selectedConferenceIds.length) {
       return res.status(400).json({ message: 'One or more selected conferences are invalid' });
+    }
+    const adminChurch = await Church.findById(churchId(req)).select('conference');
+    if (!adminChurch || !adminChurch.conference || String(adminChurch.conference) !== selectedConferenceIds[0]) {
+      return res.status(400).json({ message: 'Selected conference does not match this church conference' });
     }
     const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
     if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
       return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
     }
-    const validatedCouncilIds = Array.isArray(councilIds) ? councilIds : [];
-    if (validatedCouncilIds.length > 0) {
-      const councils = await Council.find({
-        _id: { $in: validatedCouncilIds },
-        conference: { $in: selectedConferenceIds },
-        isActive: true,
-      }).select('_id');
-      if (councils.length !== validatedCouncilIds.length) {
-        return res.status(400).json({ message: 'One or more selected councils are invalid' });
-      }
-    }
     const patchResult = applyMemberProfilePatch(member, {
-      conferenceIds: selectedConferenceIds,
-      councilIds: validatedCouncilIds,
+      conferenceIds: [selectedConferenceIds[0]],
       memberCategory: normalizedCategory,
       gender,
       dateOfBirth,
@@ -249,8 +244,7 @@ async function createMember(req, res) {
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
-      .populate('councils', 'name');
+      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
     return res.status(201).json(toProfileResponse(populated));
   } catch (err) {
     if (err.code === 11000) {
@@ -273,8 +267,7 @@ async function getMember(req, res) {
     })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
-      .populate('councils', 'name');
+      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
     if (!member) {
       return res.status(404).json({ message: 'Member not found' });
     }
@@ -302,8 +295,7 @@ async function updateMember(req, res) {
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone website contactPerson leadership isActive')
-      .populate('councils', 'name');
+      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
     return res.json(toProfileResponse(populated));
   } catch (err) {
     console.error(err);
@@ -421,7 +413,7 @@ async function listPublicChurches(_req, res) {
   try {
     const churches = await Church.find({ isActive: true })
       .sort({ name: 1 })
-      .select('name city country');
+      .select('name churchType conference city country');
     return res.json(churches);
   } catch (err) {
     console.error(err);

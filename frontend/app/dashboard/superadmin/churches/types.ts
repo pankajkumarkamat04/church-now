@@ -1,6 +1,22 @@
 export type ChurchRecord = {
   _id: string;
   name: string;
+  churchType?: 'MAIN' | 'SUB';
+  conference?:
+    | string
+    | {
+        _id: string;
+        name?: string;
+        conferenceId?: string;
+      }
+    | null;
+  mainChurch?:
+    | string
+    | {
+        _id: string;
+        name?: string;
+      }
+    | null;
   address?: string;
   city?: string;
   stateOrProvince?: string;
@@ -8,7 +24,6 @@ export type ChurchRecord = {
   country?: string;
   phone?: string;
   email?: string;
-  website?: string;
   contactPerson?: string;
   latitude?: number | null;
   longitude?: number | null;

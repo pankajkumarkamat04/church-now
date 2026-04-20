@@ -1,7 +1,6 @@
 const Conference = require('../models/Conference');
-const ChurchGroup = require('../models/ChurchGroup');
-const Council = require('../models/Council');
 const User = require('../models/User');
+const Church = require('../models/Church');
 
 async function generateConferenceId() {
   const year = new Date().getFullYear();
@@ -66,7 +65,6 @@ async function createConference(req, res) {
     description,
     email,
     phone,
-    website,
     officeAddress,
     city,
     stateOrProvince,
@@ -77,29 +75,41 @@ async function createConference(req, res) {
     isActive,
   } = req.body;
   if (!name) return res.status(400).json({ message: 'name is required' });
-  const conferenceId = await generateConferenceId();
   let normalizedLeadership;
   try {
     normalizedLeadership = await normalizeLeadershipIds(leadership);
   } catch (e) {
     return res.status(400).json({ message: e instanceof Error ? e.message : 'Invalid leadership users' });
   }
-  const row = await Conference.create({
-    name: String(name).trim(),
-    conferenceId,
-    description: String(description || '').trim(),
-    email: String(email || '').trim(),
-    phone: String(phone || '').trim(),
-    website: String(website || '').trim(),
-    officeAddress: String(officeAddress || '').trim(),
-    city: String(city || '').trim(),
-    stateOrProvince: String(stateOrProvince || '').trim(),
-    postalCode: String(postalCode || '').trim(),
-    country: String(country || '').trim(),
-    contactPerson: String(contactPerson || '').trim(),
-    leadership: normalizedLeadership,
-    isActive: isActive !== false,
-  });
+  let row = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const conferenceId = await generateConferenceId();
+    try {
+      // Retry if generated code collides due to concurrent request.
+      // eslint-disable-next-line no-await-in-loop
+      row = await Conference.create({
+        name: String(name).trim(),
+        conferenceId,
+        description: String(description || '').trim(),
+        email: String(email || '').trim(),
+        phone: String(phone || '').trim(),
+        officeAddress: String(officeAddress || '').trim(),
+        city: String(city || '').trim(),
+        stateOrProvince: String(stateOrProvince || '').trim(),
+        postalCode: String(postalCode || '').trim(),
+        country: String(country || '').trim(),
+        contactPerson: String(contactPerson || '').trim(),
+        leadership: normalizedLeadership,
+        isActive: isActive !== false,
+      });
+      break;
+    } catch (e) {
+      if (!(e && typeof e === 'object' && e.code === 11000)) throw e;
+    }
+  }
+  if (!row) {
+    return res.status(409).json({ message: 'Could not generate a unique conference code, please try again' });
+  }
   const populated = await Conference.findById(row._id).populate(
     'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
     'fullName email'
@@ -115,7 +125,6 @@ async function updateConference(req, res) {
     'description',
     'email',
     'phone',
-    'website',
     'officeAddress',
     'city',
     'stateOrProvince',
@@ -142,150 +151,20 @@ async function updateConference(req, res) {
 }
 
 async function removeConference(req, res) {
-  const row = await Conference.findByIdAndDelete(req.params.conferenceId);
+  const row = await Conference.findById(req.params.conferenceId).select('_id');
   if (!row) return res.status(404).json({ message: 'Conference not found' });
-  await ChurchGroup.deleteMany({ conference: row._id });
-  await Council.deleteMany({ conference: row._id });
-  return res.status(204).send();
-}
-
-async function listGroups(req, res) {
-  const filter = req.params.conferenceId
-    ? { conference: req.params.conferenceId }
-    : req.query.conferenceId
-      ? { conference: req.query.conferenceId }
-      : {};
-  const rows = await ChurchGroup.find(filter).sort({ name: 1 });
-  return res.json(rows);
-}
-
-async function createGroup(req, res) {
-  const { name, description, isActive } = req.body;
-  if (!name) return res.status(400).json({ message: 'name is required' });
-  const row = await ChurchGroup.create({
-    conference: req.params.conferenceId,
-    name: String(name).trim(),
-    description: String(description || '').trim(),
-    isActive: isActive !== false,
-  });
-  return res.status(201).json(row);
-}
-
-async function updateGroup(req, res) {
-  const row = await ChurchGroup.findById(req.params.groupId);
-  if (!row) return res.status(404).json({ message: 'Group not found' });
-  ['name', 'description', 'isActive'].forEach((k) => {
-    if (req.body[k] !== undefined) row[k] = req.body[k];
-  });
-  await row.save();
-  return res.json(row);
-}
-
-async function removeGroup(req, res) {
-  const row = await ChurchGroup.findByIdAndDelete(req.params.groupId);
-  if (!row) return res.status(404).json({ message: 'Group not found' });
-  return res.status(204).send();
-}
-
-async function listCouncils(req, res) {
-  const filter = req.params.conferenceId
-    ? { conference: req.params.conferenceId }
-    : req.query.conferenceId
-      ? { conference: req.query.conferenceId }
-      : {};
-  const rows = await Council.find(filter).sort({ name: 1 });
-  return res.json(rows);
-}
-
-async function createCouncil(req, res) {
-  const { name, description, isActive, leadership } = req.body;
-  if (!name) return res.status(400).json({ message: 'name is required' });
-  const normalizedLeadership = {
-    churchBishop: String(leadership?.churchBishop || '').trim(),
-    moderator: String(leadership?.moderator || '').trim(),
-    secretary: String(leadership?.secretary || '').trim(),
-    treasurer: String(leadership?.treasurer || '').trim(),
-    superintendents: Array.isArray(leadership?.superintendents)
-      ? leadership.superintendents.map((s) => String(s || '').trim()).filter(Boolean)
-      : [],
-    president: String(leadership?.president || '').trim(),
-  };
-  const row = await Council.create({
-    conference: req.params.conferenceId,
-    name: String(name).trim(),
-    description: String(description || '').trim(),
-    leadership: normalizedLeadership,
-    isActive: isActive !== false,
-  });
-  return res.status(201).json(row);
-}
-
-async function updateCouncil(req, res) {
-  const row = await Council.findById(req.params.councilId);
-  if (!row) return res.status(404).json({ message: 'Council not found' });
-  ['name', 'description', 'isActive'].forEach((k) => {
-    if (req.body[k] !== undefined) row[k] = req.body[k];
-  });
-  if (req.body.leadership !== undefined && req.body.leadership && typeof req.body.leadership === 'object') {
-    const current = row.leadership || {};
-    const incoming = req.body.leadership;
-    row.leadership = {
-      churchBishop:
-        incoming.churchBishop !== undefined
-          ? String(incoming.churchBishop || '').trim()
-          : String(current.churchBishop || '').trim(),
-      moderator:
-        incoming.moderator !== undefined
-          ? String(incoming.moderator || '').trim()
-          : String(current.moderator || '').trim(),
-      secretary:
-        incoming.secretary !== undefined
-          ? String(incoming.secretary || '').trim()
-          : String(current.secretary || '').trim(),
-      treasurer:
-        incoming.treasurer !== undefined
-          ? String(incoming.treasurer || '').trim()
-          : String(current.treasurer || '').trim(),
-      superintendents:
-        incoming.superintendents !== undefined
-          ? Array.isArray(incoming.superintendents)
-            ? incoming.superintendents.map((s) => String(s || '').trim()).filter(Boolean)
-            : []
-          : Array.isArray(current.superintendents)
-            ? current.superintendents.map((s) => String(s || '').trim()).filter(Boolean)
-            : [],
-      president:
-        incoming.president !== undefined
-          ? String(incoming.president || '').trim()
-          : String(current.president || '').trim(),
-    };
+  const linkedChurches = await Church.countDocuments({ conference: row._id });
+  if (linkedChurches > 0) {
+    return res.status(400).json({
+      message: 'Conference is linked to churches. Move churches to another conference first.',
+    });
   }
-  await row.save();
-  return res.json(row);
-}
-
-async function removeCouncil(req, res) {
-  const row = await Council.findByIdAndDelete(req.params.councilId);
-  if (!row) return res.status(404).json({ message: 'Council not found' });
+  await Conference.findByIdAndDelete(row._id);
   return res.status(204).send();
 }
 
 async function listPublicConferences(_req, res) {
   const rows = await Conference.find({ isActive: true }).sort({ name: 1 });
-  return res.json(rows);
-}
-
-async function listPublicGroups(req, res) {
-  const rows = await ChurchGroup.find({ conference: req.params.conferenceId, isActive: true }).sort({
-    name: 1,
-  });
-  return res.json(rows);
-}
-
-async function listPublicCouncils(req, res) {
-  const rows = await Council.find({ conference: req.params.conferenceId, isActive: true }).sort({
-    name: 1,
-  });
   return res.json(rows);
 }
 
@@ -295,15 +174,5 @@ module.exports = {
   createConference,
   updateConference,
   removeConference,
-  listGroups,
-  createGroup,
-  updateGroup,
-  removeGroup,
-  listCouncils,
-  createCouncil,
-  updateCouncil,
-  removeCouncil,
   listPublicConferences,
-  listPublicGroups,
-  listPublicCouncils,
 };

@@ -14,6 +14,9 @@ function errorHandler(err, _req, res, _next) {
   if (err.code === 11000) {
     const keys = err.keyPattern ? Object.keys(err.keyPattern) : [];
     const field = keys[0] || 'value';
+    if (field === 'conferenceId') {
+      return res.status(409).json({ message: 'Conference code is already in use' });
+    }
     return res.status(409).json({ message: `${field} is already in use` });
   }
 

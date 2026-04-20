@@ -7,7 +7,6 @@ const conferenceSchema = new mongoose.Schema(
     description: { type: String, trim: true, default: '' },
     email: { type: String, trim: true, default: '' },
     phone: { type: String, trim: true, default: '' },
-    website: { type: String, trim: true, default: '' },
     officeAddress: { type: String, trim: true, default: '' },
     city: { type: String, trim: true, default: '' },
     stateOrProvince: { type: String, trim: true, default: '' },

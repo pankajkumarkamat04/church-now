@@ -25,9 +25,11 @@ export default function SuperadminChurchEditPage() {
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [website, setWebsite] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [churchType, setChurchType] = useState<'MAIN' | 'SUB'>('MAIN');
+  const [conferenceId, setConferenceId] = useState('');
+  const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -45,9 +47,25 @@ export default function SuperadminChurchEditPage() {
     setCountry(c.country || '');
     setPhone(c.phone || '');
     setEmail(c.email || '');
-    setWebsite(c.website || '');
     setContactPerson(c.contactPerson || '');
     setIsActive(c.isActive !== false);
+    setChurchType(c.churchType === 'SUB' ? 'SUB' : 'MAIN');
+    setConferenceId(
+      c.conference
+        ? typeof c.conference === 'string'
+          ? c.conference
+          : c.conference._id || ''
+        : ''
+    );
+  }, [token, churchId]);
+
+  const loadReferences = useCallback(async () => {
+    if (!token || !churchId) return;
+    const confRows = await apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>(
+      '/api/superadmin/conferences',
+      { token }
+    );
+    setConferences(confRows);
   }, [token, churchId]);
 
   useEffect(() => {
@@ -58,9 +76,11 @@ export default function SuperadminChurchEditPage() {
 
   useEffect(() => {
     if (user?.role === 'SUPERADMIN' && token && churchId) {
-      load().catch((e) => setLoadErr(e instanceof Error ? e.message : 'Failed to load'));
+      Promise.all([load(), loadReferences()]).catch((e) =>
+        setLoadErr(e instanceof Error ? e.message : 'Failed to load')
+      );
     }
-  }, [user, token, churchId, load]);
+  }, [user, token, churchId, load, loadReferences]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,11 +88,16 @@ export default function SuperadminChurchEditPage() {
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch(`/api/superadmin/churches/${churchId}`, {
+      const endpoint =
+        churchType === 'SUB'
+          ? `/api/superadmin/sub-churches/${churchId}`
+          : `/api/superadmin/main-churches/${churchId}`;
+      await apiFetch(endpoint, {
         method: 'PUT',
         token,
         body: JSON.stringify({
           name,
+          ...(churchType === 'SUB' ? { conferenceId } : {}),
           address,
           city,
           stateOrProvince,
@@ -80,7 +105,6 @@ export default function SuperadminChurchEditPage() {
           country,
           phone,
           email,
-          website,
           contactPerson,
           isActive,
         }),
@@ -135,6 +159,42 @@ export default function SuperadminChurchEditPage() {
             <input required value={name} onChange={(e) => setName(e.target.value)} className={field} />
             </div>
             <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Church type</label>
+            <select
+              value={churchType}
+              disabled
+              className={field}
+            >
+              <option value="MAIN">Main church</option>
+              <option value="SUB">Sub church</option>
+            </select>
+            </div>
+            <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Conference</label>
+            {churchType === 'SUB' ? (
+              <select
+                required
+                value={conferenceId}
+                onChange={(e) => setConferenceId(e.target.value)}
+                className={field}
+              >
+                <option value="">Select conference</option>
+                {conferences.map((conference) => (
+                  <option key={conference._id} value={conference._id}>
+                    {conference.name}
+                    {conference.conferenceId ? ` (${conference.conferenceId})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                readOnly
+                value="Main church does not belong to a conference"
+                className={`${field} bg-neutral-50 text-neutral-600`}
+              />
+            )}
+            </div>
+            <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Address</label>
             <input value={address} onChange={(e) => setAddress(e.target.value)} className={field} />
             </div>
@@ -165,10 +225,6 @@ export default function SuperadminChurchEditPage() {
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
-            </div>
-            <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Website</label>
-            <input value={website} onChange={(e) => setWebsite(e.target.value)} className={field} />
             </div>
             <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>

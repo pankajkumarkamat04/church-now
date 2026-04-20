@@ -60,12 +60,6 @@ const userSchema = new mongoose.Schema(
       enum: MEMBER_CATEGORIES,
       default: 'MEMBER',
     },
-    councils: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Council',
-      },
-    ],
     adminChurches: [
       {
         type: mongoose.Schema.Types.ObjectId,

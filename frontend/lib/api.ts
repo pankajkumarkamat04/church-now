@@ -30,13 +30,11 @@ export type AuthUser = {
         description?: string;
         email?: string;
         phone?: string;
-        website?: string;
         contactPerson?: string;
       }
     | string
   >;
   memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR';
-  councils?: Array<{ _id: string; name: string } | string>;
   role: Role;
   church:
     | string
@@ -50,7 +48,6 @@ export type AuthUser = {
         country?: string;
         phone?: string;
         email?: string;
-        website?: string;
         contactPerson?: string;
         latitude?: number | null;
         longitude?: number | null;

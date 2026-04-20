@@ -30,12 +30,10 @@ export default function AdminMemberCreatePage() {
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string }>>([]);
-  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [conferenceIds, setConferenceIds] = useState<string[]>([]);
   const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>(
     'MEMBER'
   );
-  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -60,33 +58,6 @@ export default function AdminMemberCreatePage() {
     loadConferences();
   }, []);
 
-  useEffect(() => {
-    async function loadConferenceData() {
-      if (!conferenceIds.length) {
-        setCouncils([]);
-        setCouncilIds([]);
-        return;
-      }
-      try {
-        const responses = await Promise.all(
-          conferenceIds.map((id) => fetch(`${getApiBase()}/api/public/conferences/${id}/councils`))
-        );
-        const rows = await Promise.all(
-          responses.map(async (res) =>
-            res.ok ? ((await res.json()) as Array<{ _id: string; name: string }>) : []
-          )
-        );
-        const merged = new Map<string, { _id: string; name: string }>();
-        rows.flat().forEach((row) => merged.set(row._id, row));
-        setCouncils(Array.from(merged.values()));
-        setCouncilIds([]);
-      } catch {
-        setCouncils([]);
-      }
-    }
-    loadConferenceData();
-  }, [conferenceIds]);
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
@@ -108,7 +79,6 @@ export default function AdminMemberCreatePage() {
           idNumber,
           conferenceIds,
           memberCategory,
-          councilIds,
           dateOfBirth,
           gender,
           contactPhone,
@@ -200,23 +170,6 @@ export default function AdminMemberCreatePage() {
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">ID</label>
               <input required value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={field} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
-              <select
-                multiple
-                value={councilIds}
-                onChange={(e) =>
-                  setCouncilIds(Array.from(e.target.selectedOptions).map((option) => option.value))
-                }
-                className={`${field} min-h-[110px]`}
-              >
-                {councils.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>

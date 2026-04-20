@@ -17,7 +17,6 @@ export default function SuperadminConferenceCreatePage() {
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [website, setWebsite] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [churchBishop, setChurchBishop] = useState('');
   const [moderator, setModerator] = useState('');
@@ -65,7 +64,6 @@ export default function SuperadminConferenceCreatePage() {
           description,
           email,
           phone,
-          website,
           contactPerson,
           leadership: {
             churchBishop: churchBishop || null,
@@ -135,10 +133,6 @@ export default function SuperadminConferenceCreatePage() {
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Phone</label>
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-600">Website</label>
-                <input value={website} onChange={(e) => setWebsite(e.target.value)} className={field} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>

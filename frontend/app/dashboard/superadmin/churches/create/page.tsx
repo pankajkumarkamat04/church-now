@@ -21,8 +21,10 @@ export default function SuperadminChurchCreatePage() {
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [website, setWebsite] = useState('');
   const [contactPerson, setContactPerson] = useState('');
+  const [conferenceId, setConferenceId] = useState('');
+  const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
+  const [hasMainChurch, setHasMainChurch] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,17 +34,40 @@ export default function SuperadminChurchCreatePage() {
     }
   }, [loading, user, router]);
 
+  useEffect(() => {
+    async function loadReferences() {
+      if (!token || !user || user.role !== 'SUPERADMIN') return;
+      try {
+        const [confRows, mainRows] = await Promise.all([
+          apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>(
+            '/api/superadmin/conferences',
+            { token }
+          ),
+          apiFetch<Array<{ _id: string }>>('/api/superadmin/main-churches', { token }),
+        ]);
+        setConferences(confRows);
+        setHasMainChurch(mainRows.length > 0);
+        if (mainRows.length > 0 && confRows.length > 0) setConferenceId(confRows[0]._id);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Failed to load references');
+      }
+    }
+    loadReferences();
+  }, [token, user]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch('/api/superadmin/churches', {
+      const endpoint = hasMainChurch ? '/api/superadmin/sub-churches' : '/api/superadmin/main-churches';
+      await apiFetch(endpoint, {
         method: 'POST',
         token,
         body: JSON.stringify({
           name,
+          ...(hasMainChurch ? { conferenceId } : {}),
           address,
           city,
           stateOrProvince,
@@ -50,7 +75,6 @@ export default function SuperadminChurchCreatePage() {
           country,
           phone,
           email,
-          website,
           contactPerson,
         }),
       });
@@ -76,12 +100,36 @@ export default function SuperadminChurchCreatePage() {
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Add church</h1>
+        <p className="mt-1 text-sm text-neutral-600">
+          {hasMainChurch
+            ? 'Main church already exists, so this church will be created as a sub church.'
+            : 'No main church found, so this church will be created as the main church.'}
+        </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Name</label>
             <input required value={name} onChange={(e) => setName(e.target.value)} className={field} />
             </div>
+            {hasMainChurch ? (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Conference</label>
+                <select
+                  required
+                  value={conferenceId}
+                  onChange={(e) => setConferenceId(e.target.value)}
+                  className={field}
+                >
+                  <option value="">Select conference</option>
+                  {conferences.map((conference) => (
+                    <option key={conference._id} value={conference._id}>
+                      {conference.name}
+                      {conference.conferenceId ? ` (${conference.conferenceId})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Address</label>
             <input value={address} onChange={(e) => setAddress(e.target.value)} className={field} />
@@ -113,10 +161,6 @@ export default function SuperadminChurchCreatePage() {
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
-            </div>
-            <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Website</label>
-            <input value={website} onChange={(e) => setWebsite(e.target.value)} className={field} />
             </div>
             <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>

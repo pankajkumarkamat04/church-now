@@ -33,7 +33,7 @@ export default function SuperadminConferencesPage() {
   }, [user, token, load]);
 
   async function removeConference(id: string) {
-    if (!token || !window.confirm('Delete this conference? Groups and councils under it will be removed.')) return;
+    if (!token || !window.confirm('Delete this conference? It must not be linked to any main or sub church.')) return;
     setBusyDeleteId(id);
     try {
       await apiFetch(`/api/superadmin/conferences/${id}`, { method: 'DELETE', token });

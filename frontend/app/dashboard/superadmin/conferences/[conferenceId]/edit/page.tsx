@@ -15,7 +15,6 @@ type Conference = {
   description?: string;
   email?: string;
   phone?: string;
-  website?: string;
   contactPerson?: string;
   isActive: boolean;
   leadership?: {
@@ -41,7 +40,6 @@ export default function SuperadminConferenceEditPage() {
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [website, setWebsite] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [step, setStep] = useState(1);
@@ -69,7 +67,6 @@ export default function SuperadminConferenceEditPage() {
     setDescription(row.description || '');
     setEmail(row.email || '');
     setPhone(row.phone || '');
-    setWebsite(row.website || '');
     setContactPerson(row.contactPerson || '');
     setChurchBishop(pickId(row.leadership?.churchBishop));
     setModerator(pickId(row.leadership?.moderator));
@@ -117,7 +114,6 @@ export default function SuperadminConferenceEditPage() {
           description,
           email,
           phone,
-          website,
           contactPerson,
           leadership: {
             churchBishop: churchBishop || null,
@@ -197,7 +193,6 @@ export default function SuperadminConferenceEditPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} placeholder="Email" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} placeholder="Phone" />
-                <input value={website} onChange={(e) => setWebsite(e.target.value)} className={field} placeholder="Website" />
                 <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} placeholder="Contact person" />
               </div>
             ) : null}

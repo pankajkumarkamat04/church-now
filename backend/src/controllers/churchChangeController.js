@@ -1,6 +1,7 @@
 const Church = require('../models/Church');
 const User = require('../models/User');
 const ChurchChangeRequest = require('../models/ChurchChangeRequest');
+const Conference = require('../models/Conference');
 
 async function listMyChurchChangeRequests(req, res) {
   const rows = await ChurchChangeRequest.find({ user: req.user._id })
@@ -12,9 +13,12 @@ async function listMyChurchChangeRequests(req, res) {
 }
 
 async function createChurchChangeRequest(req, res) {
-  const { toChurchId, reason } = req.body;
+  const { toChurchId, toConferenceId, reason } = req.body;
   if (!toChurchId) {
     return res.status(400).json({ message: 'Target church is required' });
+  }
+  if (!toConferenceId) {
+    return res.status(400).json({ message: 'Target conference is required' });
   }
   const me = await User.findById(req.user._id);
   if (!me || !me.church) {
@@ -23,9 +27,18 @@ async function createChurchChangeRequest(req, res) {
   if (String(me.church) === String(toChurchId)) {
     return res.status(400).json({ message: 'You already belong to this church' });
   }
-  const target = await Church.findOne({ _id: toChurchId, isActive: true }).select('_id');
+  const conference = await Conference.findOne({ _id: toConferenceId, isActive: true }).select('_id');
+  if (!conference) {
+    return res.status(400).json({ message: 'Selected conference not found or inactive' });
+  }
+  const target = await Church.findOne({
+    _id: toChurchId,
+    isActive: true,
+    conference: conference._id,
+    churchType: 'SUB',
+  }).select('_id');
   if (!target) {
-    return res.status(400).json({ message: 'Selected church not found or inactive' });
+    return res.status(400).json({ message: 'Selected church was not found in the selected conference' });
   }
   const existingPending = await ChurchChangeRequest.findOne({
     user: me._id,
@@ -76,11 +89,19 @@ async function decideChurchChangeRequest(req, res) {
   }
 
   if (action === 'APPROVE') {
-    const target = await Church.findOne({ _id: row.toChurch, isActive: true }).select('_id');
+    const target = await Church.findOne({ _id: row.toChurch, isActive: true }).select('_id conference');
     if (!target) {
       return res.status(400).json({ message: 'Target church is no longer active' });
     }
-    await User.findByIdAndUpdate(row.user, { $set: { church: row.toChurch } });
+    if (!target.conference) {
+      return res.status(400).json({ message: 'Target church is missing conference assignment' });
+    }
+    await User.findByIdAndUpdate(row.user, {
+      $set: {
+        church: row.toChurch,
+        conferences: [target.conference],
+      },
+    });
     row.status = 'APPROVED';
   } else {
     row.status = 'REJECTED';
