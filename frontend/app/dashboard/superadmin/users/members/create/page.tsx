@@ -23,7 +23,6 @@ export default function SuperadminMemberCreatePage() {
   const [surname, setSurname] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>('MEMBER');
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [conferences, setConferences] = useState<Conference[]>([]);
@@ -83,7 +82,6 @@ export default function SuperadminMemberCreatePage() {
           contactPhone,
           conferenceId,
           churchId,
-          memberCategory,
         }),
       });
       router.replace('/dashboard/superadmin/users');
@@ -135,18 +133,6 @@ export default function SuperadminMemberCreatePage() {
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Surname</label>
               <input value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>
-              <select
-                value={memberCategory}
-                onChange={(e) => setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR')}
-                className={field}
-              >
-                <option value="MEMBER">Member</option>
-                <option value="PRESIDENT">President</option>
-                <option value="MODERATOR">Moderator</option>
-              </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">ID Number</label>

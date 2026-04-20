@@ -4,9 +4,10 @@ const GlobalSiteContent = require('../models/GlobalSiteContent');
 const Conference = require('../models/Conference');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
+const { resolveMemberIdForChurch } = require('../utils/memberId');
 
 const CHURCH_POPULATE =
-  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive';
+  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
 
 function churchId(req) {
   return req.user?.church;
@@ -240,6 +241,11 @@ async function createMember(req, res) {
     });
     if (patchResult.error) {
       return res.status(400).json({ message: patchResult.error });
+    }
+    try {
+      member.memberId = await resolveMemberIdForChurch(churchId(req), null);
+    } catch (e) {
+      return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid member ID' });
     }
     await member.save();
     const populated = await User.findById(member._id)

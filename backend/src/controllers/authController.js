@@ -5,9 +5,10 @@ const Conference = require('../models/Conference');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const { signToken } = require('../utils/token');
 const { toProfileResponse } = require('../utils/memberProfile');
+const { resolveMemberIdForChurch } = require('../utils/memberId');
 
 const CHURCH_FIELDS =
-  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive';
+  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
 
 const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
@@ -89,6 +90,12 @@ async function register(req, res) {
     if (existing) {
       return res.status(409).json({ message: 'Email already registered' });
     }
+    let memberId;
+    try {
+      memberId = await resolveMemberIdForChurch(church._id, null);
+    } catch (e) {
+      return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid member ID' });
+    }
     // Self-serve signup is always MEMBER; never accept role from the client.
     const user = await User.create({
       email: email.toLowerCase().trim(),
@@ -105,6 +112,7 @@ async function register(req, res) {
       church: church._id,
       conferences: [selectedConferenceIds[0]],
       memberCategory: normalizedCategory,
+      memberId,
     });
     const populated = await User.findById(user._id).populate('church', CHURCH_FIELDS);
     const token = signToken({

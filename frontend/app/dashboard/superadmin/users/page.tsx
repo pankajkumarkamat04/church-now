@@ -169,7 +169,9 @@ export default function SuperadminUsersListPage() {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Member ID</th>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Member Role</th>
                 <th className="px-4 py-3 font-medium">Church</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -179,7 +181,9 @@ export default function SuperadminUsersListPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{u.email}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-neutral-700">{u.memberId || '—'}</td>
                   <td className="px-4 py-3">{u.fullName || '—'}</td>
+                  <td className="px-4 py-3 text-neutral-700">{u.memberRoleDisplay || u.memberCategory || 'MEMBER'}</td>
                   <td className="px-4 py-3 text-neutral-600">
                     {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0
                       ? u.adminChurches.map((c) => c.name).join(', ')

@@ -60,6 +60,8 @@ const userSchema = new mongoose.Schema(
       enum: MEMBER_CATEGORIES,
       default: 'MEMBER',
     },
+    /** Congregation-unique member number (assigned to MEMBER; kept when promoted to ADMIN). */
+    memberId: { type: String, trim: true, default: '' },
     adminChurches: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -71,6 +73,17 @@ const userSchema = new mongoose.Schema(
     passwordResetExpires: { type: Date, select: false },
   },
   { timestamps: true }
+);
+
+userSchema.index(
+  { church: 1, memberId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: 'MEMBER',
+      memberId: { $gt: '' },
+    },
+  }
 );
 
 userSchema.pre('save', async function hashPassword() {

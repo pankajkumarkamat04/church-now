@@ -11,7 +11,9 @@ type MemberRow = {
   id: string;
   email: string;
   fullName?: string;
+  memberId?: string;
   memberCategory?: string;
+  memberRoleDisplay?: string;
   isActive?: boolean;
 };
 
@@ -71,18 +73,20 @@ export default function SuperadminChurchMembersPage() {
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead className="bg-neutral-50 text-neutral-600">
                 <tr>
+                  <th className="px-4 py-3 font-medium">Member ID</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Member option</th>
+                  <th className="px-4 py-3 font-medium">Member role</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {members.map((member) => (
                   <tr key={member.id} className="border-t border-neutral-100">
+                    <td className="px-4 py-3 font-mono text-xs text-neutral-700">{member.memberId || '—'}</td>
                     <td className="px-4 py-3">{member.email}</td>
                     <td className="px-4 py-3">{member.fullName || '—'}</td>
-                    <td className="px-4 py-3">{member.memberCategory || 'MEMBER'}</td>
+                    <td className="px-4 py-3">{member.memberRoleDisplay || member.memberCategory || 'MEMBER'}</td>
                     <td className="px-4 py-3">{member.isActive === false ? 'Inactive' : 'Active'}</td>
                   </tr>
                 ))}

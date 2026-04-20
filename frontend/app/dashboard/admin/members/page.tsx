@@ -93,6 +93,7 @@ export default function AdminMembersListPage() {
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Member Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
@@ -102,6 +103,7 @@ export default function AdminMembersListPage() {
                 <tr key={m.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{m.email}</td>
                   <td className="px-4 py-3">{m.fullName || '—'}</td>
+                  <td className="px-4 py-3">{m.memberRoleDisplay || m.memberCategory || 'MEMBER'}</td>
                   <td className="px-4 py-3">
                     <span
                       className={

@@ -98,8 +98,10 @@ export default function SuperadminAdminsPage() {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Member ID</th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Role</th>
+                <th className="px-4 py-3 font-medium">Congregation role</th>
                 <th className="px-4 py-3 font-medium">Church</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -109,9 +111,17 @@ export default function SuperadminAdminsPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{u.email}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-neutral-700">
+                    {u.role === 'ADMIN' ? u.memberId || '—' : '—'}
+                  </td>
                   <td className="px-4 py-3">{u.fullName || '—'}</td>
                   <td className="px-4 py-3">
                     <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800">{u.role}</span>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {u.role === 'SUPERADMIN'
+                      ? '—'
+                      : u.memberRoleDisplay || u.memberCategory || '—'}
                   </td>
                   <td className="px-4 py-3 text-neutral-600">
                     {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0

@@ -17,6 +17,9 @@ function errorHandler(err, _req, res, _next) {
     if (field === 'conferenceId') {
       return res.status(409).json({ message: 'Conference code is already in use' });
     }
+    if (keys.includes('memberId') && keys.includes('church')) {
+      return res.status(409).json({ message: 'This member ID is already in use at this church' });
+    }
     return res.status(409).json({ message: `${field} is already in use` });
   }
 

@@ -96,13 +96,11 @@ export default function SuperadminUserEditPage() {
         body: JSON.stringify({
           fullName,
           isActive,
-          ...(row.role === 'ADMIN' ? { churchIds } : {}),
-          ...(row.role === 'MEMBER'
-            ? { conferenceId, churchId, memberCategory }
-            : {}),
+          ...(row.role === 'ADMIN' && !row.memberId ? { churchIds } : {}),
+          ...(row.role === 'MEMBER' ? { conferenceId, churchId, memberCategory } : {}),
         }),
       });
-      router.replace('/dashboard/superadmin/users');
+      router.replace(row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -138,10 +136,10 @@ export default function SuperadminUserEditPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <Link
-        href="/dashboard/superadmin/users"
+        href={row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users'}
         className="text-sm font-medium text-violet-700 hover:text-violet-900"
       >
-        ← Back to users
+        ← Back
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Edit user</h1>
@@ -152,13 +150,28 @@ export default function SuperadminUserEditPage() {
           </span>
         </p>
         <p className="mt-1 text-xs text-neutral-500">You can update display name and whether the account can sign in.</p>
+        {row.memberId ? (
+          <p className="mt-2 text-sm text-neutral-700">
+            Member ID: <span className="font-mono font-semibold text-neutral-900">{row.memberId}</span>
+          </p>
+        ) : null}
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
             </div>
-          {row.role === 'ADMIN' ? (
+          {row.role === 'ADMIN' && row.memberId ? (
+            <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 text-sm text-neutral-700">
+              <p className="font-medium text-neutral-900">Congregation admin</p>
+              <p className="mt-1 text-xs text-neutral-600">
+                This account was promoted from a member and may only administer{' '}
+                {typeof row.church === 'object' && row.church && 'name' in row.church ? row.church.name : 'their church'}
+                . Church assignment cannot be changed here.
+              </p>
+            </div>
+          ) : null}
+          {row.role === 'ADMIN' && !row.memberId ? (
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-neutral-600">Churches</label>
               <select
@@ -176,7 +189,7 @@ export default function SuperadminUserEditPage() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-neutral-500">
-                Admin can be assigned to multiple churches. First selected church is primary.
+                Legacy admin (no member ID). Prefer adding new admins from congregation members.
               </p>
             </div>
           ) : null}
@@ -255,7 +268,7 @@ export default function SuperadminUserEditPage() {
               Save
             </button>
             <Link
-              href="/dashboard/superadmin/users"
+              href={row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users'}
               className="inline-flex items-center justify-center rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               Cancel

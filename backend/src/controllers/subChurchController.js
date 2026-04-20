@@ -4,6 +4,10 @@ const {
   validateMainChurchOrThrow,
   removeChurchWithDependencies,
 } = require('./churchManagementUtils');
+const {
+  validateChurchLeadershipPayload,
+  populateLeadershipPaths,
+} = require('../utils/churchLeadershipValidation');
 
 const BASE_FIELDS = [
   'name',
@@ -35,6 +39,7 @@ async function listSubChurches(req, res) {
   const rows = await Church.find(filter)
     .populate('conference', 'name conferenceId')
     .populate('mainChurch', 'name')
+    .populate(populateLeadershipPaths)
     .sort({ name: 1 });
   return res.json(rows);
 }
@@ -42,7 +47,8 @@ async function listSubChurches(req, res) {
 async function getSubChurch(req, res) {
   const row = await Church.findOne({ _id: req.params.id, churchType: 'SUB' })
     .populate('conference', 'name conferenceId')
-    .populate('mainChurch', 'name');
+    .populate('mainChurch', 'name')
+    .populate(populateLeadershipPaths);
   if (!row) return res.status(404).json({ message: 'Sub church not found' });
   return res.json(row);
 }
@@ -75,7 +81,8 @@ async function createSubChurch(req, res) {
 
   const populated = await Church.findById(row._id)
     .populate('conference', 'name conferenceId')
-    .populate('mainChurch', 'name');
+    .populate('mainChurch', 'name')
+    .populate(populateLeadershipPaths);
   return res.status(201).json(populated);
 }
 
@@ -108,10 +115,27 @@ async function updateSubChurch(req, res) {
   row.conference = nextConference;
   row.mainChurch = mainChurch._id;
 
+  if (req.body.localLeadership !== undefined || req.body.councils !== undefined) {
+    try {
+      const leadershipSrc =
+        req.body.localLeadership !== undefined
+          ? req.body.localLeadership
+          : row.localLeadership?.toObject?.() || row.localLeadership || {};
+      const councilsSrc =
+        req.body.councils !== undefined ? req.body.councils : row.councils?.toObject?.() || row.councils || [];
+      const { leadership, councils } = await validateChurchLeadershipPayload(row._id, leadershipSrc, councilsSrc);
+      row.localLeadership = leadership;
+      row.councils = councils;
+    } catch (e) {
+      return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid leadership data' });
+    }
+  }
+
   await row.save();
   const populated = await Church.findById(row._id)
     .populate('conference', 'name conferenceId')
-    .populate('mainChurch', 'name');
+    .populate('mainChurch', 'name')
+    .populate(populateLeadershipPaths);
   return res.json(populated);
 }
 

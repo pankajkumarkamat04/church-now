@@ -31,9 +31,6 @@ export default function AdminMemberCreatePage() {
   const [country, setCountry] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string }>>([]);
   const [conferenceIds, setConferenceIds] = useState<string[]>([]);
-  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>(
-    'MEMBER'
-  );
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -78,7 +75,6 @@ export default function AdminMemberCreatePage() {
           surname,
           idNumber,
           conferenceIds,
-          memberCategory,
           dateOfBirth,
           gender,
           contactPhone,
@@ -153,18 +149,6 @@ export default function AdminMemberCreatePage() {
                     {c.name}
                   </option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Member category</label>
-              <select
-                value={memberCategory}
-                onChange={(e) => setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR')}
-                className={field}
-              >
-                <option value="MEMBER">Member</option>
-                <option value="PRESIDENT">President</option>
-                <option value="MODERATOR">Moderator</option>
               </select>
             </div>
             <div>

@@ -35,6 +35,12 @@ export type AuthUser = {
     | string
   >;
   memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR';
+  /** Labels from church localLeadership / councils (backend-computed). */
+  memberRolesFromChurch?: string[];
+  /** Preferred label for lists: congregation offices or memberCategory fallback. */
+  memberRoleDisplay?: string;
+  /** Congregation-unique member number (members and admins promoted from members). */
+  memberId?: string;
   role: Role;
   church:
     | string

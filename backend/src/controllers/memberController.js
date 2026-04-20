@@ -4,7 +4,7 @@ const Conference = require('../models/Conference');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
 const CHURCH_FIELDS =
-  'name address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive';
+  'name address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
 
 async function getProfile(req, res) {
   try {

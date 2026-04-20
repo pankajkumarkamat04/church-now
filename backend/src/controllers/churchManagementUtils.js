@@ -3,6 +3,10 @@ const User = require('../models/User');
 const Event = require('../models/Event');
 const GalleryItem = require('../models/GalleryItem');
 const Conference = require('../models/Conference');
+const ChurchChangeRequest = require('../models/ChurchChangeRequest');
+const SubscriptionPlan = require('../models/SubscriptionPlan');
+const UserSubscription = require('../models/UserSubscription');
+const TithePayment = require('../models/TithePayment');
 
 async function validateConferenceOrThrow(conferenceId) {
   if (!conferenceId) return null;
@@ -27,24 +31,45 @@ async function validateMainChurchOrThrow(mainChurchId) {
 }
 
 async function removeChurchWithDependencies(churchId) {
-  const admins = await User.countDocuments({
+  const members = await User.find({ church: churchId, role: 'MEMBER' }).select('_id');
+  const memberIds = members.map((m) => m._id);
+
+  const admins = await User.find({
     role: 'ADMIN',
     $or: [{ church: churchId }, { adminChurches: churchId }],
-  });
-  const members = await User.countDocuments({ church: churchId, role: 'MEMBER' });
-  if (admins > 0 || members > 0) {
-    const error = new Error('Reassign or remove users linked to this church before deleting');
-    error.statusCode = 400;
-    throw error;
-  }
+  }).select('_id church adminChurches');
 
   await Event.deleteMany({ church: churchId });
   await GalleryItem.deleteMany({ church: churchId });
-  await User.updateMany({ adminChurches: churchId }, { $pull: { adminChurches: churchId } });
+  await SubscriptionPlan.deleteMany({ church: churchId });
+  await UserSubscription.deleteMany({ church: churchId });
+  await TithePayment.deleteMany({ church: churchId });
 
-  const adminsWithoutPrimary = await User.find({ role: 'ADMIN', church: churchId });
-  for (const admin of adminsWithoutPrimary) {
-    admin.church = admin.adminChurches?.[0] || null;
+  await ChurchChangeRequest.deleteMany({
+    $or: [{ fromChurch: churchId }, { toChurch: churchId }],
+  });
+
+  if (memberIds.length > 0) {
+    await ChurchChangeRequest.deleteMany({ user: { $in: memberIds } });
+    await UserSubscription.deleteMany({ user: { $in: memberIds } });
+    await TithePayment.deleteMany({ user: { $in: memberIds } });
+    await User.deleteMany({ _id: { $in: memberIds } });
+  }
+
+  for (const admin of admins) {
+    const remainingChurches = (admin.adminChurches || [])
+      .map((id) => String(id))
+      .filter((id) => id !== String(churchId));
+
+    if (remainingChurches.length === 0) {
+      // Admin only belonged to this church, remove account on hard delete.
+      // eslint-disable-next-line no-await-in-loop
+      await User.findByIdAndDelete(admin._id);
+      continue;
+    }
+
+    admin.adminChurches = remainingChurches;
+    admin.church = admin.church && String(admin.church) !== String(churchId) ? admin.church : remainingChurches[0];
     // eslint-disable-next-line no-await-in-loop
     await admin.save();
   }

@@ -11,6 +11,8 @@ async function connectDB() {
   await mongoose.connect(uri);
   // Keep DB indexes aligned with current schemas to avoid stale unique-index collisions.
   await Promise.all([Church.syncIndexes(), Conference.syncIndexes(), User.syncIndexes()]);
+  // Removed from schema: drop legacy field from existing documents (idempotent).
+  await User.collection.updateMany({}, { $unset: { churchRole: '' } });
 }
 
 module.exports = { connectDB };

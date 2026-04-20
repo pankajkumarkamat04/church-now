@@ -1,4 +1,5 @@
 const { GENDERS, MEMBER_CATEGORIES } = require('../models/User');
+const { collectCongregationRoleLabelsForUser } = require('./churchMemberRoles');
 
 /**
  * Safe JSON shape for member / profile responses (no secrets).
@@ -8,6 +9,11 @@ function toProfileResponse(userDoc) {
   delete u.password;
   delete u.passwordResetToken;
   delete u.passwordResetExpires;
+
+  const ch = u.church && typeof u.church === 'object' ? u.church : null;
+  const memberRolesFromChurch = ch && u._id ? collectCongregationRoleLabelsForUser(ch, u._id) : [];
+  const memberRoleDisplay =
+    memberRolesFromChurch.length > 0 ? memberRolesFromChurch.join(', ') : u.memberCategory || 'MEMBER';
 
   return {
     id: u._id,
@@ -40,6 +46,9 @@ function toProfileResponse(userDoc) {
     church: u.church ?? null,
     conferences: Array.isArray(u.conferences) ? u.conferences : [],
     memberCategory: u.memberCategory || 'MEMBER',
+    memberRolesFromChurch,
+    memberRoleDisplay,
+    memberId: u.memberId || '',
     adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
     isActive: u.isActive,
     createdAt: u.createdAt,

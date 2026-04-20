@@ -2,6 +2,9 @@ const Church = require('../models/Church');
 const User = require('../models/User');
 const Event = require('../models/Event');
 const GalleryItem = require('../models/GalleryItem');
+const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
+const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 
 async function listChurches(_req, res) {
   try {
@@ -20,7 +23,8 @@ async function getChurch(req, res) {
   try {
     const church = await Church.findById(req.params.id)
       .populate('conference', 'name conferenceId')
-      .populate('mainChurch', 'name');
+      .populate('mainChurch', 'name')
+      .populate(populateLeadershipPaths);
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
     }
@@ -150,7 +154,12 @@ async function deleteChurch(req, res) {
   }
 }
 
-function toUserListItem(u) {
+function toUserListItem(u, churchLeanForRoles = null) {
+  const uid = u._id;
+  const fromChurch =
+    churchLeanForRoles && uid ? collectCongregationRoleLabelsForUser(churchLeanForRoles, uid) : [];
+  const memberRoleDisplay =
+    fromChurch.length > 0 ? fromChurch.join(', ') : (u.memberCategory || 'MEMBER');
   return {
     id: u._id,
     email: u.email,
@@ -159,9 +168,17 @@ function toUserListItem(u) {
     church: u.church,
     conferences: u.conferences || [],
     memberCategory: u.memberCategory,
+    memberRolesFromChurch: fromChurch,
+    memberRoleDisplay,
+    memberId: u.memberId || '',
     adminChurches: u.adminChurches || [],
     isActive: u.isActive,
   };
+}
+
+async function churchLeanForUserRoles(churchId) {
+  if (!churchId) return null;
+  return Church.findById(churchId).select('localLeadership councils').lean();
 }
 
 async function listUsers(req, res) {
@@ -183,7 +200,27 @@ async function listUsers(req, res) {
       .populate('adminChurches', 'name')
       .sort({ role: 1, email: 1 })
       .select('-password');
-    return res.json(users.map((u) => toUserListItem(u)));
+
+    const churchIds = [
+      ...new Set(
+        users
+          .map((u) => (u.church && u.church._id ? u.church._id : u.church))
+          .filter(Boolean)
+          .map((id) => String(id))
+      ),
+    ];
+    const churchDocs = await Church.find({ _id: { $in: churchIds } })
+      .select('localLeadership councils')
+      .lean();
+    const churchById = Object.fromEntries(churchDocs.map((c) => [String(c._id), c]));
+
+    return res.json(
+      users.map((u) => {
+        const cid = u.church && u.church._id ? u.church._id : u.church;
+        const lean = cid ? churchById[String(cid)] : null;
+        return toUserListItem(u, lean);
+      })
+    );
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list users' });
@@ -199,7 +236,9 @@ async function getUser(req, res) {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    return res.json(toUserListItem(user));
+    const cid = user.church && user.church._id ? user.church._id : user.church;
+    const lean = await churchLeanForUserRoles(cid);
+    return res.json(toUserListItem(user, lean));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load user' });
@@ -226,9 +265,18 @@ async function updateUser(req, res) {
       if (!Array.isArray(churchIds) || churchIds.length === 0) {
         return res.status(400).json({ message: 'At least one church is required for admin' });
       }
-      const valid = await Church.find({ _id: { $in: churchIds } }).select('_id');
+      if (user.memberId && String(user.memberId).trim()) {
+        const home = String(user.church || '');
+        if (churchIds.length !== 1 || String(churchIds[0]) !== home) {
+          return res.status(400).json({
+            message:
+              'This admin is linked to a member record and may only administer their home congregation',
+          });
+        }
+      }
+      const valid = await Church.find({ _id: { $in: churchIds }, isActive: true }).select('_id');
       if (valid.length !== churchIds.length) {
-        return res.status(400).json({ message: 'One or more selected churches are invalid' });
+        return res.status(400).json({ message: 'One or more selected churches are invalid or inactive' });
       }
       user.adminChurches = churchIds;
       user.church = churchIds[0];
@@ -260,7 +308,9 @@ async function updateUser(req, res) {
       .populate('church', 'name conference')
       .populate('adminChurches', 'name')
       .select('-password');
-    return res.json(toUserListItem(populated));
+    const pcid = populated.church && populated.church._id ? populated.church._id : populated.church;
+    const lean = await churchLeanForUserRoles(pcid);
+    return res.json(toUserListItem(populated, lean));
   } catch (err) {
     console.error(err);
     if (err.name === 'ValidationError') {
@@ -295,39 +345,60 @@ async function deleteUser(req, res) {
 
 async function createChurchAdmin(req, res) {
   try {
-    const { churchId } = req.params;
-    const { email, password, fullName, churchIds = [] } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    const routeChurchId = req.params.churchId;
+    const { memberUserId, password } = req.body;
+
+    if (!memberUserId) {
+      return res.status(400).json({ message: 'memberUserId is required — select a member of this church' });
     }
-    const selectedIds = Array.from(new Set([churchId, ...churchIds].filter(Boolean)));
-    if (selectedIds.length === 0) {
-      return res.status(400).json({ message: 'Select at least one church for admin' });
+
+    const member = await User.findById(memberUserId).select('+password');
+    if (!member || member.role !== 'MEMBER') {
+      return res.status(400).json({ message: 'Selected user is not a member of a congregation' });
     }
-    const churches = await Church.find({ _id: { $in: selectedIds } }).select('_id');
-    if (churches.length !== selectedIds.length) {
-      return res.status(404).json({ message: 'One or more churches not found' });
+
+    const memberChurchId = member.church ? String(member.church) : '';
+    if (!memberChurchId || memberChurchId !== String(routeChurchId)) {
+      return res.status(400).json({
+        message:
+          'Only a member of this church may become its admin. Select someone who belongs to this congregation.',
+      });
     }
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) {
-      return res.status(409).json({ message: 'Email already registered' });
+
+    const activeChurch = await Church.findOne({ _id: routeChurchId, isActive: true }).select('_id');
+    if (!activeChurch) {
+      return res.status(404).json({ message: 'Church not found or inactive' });
     }
-    const admin = await User.create({
-      email: email.toLowerCase(),
-      password,
-      fullName: fullName || '',
-      role: 'ADMIN',
-      church: selectedIds[0],
-      adminChurches: selectedIds,
-    });
-    const safe = admin.toObject();
-    delete safe.password;
-    return res.status(201).json(safe);
+
+    if (!member.memberId || !String(member.memberId).trim()) {
+      member.memberId = await resolveMemberIdForChurch(memberChurchId, null);
+    }
+
+    const selectedIds = [memberChurchId];
+
+    if (password !== undefined && password !== null && String(password).trim() !== '') {
+      if (String(password).length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      }
+      member.password = password;
+    }
+
+    member.role = 'ADMIN';
+    member.adminChurches = selectedIds;
+    member.church = selectedIds[0];
+    await member.save();
+
+    const populated = await User.findById(member._id)
+      .populate('church', 'name conference')
+      .populate('adminChurches', 'name')
+      .select('-password');
+    const lean = await churchLeanForUserRoles(routeChurchId);
+    return res.status(201).json(toUserListItem(populated, lean));
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ message: 'Email already registered' });
-    }
     console.error(err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
+    }
     return res.status(500).json({ message: 'Failed to create admin' });
   }
 }
@@ -390,6 +461,12 @@ async function createMemberUser(req, res) {
     if (existing) {
       return res.status(409).json({ message: 'Email already registered' });
     }
+    let assignedMemberId;
+    try {
+      assignedMemberId = await resolveMemberIdForChurch(church._id, null);
+    } catch (e) {
+      return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid member ID' });
+    }
     const normalizedFirstName = String(firstName || '').trim();
     const normalizedSurname = String(surname || '').trim();
     const user = await User.create({
@@ -404,12 +481,14 @@ async function createMemberUser(req, res) {
       church: church._id,
       conferences: [conferenceId],
       memberCategory: String(memberCategory || 'MEMBER').toUpperCase(),
+      memberId: assignedMemberId,
       gender: gender || undefined,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       address: address || {},
     });
     const safe = await User.findById(user._id).populate('church', 'name conference').select('-password');
-    return res.status(201).json(toUserListItem(safe));
+    const lean = await churchLeanForUserRoles(church._id);
+    return res.status(201).json(toUserListItem(safe, lean));
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Email already registered' });

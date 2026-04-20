@@ -20,7 +20,7 @@ export function MarketingHeader({ variant = 'marketing' }: MarketingHeaderProps)
   const { user } = useAuth();
   const showMarketingNav = variant === 'marketing';
   const dashboardHref = user ? dashboardPathForRole(user.role) : '/login';
-  const ctaLabel = user ? 'Dashboard' : 'Login / Register';
+  const ctaLabel = user ? 'Dashboard' : 'Login';
 
   return (
     <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 backdrop-blur-sm">

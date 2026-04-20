@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { ChurchLeadershipModal, leadershipSummary } from '@/components/church/ChurchLeadershipModal';
 import type { ChurchRecord } from './types';
 
 const btn =
@@ -17,6 +18,7 @@ export default function SuperadminChurchesListPage() {
   const [churches, setChurches] = useState<ChurchRecord[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [leadershipChurch, setLeadershipChurch] = useState<ChurchRecord | null>(null);
 
   function conferenceLabel(row: ChurchRecord) {
     if (!row.conference || typeof row.conference === 'string') return '—';
@@ -160,6 +162,15 @@ export default function SuperadminChurchesListPage() {
                       </Link>
                       <button
                         type="button"
+                        onClick={() => setLeadershipChurch(c)}
+                        className={btn}
+                        title={leadershipSummary(c)}
+                      >
+                        <Users className="mr-1 size-3.5" aria-hidden />
+                        Leadership
+                      </button>
+                      <button
+                        type="button"
                         disabled={busyId === c._id}
                         onClick={() => removeChurch(c._id)}
                         className={`${btn} border-red-200 text-red-700 hover:bg-red-50`}
@@ -178,6 +189,19 @@ export default function SuperadminChurchesListPage() {
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No churches yet.</p>
         ) : null}
       </div>
+
+      <ChurchLeadershipModal
+        open={Boolean(leadershipChurch)}
+        onClose={() => setLeadershipChurch(null)}
+        churchId={leadershipChurch?._id || ''}
+        churchType={leadershipChurch?.churchType === 'SUB' ? 'SUB' : 'MAIN'}
+        churchName={leadershipChurch?.name || ''}
+        token={token}
+        row={leadershipChurch}
+        onSaved={() => {
+          load().catch(() => {});
+        }}
+      />
     </div>
   );
 }
