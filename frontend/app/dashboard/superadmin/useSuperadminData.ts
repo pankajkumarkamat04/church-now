@@ -11,6 +11,7 @@ export type SuperadminChurch = {
   city?: string;
   country?: string;
   phone?: string;
+  councils?: Array<{ _id?: string; name: string }>;
 };
 
 export function useSuperadminData() {
