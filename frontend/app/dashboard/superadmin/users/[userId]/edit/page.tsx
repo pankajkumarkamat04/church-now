@@ -24,7 +24,8 @@ export default function SuperadminUserEditPage() {
   const [churchIds, setChurchIds] = useState<string[]>([]);
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
-  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR'>('MEMBER');
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
+  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR'>('MEMBER');
   const [fullName, setFullName] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -60,7 +61,8 @@ export default function SuperadminUserEditPage() {
         typeof u.church === 'object' && u.church && '_id' in u.church ? u.church._id : '';
       setConferenceId(confId || '');
       setChurchId(cId || '');
-      setMemberCategory((u.memberCategory as 'MEMBER' | 'PRESIDENT' | 'MODERATOR') || 'MEMBER');
+      setCouncilIds(Array.isArray(u.councilIds) ? u.councilIds : []);
+      setMemberCategory((u.memberCategory as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR') || 'MEMBER');
       const [allConferences, allSubChurches] = await Promise.all([
         apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
           token,
@@ -97,7 +99,7 @@ export default function SuperadminUserEditPage() {
           fullName,
           isActive,
           ...(row.role === 'ADMIN' && !row.memberId ? { churchIds } : {}),
-          ...(row.role === 'MEMBER' ? { conferenceId, churchId, memberCategory } : {}),
+          ...(row.role === 'MEMBER' ? { conferenceId, churchId, memberCategory, councilIds } : {}),
         }),
       });
       router.replace(row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users');
@@ -225,17 +227,40 @@ export default function SuperadminUserEditPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
+                <select
+                  multiple
+                  value={councilIds}
+                  onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
+                  className={`${field} min-h-[120px]`}
+                >
+                  {churches
+                    .filter((c) => {
+                      const conf = c.conference;
+                      if (!conferenceId || !conf) return false;
+                      return typeof conf === 'string' ? conf === conferenceId : conf._id === conferenceId;
+                    })
+                    .find((c) => c._id === churchId)
+                    ?.councils?.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>
                 <select
                   value={memberCategory}
                   onChange={(e) =>
-                    setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR')
+                    setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR')
                   }
                   className={field}
                 >
                   <option value="MEMBER">Member</option>
                   <option value="PRESIDENT">President</option>
                   <option value="MODERATOR">Moderator</option>
+                  <option value="PASTOR">Pastor</option>
                 </select>
               </div>
             </>

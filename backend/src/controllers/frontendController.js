@@ -2,12 +2,29 @@ const User = require('../models/User');
 const Church = require('../models/Church');
 const GlobalSiteContent = require('../models/GlobalSiteContent');
 const Conference = require('../models/Conference');
+const PastorTerm = require('../models/PastorTerm');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { validateChurchLeadershipPayload } = require('../utils/churchLeadershipValidation');
+const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 
 const CHURCH_POPULATE =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
+const ACTIVE_PASTOR_TERM_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
+
+function mergeSpiritualLeaderLabel(profile, hasActivePastorTerm) {
+  if (!hasActivePastorTerm) return profile;
+  const spiritualLabel = 'Spiritual leader/Pastor';
+  const existing = Array.isArray(profile.memberRolesFromChurch) ? profile.memberRolesFromChurch : [];
+  const alreadyHasSpiritual = existing.some((r) => String(r || '').toLowerCase().includes('spiritual'));
+  const mergedRoles = alreadyHasSpiritual ? existing : [spiritualLabel, ...existing];
+  return {
+    ...profile,
+    memberRolesFromChurch: mergedRoles,
+    memberRoleDisplay: mergedRoles.length > 0 ? mergedRoles.join(', ') : spiritualLabel,
+  };
+}
 
 function churchId(req) {
   return req.user?.church;
@@ -138,13 +155,25 @@ async function updateMyChurch(req, res) {
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
-    const church = await Church.findByIdAndUpdate(id, { $set: updates }, {
-      new: true,
-      runValidators: true,
-    });
+    const church = await Church.findById(id);
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
     }
+    Object.assign(church, updates);
+    if (req.body.councils !== undefined) {
+      try {
+        const { councils } = await validateChurchLeadershipPayload(
+          church._id,
+          church.localLeadership?.toObject?.() || church.localLeadership || {},
+          req.body.councils
+        );
+        church.councils = councils;
+      } catch (e) {
+        return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid councils payload' });
+      }
+    }
+    await church.save();
+    await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
     return res.json(church);
   } catch (err) {
     console.error(err);
@@ -157,15 +186,23 @@ async function updateMyChurch(req, res) {
 
 async function listMembers(req, res) {
   try {
+    const currentChurchId = churchId(req);
     const members = await User.find({
-      church: churchId(req),
+      church: currentChurchId,
       role: 'MEMBER',
     })
       .sort({ email: 1 })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
       .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
-    return res.json(members.map((m) => toProfileResponse(m)));
+    const activePastorTerms = await PastorTerm.find({
+      church: currentChurchId,
+      status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+    })
+      .select('pastor')
+      .lean();
+    const pastorIds = new Set(activePastorTerms.map((t) => String(t.pastor)));
+    return res.json(members.map((m) => mergeSpiritualLeaderLabel(toProfileResponse(m), pastorIds.has(String(m._id)))));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list members' });
@@ -183,6 +220,7 @@ async function createMember(req, res) {
       contactPhone,
       conferenceIds,
       memberCategory,
+      councilIds,
       gender,
       dateOfBirth,
       address,
@@ -232,8 +270,24 @@ async function createMember(req, res) {
     if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
       return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
     }
+    const normalizedCouncilIds = Array.isArray(councilIds)
+      ? Array.from(new Set(councilIds.map((id) => String(id)).filter(Boolean)))
+      : [];
+    if (normalizedCouncilIds.length === 0) {
+      return res.status(400).json({ message: 'Select at least one council' });
+    }
+    const adminChurchWithCouncils = await Church.findById(churchId(req)).select('councils._id');
+    const validCouncilIds = new Set(
+      Array.isArray(adminChurchWithCouncils?.councils)
+        ? adminChurchWithCouncils.councils.map((c) => String(c._id))
+        : []
+    );
+    if (!normalizedCouncilIds.every((id) => validCouncilIds.has(id))) {
+      return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
+    }
     const patchResult = applyMemberProfilePatch(member, {
       conferenceIds: [selectedConferenceIds[0]],
+      councilIds: normalizedCouncilIds,
       memberCategory: normalizedCategory,
       gender,
       dateOfBirth,
@@ -266,9 +320,10 @@ async function createMember(req, res) {
 
 async function getMember(req, res) {
   try {
+    const currentChurchId = churchId(req);
     const member = await User.findOne({
       _id: req.params.memberId,
-      church: churchId(req),
+      church: currentChurchId,
       role: 'MEMBER',
     })
       .select('-password')
@@ -277,7 +332,14 @@ async function getMember(req, res) {
     if (!member) {
       return res.status(404).json({ message: 'Member not found' });
     }
-    return res.json(toProfileResponse(member));
+    const activePastorTerm = await PastorTerm.findOne({
+      church: currentChurchId,
+      pastor: member._id,
+      status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+    })
+      .select('_id')
+      .lean();
+    return res.json(mergeSpiritualLeaderLabel(toProfileResponse(member), Boolean(activePastorTerm)));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load member' });
@@ -298,11 +360,34 @@ async function updateMember(req, res) {
     if (patchResult.error) {
       return res.status(400).json({ message: patchResult.error });
     }
+    if (req.body.councilIds !== undefined) {
+      const selected = Array.isArray(req.body.councilIds)
+        ? Array.from(new Set(req.body.councilIds.map((id) => String(id)).filter(Boolean)))
+        : [];
+      if (selected.length === 0) {
+        return res.status(400).json({ message: 'Select at least one council' });
+      }
+      const churchDoc = await Church.findById(churchId(req)).select('councils._id');
+      const validIds = new Set(
+        Array.isArray(churchDoc?.councils) ? churchDoc.councils.map((c) => String(c._id)) : []
+      );
+      if (!selected.every((id) => validIds.has(id))) {
+        return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
+      }
+      member.councilIds = selected;
+    }
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
       .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
-    return res.json(toProfileResponse(populated));
+    const activePastorTerm = await PastorTerm.findOne({
+      church: churchId(req),
+      pastor: member._id,
+      status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+    })
+      .select('_id')
+      .lean();
+    return res.json(mergeSpiritualLeaderLabel(toProfileResponse(populated), Boolean(activePastorTerm)));
   } catch (err) {
     console.error(err);
     if (err.name === 'ValidationError') {

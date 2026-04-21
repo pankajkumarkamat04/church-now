@@ -30,6 +30,8 @@ export default function AdminMemberEditPage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [address, setAddress] = useState<MemberAddress>(emptyAddress);
   const [isActive, setIsActive] = useState(true);
+  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -44,7 +46,16 @@ export default function AdminMemberEditPage() {
     setDateOfBirth(p.dateOfBirth || '');
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
     setIsActive(p.isActive !== false);
+    setCouncilIds(Array.isArray(p.councilIds) ? p.councilIds : []);
   }, [token, memberId]);
+
+  const loadCouncils = useCallback(async () => {
+    if (!token) return;
+    const church = await apiFetch<{ councils?: Array<{ _id: string; name: string }> }>('/api/admin/church', {
+      token,
+    });
+    setCouncils(Array.isArray(church.councils) ? church.councils : []);
+  }, [token]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -55,8 +66,9 @@ export default function AdminMemberEditPage() {
   useEffect(() => {
     if (user?.role === 'ADMIN' && token && memberId) {
       load().catch((e) => setLoadErr(e instanceof Error ? e.message : 'Failed to load'));
+      loadCouncils().catch(() => {});
     }
-  }, [user, token, memberId, load]);
+  }, [user, token, memberId, load, loadCouncils]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,6 +85,7 @@ export default function AdminMemberEditPage() {
           dateOfBirth: dateOfBirth || null,
           address,
           isActive,
+          councilIds,
         }),
       });
       router.replace('/dashboard/admin/members');
@@ -146,6 +159,21 @@ export default function AdminMemberEditPage() {
               onChange={(e) => setDateOfBirth(e.target.value)}
               className={field}
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
+            <select
+              multiple
+              value={councilIds}
+              onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((option) => option.value))}
+              className={`${field} min-h-[110px]`}
+            >
+              {councils.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>

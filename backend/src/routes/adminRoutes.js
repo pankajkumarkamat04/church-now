@@ -7,6 +7,8 @@ const eventController = require('../controllers/eventController');
 const galleryController = require('../controllers/galleryController');
 const subscriptionController = require('../controllers/subscriptionController');
 const titheController = require('../controllers/titheController');
+const pastorController = require('../controllers/pastorController');
+const attendanceController = require('../controllers/attendanceController');
 
 const router = express.Router();
 
@@ -19,6 +21,15 @@ router.post('/members', asyncHandler(frontendController.createMember));
 router.get('/members/:memberId', asyncHandler(frontendController.getMember));
 router.put('/members/:memberId', asyncHandler(frontendController.updateMember));
 router.patch('/members/:memberId/deactivate', asyncHandler(frontendController.deactivateMember));
+router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembers));
+router.get('/pastors', asyncHandler(pastorController.listPastors));
+router.post('/pastors', asyncHandler(pastorController.createPastor));
+router.get('/pastor-terms', asyncHandler(pastorController.listAdminPastorTerms));
+router.post('/pastor-terms/assign', asyncHandler(pastorController.assignPastorTerm));
+router.post('/pastor-terms/:termId/renew', asyncHandler(pastorController.renewPastorTerm));
+router.get('/attendance', asyncHandler(attendanceController.listMonth));
+router.get('/attendance/:dateKey', asyncHandler(attendanceController.getDay));
+router.put('/attendance/:dateKey', asyncHandler(attendanceController.saveDay));
 
 router.get('/frontend/site', asyncHandler(frontendController.getAdminSite));
 router.put('/frontend/site', asyncHandler(frontendController.putAdminSite));

@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { Layers, Pencil, Plus, Shield, Trash2, UserCog, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChurchLeadershipModal, leadershipSummary } from '@/components/church/ChurchLeadershipModal';
+import { ChurchPastorManageModal } from '@/components/church/ChurchPastorManageModal';
 import type { ChurchRecord } from './types';
 
 const btn =
@@ -19,6 +20,7 @@ export default function SuperadminChurchesListPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [leadershipChurch, setLeadershipChurch] = useState<ChurchRecord | null>(null);
+  const [pastorChurch, setPastorChurch] = useState<ChurchRecord | null>(null);
 
   function conferenceLabel(row: ChurchRecord) {
     if (!row.conference || typeof row.conference === 'string') return '—';
@@ -152,31 +154,48 @@ export default function SuperadminChurchesListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-2">
-                      <Link href={`/dashboard/superadmin/churches/${c._id}/edit`} className={btn}>
-                        <Pencil className="mr-1 size-3.5" aria-hidden />
-                        Edit
+                      <Link href={`/dashboard/superadmin/churches/${c._id}/edit`} className={btn} title="Edit church" aria-label="Edit church">
+                        <Pencil className="size-3.5" aria-hidden />
                       </Link>
-                      <Link href={`/dashboard/superadmin/churches/${c._id}/members`} className={btn}>
-                        <Users className="mr-1 size-3.5" aria-hidden />
-                        Members
+                      <Link href={`/dashboard/superadmin/churches/${c._id}/members`} className={btn} title="Church members" aria-label="Church members">
+                        <Users className="size-3.5" aria-hidden />
                       </Link>
+                      <Link
+                        href={`/dashboard/superadmin/churches/councils?churchId=${encodeURIComponent(c._id)}`}
+                        className={btn}
+                        title="Church councils"
+                        aria-label="Church councils"
+                      >
+                        <Layers className="size-3.5" aria-hidden />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setPastorChurch(c)}
+                        className={btn}
+                        title="Manage pastor assignments"
+                        aria-label="Manage pastor assignments"
+                      >
+                        <UserCog className="size-3.5" aria-hidden />
+                      </button>
                       <button
                         type="button"
                         onClick={() => setLeadershipChurch(c)}
                         className={btn}
                         title={leadershipSummary(c)}
+                        aria-label="Edit leadership"
                       >
-                        <Users className="mr-1 size-3.5" aria-hidden />
-                        Leadership
+                        <Shield className="size-3.5" aria-hidden />
                       </button>
                       <button
                         type="button"
                         disabled={busyId === c._id}
                         onClick={() => removeChurch(c._id)}
                         className={`${btn} border-red-200 text-red-700 hover:bg-red-50`}
+                        title="Delete church"
+                        aria-label="Delete church"
                       >
-                        <Trash2 className="mr-1 size-3.5" aria-hidden />
-                        {busyId === c._id ? '…' : 'Delete'}
+                        <Trash2 className="size-3.5" aria-hidden />
+                        {busyId === c._id ? '…' : null}
                       </button>
                     </div>
                   </td>
@@ -201,6 +220,13 @@ export default function SuperadminChurchesListPage() {
         onSaved={() => {
           load().catch(() => {});
         }}
+      />
+      <ChurchPastorManageModal
+        open={Boolean(pastorChurch)}
+        onClose={() => setPastorChurch(null)}
+        churchId={pastorChurch?._id || ''}
+        churchName={pastorChurch?.name || ''}
+        token={token}
       />
     </div>
   );

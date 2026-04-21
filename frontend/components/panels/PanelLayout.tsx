@@ -108,6 +108,16 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
         icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
+        href: '/dashboard/superadmin/churches/councils',
+        label: 'Councils',
+        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/pastors',
+        label: 'Pastor records',
+        icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
         href: '/dashboard/superadmin/users',
         label: 'Members',
         icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
@@ -164,6 +174,21 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
     },
   ];
 
+  items.push({
+    href: '/dashboard/admin/pastors',
+    label: 'Pastor records',
+    icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
+    href: '/dashboard/admin/councils',
+    label: 'Councils',
+    icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
+    href: '/dashboard/admin/attendance',
+    label: 'Attendance',
+    icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
   items.push({
     href: '/dashboard/admin/subscriptions',
     label: 'Subscriptions',

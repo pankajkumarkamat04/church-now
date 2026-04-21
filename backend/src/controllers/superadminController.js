@@ -106,7 +106,7 @@ async function updateChurch(req, res) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
     const church = await Church.findByIdAndUpdate(req.params.id, { $set: updates }, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
     if (!church) {
@@ -159,7 +159,7 @@ function toUserListItem(u, churchLeanForRoles = null) {
   const fromChurch =
     churchLeanForRoles && uid ? collectCongregationRoleLabelsForUser(churchLeanForRoles, uid) : [];
   const memberRoleDisplay =
-    fromChurch.length > 0 ? fromChurch.join(', ') : (u.memberCategory || 'MEMBER');
+    String(u.memberRoleDisplay || '').trim() || (fromChurch.length > 0 ? fromChurch.join(', ') : (u.memberCategory || 'MEMBER'));
   return {
     id: u._id,
     email: u.email,
@@ -167,9 +167,10 @@ function toUserListItem(u, churchLeanForRoles = null) {
     role: u.role,
     church: u.church,
     conferences: u.conferences || [],
+    councilIds: Array.isArray(u.councilIds) ? u.councilIds.map((id) => String(id)) : [],
     memberCategory: u.memberCategory,
-    memberRolesFromChurch: fromChurch,
     memberRoleDisplay,
+    memberRolesFromChurch: fromChurch,
     memberId: u.memberId || '',
     adminChurches: u.adminChurches || [],
     isActive: u.isActive,
@@ -247,7 +248,7 @@ async function getUser(req, res) {
 
 async function updateUser(req, res) {
   try {
-    const { fullName, isActive, churchIds, conferenceId, churchId, memberCategory } = req.body;
+    const { fullName, isActive, churchIds, conferenceId, churchId, memberCategory, councilIds } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -301,6 +302,22 @@ async function updateUser(req, res) {
       }
       if (memberCategory !== undefined) {
         user.memberCategory = String(memberCategory || '').toUpperCase();
+      }
+      if (councilIds !== undefined) {
+        const selected = Array.isArray(councilIds)
+          ? Array.from(new Set(councilIds.map((id) => String(id)).filter(Boolean)))
+          : [];
+        if (selected.length === 0) {
+          return res.status(400).json({ message: 'Select at least one council' });
+        }
+        const churchDoc = await Church.findById(user.church).select('councils._id');
+        const validIds = new Set(
+          Array.isArray(churchDoc?.councils) ? churchDoc.councils.map((c) => String(c._id)) : []
+        );
+        if (!selected.every((id) => validIds.has(id))) {
+          return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
+        }
+        user.councilIds = selected;
       }
     }
     await user.save();
@@ -444,6 +461,7 @@ async function createMemberUser(req, res) {
       conferenceId,
       churchId,
       memberCategory,
+      councilIds,
       gender,
       dateOfBirth,
       address,
@@ -456,6 +474,21 @@ async function createMemberUser(req, res) {
     );
     if (!church) {
       return res.status(400).json({ message: 'Selected church does not belong to selected conference' });
+    }
+    const normalizedCouncilIds = Array.isArray(councilIds)
+      ? Array.from(new Set(councilIds.map((id) => String(id)).filter(Boolean)))
+      : [];
+    if (normalizedCouncilIds.length === 0) {
+      return res.status(400).json({ message: 'Select at least one council' });
+    }
+    const churchWithCouncils = await Church.findById(church._id).select('councils._id');
+    const validCouncilIds = new Set(
+      Array.isArray(churchWithCouncils?.councils)
+        ? churchWithCouncils.councils.map((c) => String(c._id))
+        : []
+    );
+    if (!normalizedCouncilIds.every((id) => validCouncilIds.has(id))) {
+      return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
     }
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
@@ -480,6 +513,7 @@ async function createMemberUser(req, res) {
       role: 'MEMBER',
       church: church._id,
       conferences: [conferenceId],
+      councilIds: normalizedCouncilIds,
       memberCategory: String(memberCategory || 'MEMBER').toUpperCase(),
       memberId: assignedMemberId,
       gender: gender || undefined,

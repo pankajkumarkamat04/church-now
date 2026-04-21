@@ -12,7 +12,12 @@ const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
 
 type Conference = { _id: string; name: string; conferenceId?: string };
-type Church = { _id: string; name: string; conference?: string | { _id: string } | null };
+type Church = {
+  _id: string;
+  name: string;
+  conference?: string | { _id: string } | null;
+  councils?: Array<{ _id: string; name: string }>;
+};
 
 export default function SuperadminMemberCreatePage() {
   const { user, token, loading } = useAuth();
@@ -25,10 +30,15 @@ export default function SuperadminMemberCreatePage() {
   const [contactPhone, setContactPhone] = useState('');
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [churches, setChurches] = useState<Church[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function toggleCouncil(id: string) {
+    setCouncilIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -64,9 +74,23 @@ export default function SuperadminMemberCreatePage() {
     setChurchId((prev) => (prev && filteredChurches.some((church) => church._id === prev) ? prev : filteredChurches[0]?._id || ''));
   }, [filteredChurches]);
 
+  useEffect(() => {
+    const activeChurch = filteredChurches.find((c) => c._id === churchId);
+    const available = Array.isArray(activeChurch?.councils) ? activeChurch.councils : [];
+    setCouncilIds((prev) => {
+      const kept = prev.filter((id) => available.some((c) => c._id === id));
+      if (kept.length > 0) return kept;
+      return available[0]?._id ? [available[0]._id] : [];
+    });
+  }, [churchId, filteredChurches]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
+    if (councilIds.length === 0) {
+      setErr('Select at least one council');
+      return;
+    }
     setErr(null);
     setBusy(true);
     try {
@@ -82,6 +106,7 @@ export default function SuperadminMemberCreatePage() {
           contactPhone,
           conferenceId,
           churchId,
+          councilIds,
         }),
       });
       router.replace('/dashboard/superadmin/users');
@@ -125,6 +150,39 @@ export default function SuperadminMemberCreatePage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(filteredChurches.find((church) => church._id === churchId)?.councils || []).map((council) => {
+                    const selected = councilIds.includes(council._id);
+                    return (
+                      <label
+                        key={council._id}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                          selected
+                            ? 'border-violet-300 bg-violet-50 text-violet-900'
+                            : 'border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleCouncil(council._id)}
+                          className="size-4 rounded border-neutral-300"
+                        />
+                        <span>{council.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {((filteredChurches.find((church) => church._id === churchId)?.councils || []).length === 0) ? (
+                  <p className="text-xs text-neutral-500">No councils set for this church yet.</p>
+                ) : (
+                  <p className="mt-2 text-xs text-neutral-500">Select one or more councils.</p>
+                )}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>

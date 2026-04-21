@@ -12,6 +12,16 @@ type MemberRow = AuthUser & { id: string };
 const inputBtn =
   'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
+function normalizeMemberRoleLabel(value: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return 'MEMBER';
+  const lowered = raw.toLowerCase();
+  if (lowered.includes('spiritual leader') || lowered.includes('spiritual pastor')) {
+    return 'Spiritual leader/Pastor';
+  }
+  return raw;
+}
+
 export default function AdminMembersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
@@ -103,7 +113,9 @@ export default function AdminMembersListPage() {
                 <tr key={m.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{m.email}</td>
                   <td className="px-4 py-3">{m.fullName || '—'}</td>
-                  <td className="px-4 py-3">{m.memberRoleDisplay || m.memberCategory || 'MEMBER'}</td>
+                  <td className="px-4 py-3">
+                    {normalizeMemberRoleLabel(m.memberRoleDisplay || m.memberCategory || 'MEMBER')}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={

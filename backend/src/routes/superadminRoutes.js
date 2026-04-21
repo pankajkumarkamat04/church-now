@@ -26,6 +26,7 @@ const titheController = require('../controllers/titheController');
 const conferenceController = require('../controllers/conferenceController');
 const mainChurchController = require('../controllers/mainChurchController');
 const subChurchController = require('../controllers/subChurchController');
+const pastorController = require('../controllers/pastorController');
 
 const router = express.Router();
 
@@ -87,6 +88,11 @@ router.put('/churches/:id', asyncHandler(updateChurch));
 router.delete('/churches/:id', asyncHandler(deleteChurch));
 
 router.get('/users', asyncHandler(listUsers));
+router.get('/pastors', asyncHandler(pastorController.listPastorsForSuperadmin));
+router.get('/pastor-terms', asyncHandler(pastorController.listSuperadminPastorTerms));
+router.post('/pastor-terms/assign', asyncHandler(pastorController.assignPastorTerm));
+router.post('/pastor-terms/:termId/renew', asyncHandler(pastorController.renewPastorTerm));
+router.post('/pastor-terms/:termId/transfer', asyncHandler(pastorController.transferPastor));
 router.post('/members', asyncHandler(createMemberUser));
 router.get('/users/:id', asyncHandler(getUser));
 router.put('/users/:id', asyncHandler(updateUser));

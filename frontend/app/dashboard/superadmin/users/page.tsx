@@ -12,26 +12,42 @@ type UserRow = AuthUser & { id: string };
 const btn =
   'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
+function normalizeMemberRoleLabel(value: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return 'MEMBER';
+  const lowered = raw.toLowerCase();
+  if (lowered.includes('spiritual leader') || lowered.includes('spiritual pastor')) {
+    return 'Spiritual leader/Pastor';
+  }
+  return raw;
+}
+
 export default function SuperadminUsersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [roleFilter, setRoleFilter] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
   const [churches, setChurches] = useState<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const usersFilterMessage = !conferenceId
+    ? `Optional filters: showing ${roleFilter.toLowerCase()} accounts from all conferences and churches.`
+    : churchId
+      ? `Filters applied: ${roleFilter.toLowerCase()} + conference + church selected.`
+      : `Filters applied: ${roleFilter.toLowerCase()} + conference selected. Optionally select a church to narrow results.`;
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const query = new URLSearchParams({ role: 'MEMBER' });
+    const query = new URLSearchParams({ role: roleFilter });
     if (conferenceId) query.set('conferenceId', conferenceId);
     if (churchId) query.set('churchId', churchId);
     const u = await apiFetch<UserRow[]>(`/api/superadmin/users?${query.toString()}`, { token });
     setUsers(u);
-  }, [token, conferenceId, churchId]);
+  }, [token, roleFilter, conferenceId, churchId]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -119,16 +135,29 @@ export default function SuperadminUsersListPage() {
         </p>
       ) : null}
 
-      <div className="mb-4 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-2">
+      <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-700">Filters</p>
+        <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Conference filter</label>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Role</label>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as 'MEMBER' | 'ADMIN')}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+          >
+            <option value="MEMBER">Member</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Conference</label>
           <select
             value={conferenceId}
             onChange={(e) => {
               setConferenceId(e.target.value);
               setChurchId('');
             }}
-            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
           >
             <option value="">All conferences</option>
             {conferences.map((c) => (
@@ -140,16 +169,17 @@ export default function SuperadminUsersListPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Church filter</label>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Church</label>
           <select
             value={churchId}
             onChange={(e) => setChurchId(e.target.value)}
-            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 disabled:opacity-60"
+            disabled={!conferenceId}
           >
-            <option value="">All churches</option>
+            <option value="">{conferenceId ? 'All churches' : 'Select conference first'}</option>
             {churches
               .filter((church) => {
-                if (!conferenceId) return true;
+                if (!conferenceId) return false;
                 const conf = church.conference;
                 if (!conf) return false;
                 return typeof conf === 'string' ? conf === conferenceId : conf._id === conferenceId;
@@ -160,6 +190,27 @@ export default function SuperadminUsersListPage() {
                 </option>
               ))}
           </select>
+        </div>
+        </div>
+        <div
+          className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
+            conferenceId ? 'border-violet-200 bg-violet-50' : 'border-neutral-200 bg-neutral-50'
+          }`}
+        >
+          <p className={`text-xs ${conferenceId ? 'text-violet-900' : 'text-neutral-700'}`}>
+            {usersFilterMessage}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setRoleFilter('MEMBER');
+              setConferenceId('');
+              setChurchId('');
+            }}
+            className="text-xs font-medium text-violet-700 hover:text-violet-900"
+          >
+            Clear filters
+          </button>
         </div>
       </div>
 
@@ -183,7 +234,11 @@ export default function SuperadminUsersListPage() {
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3 font-mono text-xs text-neutral-700">{u.memberId || '—'}</td>
                   <td className="px-4 py-3">{u.fullName || '—'}</td>
-                  <td className="px-4 py-3 text-neutral-700">{u.memberRoleDisplay || u.memberCategory || 'MEMBER'}</td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {u.role === 'ADMIN'
+                      ? 'ADMIN'
+                      : normalizeMemberRoleLabel(u.memberRoleDisplay || u.memberCategory || 'MEMBER')}
+                  </td>
                   <td className="px-4 py-3 text-neutral-600">
                     {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0
                       ? u.adminChurches.map((c) => c.name).join(', ')

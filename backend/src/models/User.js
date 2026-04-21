@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const ROLES = ['SUPERADMIN', 'ADMIN', 'MEMBER'];
 
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_SAY'];
-const MEMBER_CATEGORIES = ['MEMBER', 'PRESIDENT', 'MODERATOR'];
+const MEMBER_CATEGORIES = ['MEMBER', 'PRESIDENT', 'MODERATOR', 'PASTOR'];
 
 const addressSchema = new mongoose.Schema(
   {
@@ -55,11 +55,13 @@ const userSchema = new mongoose.Schema(
         ref: 'Conference',
       },
     ],
+    councilIds: [{ type: mongoose.Schema.Types.ObjectId }],
     memberCategory: {
       type: String,
       enum: MEMBER_CATEGORIES,
       default: 'MEMBER',
     },
+    memberRoleDisplay: { type: String, trim: true, default: 'MEMBER' },
     /** Congregation-unique member number (assigned to MEMBER; kept when promoted to ADMIN). */
     memberId: { type: String, trim: true, default: '' },
     adminChurches: [

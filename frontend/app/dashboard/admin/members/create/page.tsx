@@ -31,8 +31,14 @@ export default function AdminMemberCreatePage() {
   const [country, setCountry] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string }>>([]);
   const [conferenceIds, setConferenceIds] = useState<string[]>([]);
+  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function toggleCouncil(id: string) {
+    setCouncilIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -55,11 +61,34 @@ export default function AdminMemberCreatePage() {
     loadConferences();
   }, []);
 
+  useEffect(() => {
+    async function loadChurchCouncils() {
+      if (!token || user?.role !== 'ADMIN') return;
+      try {
+        const church = await apiFetch<{ councils?: Array<{ _id: string; name: string }> }>('/api/admin/church', {
+          token,
+        });
+        const rows = Array.isArray(church.councils)
+          ? church.councils.filter((c) => c?._id && c?.name)
+          : [];
+        setCouncils(rows);
+        setCouncilIds((prev) => (prev.length > 0 ? prev : rows[0]?._id ? [rows[0]._id] : []));
+      } catch {
+        setCouncils([]);
+      }
+    }
+    loadChurchCouncils();
+  }, [token, user]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
     if (conferenceIds.length === 0) {
       setErr('Select at least one conference');
+      return;
+    }
+    if (councilIds.length === 0) {
+      setErr('Select at least one council');
       return;
     }
     setErr(null);
@@ -75,6 +104,7 @@ export default function AdminMemberCreatePage() {
           surname,
           idNumber,
           conferenceIds,
+          councilIds,
           dateOfBirth,
           gender,
           contactPhone,
@@ -150,6 +180,39 @@ export default function AdminMemberCreatePage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {councils.map((c) => {
+                    const selected = councilIds.includes(c._id);
+                    return (
+                      <label
+                        key={c._id}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                          selected
+                            ? 'border-sky-300 bg-sky-50 text-sky-900'
+                            : 'border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleCouncil(c._id)}
+                          className="size-4 rounded border-neutral-300"
+                        />
+                        <span>{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {councils.length === 0 ? (
+                  <p className="text-xs text-neutral-500">No councils configured for this church yet.</p>
+                ) : (
+                  <p className="mt-2 text-xs text-neutral-500">Select one or more councils.</p>
+                )}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">ID</label>

@@ -13,7 +13,8 @@ function toProfileResponse(userDoc) {
   const ch = u.church && typeof u.church === 'object' ? u.church : null;
   const memberRolesFromChurch = ch && u._id ? collectCongregationRoleLabelsForUser(ch, u._id) : [];
   const memberRoleDisplay =
-    memberRolesFromChurch.length > 0 ? memberRolesFromChurch.join(', ') : u.memberCategory || 'MEMBER';
+    String(u.memberRoleDisplay || '').trim() ||
+    (memberRolesFromChurch.length > 0 ? memberRolesFromChurch.join(', ') : u.memberCategory || 'MEMBER');
 
   return {
     id: u._id,
@@ -45,6 +46,7 @@ function toProfileResponse(userDoc) {
     role: u.role,
     church: u.church ?? null,
     conferences: Array.isArray(u.conferences) ? u.conferences : [],
+    councilIds: Array.isArray(u.councilIds) ? u.councilIds.map((id) => String(id)) : [],
     memberCategory: u.memberCategory || 'MEMBER',
     memberRolesFromChurch,
     memberRoleDisplay,
@@ -108,6 +110,9 @@ function applyMemberProfilePatch(user, body, options = {}) {
   }
   if (body.conferenceIds !== undefined) {
     user.conferences = Array.isArray(body.conferenceIds) ? body.conferenceIds : [];
+  }
+  if (body.councilIds !== undefined) {
+    user.councilIds = Array.isArray(body.councilIds) ? body.councilIds : [];
   }
 
   if (body.gender !== undefined) {

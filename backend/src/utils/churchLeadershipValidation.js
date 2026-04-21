@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const PastorTerm = require('../models/PastorTerm');
+const { ACTIVE_PASTOR_TERM_STATUSES } = require('./memberRoleSync');
 
 const SINGLE_ROLE_KEYS = [
   'spiritualPastor',
@@ -82,7 +84,29 @@ async function validateChurchLeadershipPayload(churchId, localLeadership, counci
   const leadership = normalizeLocalLeadership(localLeadership);
   const councilList = normalizeCouncils(councils);
   const allIds = [...collectUserIdsFromLeadership(leadership), ...collectUserIdsFromCouncils(councilList)];
+  const counts = new Map();
+  for (const id of allIds.map(String)) {
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  const dupes = [...counts.entries()].filter(([, count]) => count > 1).map(([id]) => id);
+  if (dupes.length > 0) {
+    const err = new Error('A member can hold only one leadership role at a time');
+    err.statusCode = 400;
+    throw err;
+  }
   await assertUsersAreMembersOfChurch(churchId, allIds);
+  const activePastorTerms = await PastorTerm.find({
+    church: churchId,
+    status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+    pastor: { $in: [...new Set(allIds.map(String))] },
+  })
+    .select('pastor')
+    .lean();
+  if (activePastorTerms.length > 0) {
+    const err = new Error('Members assigned as spiritual leader/pastor cannot be assigned to other leadership roles');
+    err.statusCode = 400;
+    throw err;
+  }
   return { leadership, councils: councilList };
 }
 

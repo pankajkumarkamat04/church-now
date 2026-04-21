@@ -22,7 +22,7 @@ type RegisterInput = {
   password: string;
   churchId: string;
   conferenceIds: string[];
-  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR';
+  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR';
   firstName: string;
   surname: string;
   idNumber: string;

@@ -8,6 +8,8 @@ const {
   validateChurchLeadershipPayload,
   populateLeadershipPaths,
 } = require('../utils/churchLeadershipValidation');
+const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
+const debugCouncils = process.env.DEBUG_COUNCILS === 'true';
 
 const BASE_FIELDS = [
   'name',
@@ -89,6 +91,13 @@ async function createSubChurch(req, res) {
 async function updateSubChurch(req, res) {
   const row = await Church.findOne({ _id: req.params.id, churchType: 'SUB' });
   if (!row) return res.status(404).json({ message: 'Sub church not found' });
+  if (debugCouncils) {
+    console.info('[councils:sub:update:start]', {
+      churchId: String(req.params.id),
+      hasCouncils: req.body?.councils !== undefined,
+      councilsCount: Array.isArray(req.body?.councils) ? req.body.councils.length : null,
+    });
+  }
 
   Object.assign(row, buildBasePayload(req.body));
 
@@ -124,14 +133,34 @@ async function updateSubChurch(req, res) {
       const councilsSrc =
         req.body.councils !== undefined ? req.body.councils : row.councils?.toObject?.() || row.councils || [];
       const { leadership, councils } = await validateChurchLeadershipPayload(row._id, leadershipSrc, councilsSrc);
+      if (debugCouncils) {
+        console.info('[councils:sub:update:validated]', {
+          churchId: String(row._id),
+          councilsInRequest: Array.isArray(councilsSrc) ? councilsSrc.length : null,
+          councilsValidated: Array.isArray(councils) ? councils.length : null,
+        });
+      }
       row.localLeadership = leadership;
       row.councils = councils;
     } catch (e) {
+      if (debugCouncils) {
+        console.error('[councils:sub:update:error]', {
+          churchId: String(row._id),
+          message: e?.message || 'Unknown error',
+        });
+      }
       return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid leadership data' });
     }
   }
 
   await row.save();
+  await syncChurchMemberRoleDisplays(row.toObject ? row.toObject() : row);
+  if (debugCouncils) {
+    console.info('[councils:sub:update:saved]', {
+      churchId: String(row._id),
+      councilsSaved: Array.isArray(row.councils) ? row.councils.length : 0,
+    });
+  }
   const populated = await Church.findById(row._id)
     .populate('conference', 'name conferenceId')
     .populate('mainChurch', 'name')

@@ -34,7 +34,8 @@ export type AuthUser = {
       }
     | string
   >;
-  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR';
+  councilIds?: string[];
+  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR';
   /** Labels from church localLeadership / councils (backend-computed). */
   memberRolesFromChurch?: string[];
   /** Preferred label for lists: congregation offices or memberCategory fallback. */
@@ -58,6 +59,7 @@ export type AuthUser = {
         latitude?: number | null;
         longitude?: number | null;
         isActive?: boolean;
+        councils?: Array<{ _id: string; name: string }>;
       }
     | null;
   adminChurches?: Array<{
