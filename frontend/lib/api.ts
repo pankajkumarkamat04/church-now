@@ -42,6 +42,8 @@ export type AuthUser = {
   memberRoleDisplay?: string;
   /** Congregation-unique member number (members and admins promoted from members). */
   memberId?: string;
+  /** True for MEMBER, or ADMIN promoted from a member (home church + member id). Drives default portal. */
+  canAccessMemberPortal?: boolean;
   role: Role;
   church:
     | string

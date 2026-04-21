@@ -4,17 +4,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Building2,
+  Briefcase,
   CircleUserRound,
   CreditCard,
   HandCoins,
   Home,
+  Layers,
   LayoutDashboard,
   LogOut,
   Menu,
   X,
 } from 'lucide-react';
-import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
+import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 export function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -28,8 +29,8 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
       router.replace('/login');
       return;
     }
-    if (user.role !== 'MEMBER') {
-      router.replace(dashboardPathForRole(user.role));
+    if (!canAccessMemberPortal(user)) {
+      router.replace(getDefaultDashboardPath(user));
     }
   }, [loading, user, router]);
 
@@ -37,7 +38,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
     setMobileNavOpen(false);
   }, [pathname]);
 
-  if (loading || !user || user.role !== 'MEMBER') {
+  if (loading || !user || !canAccessMemberPortal(user)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-100">
         <div className="flex flex-col items-center gap-3">
@@ -52,7 +53,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const subscriptionsActive = pathname === '/dashboard/member/subscriptions';
   const tithesActive = pathname === '/dashboard/member/tithes';
   const accountActive = pathname === '/dashboard/member/account';
-  const conferencesActive = pathname === '/dashboard/member/conferences';
+  const councilsActive = pathname === '/dashboard/member/councils';
 
   const itemClass = (active: boolean) =>
     `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
@@ -86,8 +87,8 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
               <Link href="/dashboard/member/subscriptions" className="hover:text-neutral-900">
                 Subscription
               </Link>
-              <Link href="/dashboard/member/conferences" className="hover:text-neutral-900">
-                Conferences
+              <Link href="/dashboard/member/councils" className="hover:text-neutral-900">
+                Councils
               </Link>
               <Link href="/dashboard/member/tithes" className="hover:text-neutral-900">
                 Tithes
@@ -126,14 +127,23 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                   <CreditCard className="size-4" />
                   Subscription
                 </Link>
-                <Link href="/dashboard/member/conferences" className={itemClass(conferencesActive)}>
-                  <Building2 className="size-4" />
-                  Conferences
+                <Link href="/dashboard/member/councils" className={itemClass(councilsActive)}>
+                  <Layers className="size-4" />
+                  Councils
                 </Link>
                 <Link href="/dashboard/member/tithes" className={itemClass(tithesActive)}>
                   <HandCoins className="size-4" />
                   Tithes
                 </Link>
+                {user.role === 'ADMIN' ? (
+                  <Link
+                    href="/dashboard/admin"
+                    className={itemClass(pathname.startsWith('/dashboard/admin'))}
+                  >
+                    <Briefcase className="size-4" />
+                    Church admin
+                  </Link>
+                ) : null}
               </nav>
               <div className="mt-4 border-t border-neutral-100 pt-4 space-y-2">
                 <Link href="/" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900">

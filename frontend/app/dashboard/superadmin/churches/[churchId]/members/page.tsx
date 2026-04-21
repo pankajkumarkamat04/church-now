@@ -14,6 +14,7 @@ type MemberRow = {
   memberId?: string;
   memberCategory?: string;
   memberRoleDisplay?: string;
+  role?: string;
   isActive?: boolean;
 };
 
@@ -33,7 +34,7 @@ export default function SuperadminChurchMembersPage() {
     setErr(null);
     const [churchRow, memberRows] = await Promise.all([
       apiFetch<Church>(`/api/superadmin/churches/${churchId}`, { token }),
-      apiFetch<MemberRow[]>(`/api/superadmin/users?role=MEMBER&churchId=${encodeURIComponent(churchId)}`, { token }),
+      apiFetch<MemberRow[]>(`/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}`, { token }),
     ]);
     setChurch(churchRow);
     setMembers(memberRows);
@@ -59,7 +60,7 @@ export default function SuperadminChurchMembersPage() {
         <Link href="/dashboard/superadmin/churches" className="text-sm font-medium text-violet-700 hover:text-violet-900">
           ← Back to churches
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-neutral-900">Church members</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-neutral-900">Church members &amp; admins</h1>
         <p className="mt-1 text-sm text-neutral-600">{church?.name || 'Loading church...'}</p>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
@@ -76,6 +77,7 @@ export default function SuperadminChurchMembersPage() {
                   <th className="px-4 py-3 font-medium">Member ID</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Account</th>
                   <th className="px-4 py-3 font-medium">Member role</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                 </tr>
@@ -86,7 +88,12 @@ export default function SuperadminChurchMembersPage() {
                     <td className="px-4 py-3 font-mono text-xs text-neutral-700">{member.memberId || '—'}</td>
                     <td className="px-4 py-3">{member.email}</td>
                     <td className="px-4 py-3">{member.fullName || '—'}</td>
-                    <td className="px-4 py-3">{member.memberRoleDisplay || member.memberCategory || 'MEMBER'}</td>
+                    <td className="px-4 py-3 text-neutral-700">
+                      {member.role === 'ADMIN' ? 'Church admin' : 'Member'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {member.memberRoleDisplay || member.memberCategory || (member.role === 'ADMIN' ? '—' : 'MEMBER')}
+                    </td>
                     <td className="px-4 py-3">{member.isActive === false ? 'Inactive' : 'Active'}</td>
                   </tr>
                 ))}

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Church, Menu, X } from 'lucide-react';
-import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
+import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 const marketingNav = [
   { href: '#about', label: 'About' },
@@ -19,7 +19,7 @@ export function MarketingHeader({ variant = 'marketing' }: MarketingHeaderProps)
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const showMarketingNav = variant === 'marketing';
-  const dashboardHref = user ? dashboardPathForRole(user.role) : '/login';
+  const dashboardHref = user ? getDefaultDashboardPath(user) : '/login';
   const ctaLabel = user ? 'Dashboard' : 'Login';
 
   return (

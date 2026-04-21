@@ -39,7 +39,8 @@ export default function SuperadminUserEditPage() {
     setRow(u);
     setFullName(u.fullName || '');
     setIsActive(u.isActive !== false);
-    if (u.role === 'ADMIN') {
+    const isPromotedChurchAdmin = u.role === 'ADMIN' && String(u.memberId || '').trim() !== '';
+    if (u.role === 'ADMIN' && !isPromotedChurchAdmin) {
       const ids =
         u.adminChurches && u.adminChurches.length > 0
           ? u.adminChurches.map((c) => c._id)
@@ -50,12 +51,12 @@ export default function SuperadminUserEditPage() {
       const allChurches = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
       setChurches(allChurches);
     }
-    if (u.role === 'MEMBER') {
+    if (u.role === 'MEMBER' || isPromotedChurchAdmin) {
       const confId =
         Array.isArray(u.conferences) && u.conferences.length > 0
           ? typeof u.conferences[0] === 'string'
             ? u.conferences[0]
-            : u.conferences[0]._id
+            : (u.conferences[0] as { _id: string })._id
           : '';
       const cId =
         typeof u.church === 'object' && u.church && '_id' in u.church ? u.church._id : '';
@@ -92,17 +93,50 @@ export default function SuperadminUserEditPage() {
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch(`/api/superadmin/users/${userId}`, {
+      const isLegacyChurchAdmin = row.role === 'ADMIN' && !String(row.memberId || '').trim();
+      const isMemberForm =
+        row.role === 'MEMBER' || (row.role === 'ADMIN' && String(row.memberId || '').trim() !== '');
+      const updated = await apiFetch<UserDetail>(`/api/superadmin/users/${userId}`, {
         method: 'PUT',
         token,
         body: JSON.stringify({
           fullName,
           isActive,
-          ...(row.role === 'ADMIN' && !row.memberId ? { churchIds } : {}),
-          ...(row.role === 'MEMBER' ? { conferenceId, churchId, memberCategory, councilIds } : {}),
+          ...(isLegacyChurchAdmin ? { churchIds } : {}),
+          ...(isMemberForm ? { conferenceId, churchId, memberCategory, councilIds } : {}),
         }),
       });
-      router.replace(row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users');
+      router.replace(
+        updated.role === 'ADMIN' && !String(updated.memberId || '').trim()
+          ? '/dashboard/superadmin/admins'
+          : '/dashboard/superadmin/users',
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRemoveAdmin() {
+    if (!token || !row) return;
+    if (row.role !== 'ADMIN' || !String(row.memberId || '').trim()) return;
+    if (
+      !window.confirm(
+        'Remove church admin access? This person keeps their member record, congregation, and council assignments, but will no longer administer the church.',
+      )
+    ) {
+      return;
+    }
+    setErr(null);
+    setBusy(true);
+    try {
+      await apiFetch<UserDetail>(`/api/superadmin/users/${userId}`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({ fullName, isActive, removeAdmin: true }),
+      });
+      router.replace('/dashboard/superadmin/users');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -135,12 +169,15 @@ export default function SuperadminUserEditPage() {
     );
   }
 
+  const isLegacyChurchAdmin = row.role === 'ADMIN' && !String(row.memberId || '').trim();
+  const isMemberForm =
+    row.role === 'MEMBER' || (row.role === 'ADMIN' && String(row.memberId || '').trim() !== '');
+  const isPromotedChurchAdmin = row.role === 'ADMIN' && String(row.memberId || '').trim() !== '';
+  const backHref = isLegacyChurchAdmin ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users';
+
   return (
     <div className="mx-auto max-w-4xl">
-      <Link
-        href={row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users'}
-        className="text-sm font-medium text-violet-700 hover:text-violet-900"
-      >
+      <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">
         ← Back
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
@@ -151,7 +188,9 @@ export default function SuperadminUserEditPage() {
             {row.role}
           </span>
         </p>
-        <p className="mt-1 text-xs text-neutral-500">You can update display name and whether the account can sign in.</p>
+        <p className="mt-1 text-xs text-neutral-500">
+          Update display name, sign-in access, and—where applicable—congregation and role details.
+        </p>
         {row.memberId ? (
           <p className="mt-2 text-sm text-neutral-700">
             Member ID: <span className="font-mono font-semibold text-neutral-900">{row.memberId}</span>
@@ -163,17 +202,30 @@ export default function SuperadminUserEditPage() {
             <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
             </div>
-          {row.role === 'ADMIN' && row.memberId ? (
-            <div className="md:col-span-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 text-sm text-neutral-700">
-              <p className="font-medium text-neutral-900">Congregation admin</p>
+          {isPromotedChurchAdmin ? (
+            <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-3 text-sm text-neutral-800">
+              <p className="font-medium text-neutral-900">Congregation admin (promoted from member)</p>
               <p className="mt-1 text-xs text-neutral-600">
-                This account was promoted from a member and may only administer{' '}
-                {typeof row.church === 'object' && row.church && 'name' in row.church ? row.church.name : 'their church'}
-                . Church assignment cannot be changed here.
+                This account was promoted from a member. As an admin they manage{' '}
+                {typeof row.church === 'object' && row.church && 'name' in row.church
+                  ? row.church.name
+                  : 'their home congregation'}
+                . Their home conference, church, councils, and member role are editable below. Admin access is limited to
+                that congregation; use “Remove admin access” to make them a member only.
               </p>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => onRemoveAdmin()}
+                  disabled={busy}
+                  className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50 disabled:opacity-50"
+                >
+                  Remove admin access
+                </button>
+              </div>
             </div>
           ) : null}
-          {row.role === 'ADMIN' && !row.memberId ? (
+          {isLegacyChurchAdmin ? (
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-neutral-600">Churches</label>
               <select
@@ -195,7 +247,7 @@ export default function SuperadminUserEditPage() {
               </p>
             </div>
           ) : null}
-          {row.role === 'MEMBER' ? (
+          {isMemberForm ? (
             <>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Conference</label>
@@ -293,7 +345,7 @@ export default function SuperadminUserEditPage() {
               Save
             </button>
             <Link
-              href={row.role === 'ADMIN' ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users'}
+              href={backHref}
               className="inline-flex items-center justify-center rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               Cancel

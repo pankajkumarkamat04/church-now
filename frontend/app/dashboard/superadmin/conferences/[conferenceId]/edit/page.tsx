@@ -138,7 +138,9 @@ export default function SuperadminConferenceEditPage() {
                 <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} placeholder="Contact person" />
               </div>
             </div>
-            <div className="text-xs text-neutral-600">Leadership is managed through member role options.</div>
+            <div className="text-xs text-neutral-600">
+              Leadership (deacon, secretary, etc.) is configured on each church, not on the conference.
+            </div>
             <label className="flex items-center gap-2 text-sm text-neutral-800">
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="size-4 rounded border-neutral-300" />
               Active

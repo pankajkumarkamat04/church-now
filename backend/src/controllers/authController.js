@@ -144,7 +144,7 @@ async function login(req, res) {
     const user = await User.findOne({ email: email.toLowerCase() })
       .select('+password')
       .populate('church', CHURCH_FIELDS)
-      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive')
+      .populate('conferences', 'conferenceId name description email phone contactPerson isActive')
       .populate('adminChurches', CHURCH_FIELDS);
     if (!user || !user.isActive) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -171,7 +171,7 @@ async function me(req, res) {
   try {
     const user = await User.findById(req.user._id)
       .populate('church', CHURCH_FIELDS)
-      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive')
+      .populate('conferences', 'conferenceId name description email phone contactPerson isActive')
       .populate('adminChurches', CHURCH_FIELDS);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

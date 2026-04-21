@@ -1,5 +1,4 @@
 const Conference = require('../models/Conference');
-const User = require('../models/User');
 const Church = require('../models/Church');
 
 async function generateConferenceId() {
@@ -14,47 +13,13 @@ async function generateConferenceId() {
   return `CONF-${year}-${Date.now()}`;
 }
 
-async function normalizeLeadershipIds(leadership) {
-  const normalized = {
-    churchBishop: leadership?.churchBishop || null,
-    moderator: leadership?.moderator || null,
-    secretary: leadership?.secretary || null,
-    treasurer: leadership?.treasurer || null,
-    superintendents: Array.isArray(leadership?.superintendents)
-      ? leadership.superintendents.filter(Boolean)
-      : [],
-    president: leadership?.president || null,
-  };
-
-  const ids = [
-    normalized.churchBishop,
-    normalized.moderator,
-    normalized.secretary,
-    normalized.treasurer,
-    normalized.president,
-    ...normalized.superintendents,
-  ].filter(Boolean);
-
-  if (ids.length === 0) return normalized;
-  const users = await User.find({ _id: { $in: ids } }).select('_id');
-  if (users.length !== new Set(ids.map(String)).size) {
-    throw new Error('One or more selected leadership users are invalid');
-  }
-  return normalized;
-}
-
 async function listConferences(_req, res) {
-  const rows = await Conference.find({})
-    .populate('leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents', 'fullName email')
-    .sort({ name: 1 });
+  const rows = await Conference.find({}).sort({ name: 1 });
   return res.json(rows);
 }
 
 async function getConference(req, res) {
-  const row = await Conference.findById(req.params.conferenceId).populate(
-    'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
-    'fullName email'
-  );
+  const row = await Conference.findById(req.params.conferenceId);
   if (!row) return res.status(404).json({ message: 'Conference not found' });
   return res.json(row);
 }
@@ -71,16 +36,9 @@ async function createConference(req, res) {
     postalCode,
     country,
     contactPerson,
-    leadership,
     isActive,
   } = req.body;
   if (!name) return res.status(400).json({ message: 'name is required' });
-  let normalizedLeadership;
-  try {
-    normalizedLeadership = await normalizeLeadershipIds(leadership);
-  } catch (e) {
-    return res.status(400).json({ message: e instanceof Error ? e.message : 'Invalid leadership users' });
-  }
   let row = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const conferenceId = await generateConferenceId();
@@ -99,7 +57,6 @@ async function createConference(req, res) {
         postalCode: String(postalCode || '').trim(),
         country: String(country || '').trim(),
         contactPerson: String(contactPerson || '').trim(),
-        leadership: normalizedLeadership,
         isActive: isActive !== false,
       });
       break;
@@ -110,11 +67,7 @@ async function createConference(req, res) {
   if (!row) {
     return res.status(409).json({ message: 'Could not generate a unique conference code, please try again' });
   }
-  const populated = await Conference.findById(row._id).populate(
-    'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
-    'fullName email'
-  );
-  return res.status(201).json(populated);
+  return res.status(201).json(await Conference.findById(row._id));
 }
 
 async function updateConference(req, res) {
@@ -135,19 +88,10 @@ async function updateConference(req, res) {
   ].forEach((k) => {
     if (req.body[k] !== undefined) row[k] = req.body[k];
   });
-  if (req.body.leadership !== undefined) {
-    try {
-      row.leadership = await normalizeLeadershipIds(req.body.leadership);
-    } catch (e) {
-      return res.status(400).json({ message: e instanceof Error ? e.message : 'Invalid leadership users' });
-    }
-  }
   await row.save();
-  const populated = await Conference.findById(row._id).populate(
-    'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
-    'fullName email'
-  );
-  return res.json(populated);
+  // Drop legacy subdocument if present in the database
+  await Conference.updateOne({ _id: row._id }, { $unset: { leadership: 1 } });
+  return res.json(await Conference.findById(row._id));
 }
 
 async function removeConference(req, res) {

@@ -1,6 +1,5 @@
 const Church = require('../models/Church');
 const User = require('../models/User');
-const Conference = require('../models/Conference');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
 const CHURCH_FIELDS =
@@ -12,7 +11,7 @@ async function getProfile(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate(
         'conferences',
-        'conferenceId name description email phone contactPerson leadership isActive'
+        'conferenceId name description email phone contactPerson isActive'
       );
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -40,7 +39,7 @@ async function updateProfile(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate(
         'conferences',
-        'conferenceId name description email phone contactPerson leadership isActive'
+        'conferenceId name description email phone contactPerson isActive'
       );
     return res.json(toProfileResponse(fresh));
   } catch (err) {
@@ -57,7 +56,10 @@ async function getMyChurchInfo(req, res) {
     if (!req.user.church) {
       return res.status(400).json({ message: 'No church assigned' });
     }
-    const church = await Church.findById(req.user.church);
+    const church = await Church.findById(req.user.church).populate(
+      'conference',
+      'conferenceId name description email phone contactPerson isActive'
+    );
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
     }
@@ -68,66 +70,37 @@ async function getMyChurchInfo(req, res) {
   }
 }
 
-async function listMyConferences(req, res) {
+/**
+ * Councils the member belongs to (via councilIds and/or role assignments on the church).
+ */
+async function getMyCouncils(req, res) {
   try {
-    const user = await User.findById(req.user._id).select('conferences');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const conferenceIds = Array.isArray(user.conferences) ? user.conferences : [];
-    if (conferenceIds.length === 0) return res.json([]);
-    const rows = await Conference.find({ _id: { $in: conferenceIds }, isActive: true })
-      .populate(
-        'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
-        'fullName email'
-      )
-      .sort({ name: 1 });
-    return res.json(rows);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load conferences' });
-  }
-}
-
-async function joinConference(req, res) {
-  try {
-    const conference = await Conference.findOne({ _id: req.params.conferenceId, isActive: true }).select(
-      '_id'
-    );
-    if (!conference) return res.status(404).json({ message: 'Conference not found' });
-
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const current = Array.isArray(user.conferences) ? user.conferences.map((id) => String(id)) : [];
-    if (current.includes(String(conference._id))) {
-      return res.status(409).json({ message: 'You already joined this conference' });
+    if (!req.user.church) {
+      return res.status(400).json({ message: 'No church assigned' });
     }
-    user.conferences = [...current, String(conference._id)];
-    await user.save();
-
-    const rows = await Conference.find({ _id: { $in: user.conferences }, isActive: true })
-      .populate(
-        'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
-        'fullName email'
-      )
-      .sort({ name: 1 });
-    return res.status(201).json(rows);
+    const church = await Church.findById(req.user.church).select('name councils').lean();
+    if (!church) {
+      return res.status(404).json({ message: 'Church not found' });
+    }
+    const uid = String(req.user._id);
+    const idSet = new Set((req.user.councilIds || []).map((id) => String(id)));
+    const councils = [];
+    for (const c of church.councils || []) {
+      const cid = c._id != null ? String(c._id) : '';
+      const myRoles = (c.roles || []).filter((r) => r.member && String(r.member) === uid);
+      const listed = (idSet.size && idSet.has(cid)) || myRoles.length > 0;
+      if (!listed) continue;
+      const myRoleLabels = myRoles.length
+        ? myRoles.map((r) => (r.roleLabel && String(r.roleLabel).trim()) || r.roleKey)
+        : idSet.has(cid)
+          ? ['Member']
+          : [];
+      councils.push({ _id: c._id, name: c.name, myRoleLabels });
+    }
+    return res.json({ churchName: church.name, councils });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Failed to join conference' });
-  }
-}
-
-async function getConferenceDetails(req, res) {
-  try {
-    const row = await Conference.findOne({ _id: req.params.conferenceId, isActive: true }).populate(
-      'leadership.churchBishop leadership.moderator leadership.secretary leadership.treasurer leadership.president leadership.superintendents',
-      'fullName email'
-    );
-    if (!row) return res.status(404).json({ message: 'Conference not found' });
-    return res.json(row);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load conference details' });
+    return res.status(500).json({ message: 'Failed to load councils' });
   }
 }
 
@@ -135,7 +108,5 @@ module.exports = {
   getProfile,
   updateProfile,
   getMyChurchInfo,
-  listMyConferences,
-  joinConference,
-  getConferenceDetails,
+  getMyCouncils,
 };

@@ -97,7 +97,8 @@ export default function SuperadminConferenceCreatePage() {
               Active
             </label>
             <p className="text-xs text-neutral-600">
-              Leadership is now managed through member role options.
+              Conference contact details only. Deacon, secretary, and other roles are set per church (church leadership),
+              not on the conference.
             </p>
           </div>
           {err ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}

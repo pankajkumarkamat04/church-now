@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 type TitheRow = {
   _id: string;
@@ -62,7 +62,7 @@ export default function MemberTithesPage() {
     }
   }
 
-  if (!user || user.role !== 'MEMBER') return null;
+  if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
     <div className="max-w-5xl">

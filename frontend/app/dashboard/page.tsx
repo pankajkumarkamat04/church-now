@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
+import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardIndex() {
   const { user, loading } = useAuth();
@@ -11,7 +11,7 @@ export default function DashboardIndex() {
 
   useEffect(() => {
     if (loading || !user) return;
-    router.replace(dashboardPathForRole(user.role));
+    router.replace(getDefaultDashboardPath(user));
   }, [loading, user, router]);
 
   return (

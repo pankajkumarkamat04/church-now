@@ -76,7 +76,7 @@ export function ChurchLeadershipModal({
     if (!token || !churchId) return;
     setLoadErr(null);
     const rows = await apiFetch<AuthUser[]>(
-      `/api/superadmin/users?role=MEMBER&churchId=${encodeURIComponent(churchId)}`,
+      `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}`,
       { token }
     );
     setMembers(

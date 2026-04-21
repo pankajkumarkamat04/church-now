@@ -196,7 +196,7 @@ async function listMembers(req, res) {
       .sort({ role: 1, email: 1 })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
+      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
     const activePastorTerms = await PastorTerm.find({
       church: currentChurchId,
       status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
@@ -306,7 +306,7 @@ async function createMember(req, res) {
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
+      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
     return res.status(201).json(toProfileResponse(populated));
   } catch (err) {
     if (err.code === 11000) {
@@ -330,7 +330,7 @@ async function getMember(req, res) {
     })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
+      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
     if (!member) {
       return res.status(404).json({ message: 'Member not found' });
     }
@@ -381,7 +381,7 @@ async function updateMember(req, res) {
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');
+      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
     const activePastorTerm = await PastorTerm.findOne({
       church: churchId(req),
       pastor: member._id,

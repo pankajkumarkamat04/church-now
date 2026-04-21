@@ -16,6 +16,11 @@ import {
   saveAuth,
   type Role,
 } from '@/lib/api';
+import {
+  canAccessMemberPortal,
+  getDefaultDashboardPath,
+  dashboardPathForRoleOnly,
+} from '@/lib/dashboardRouting';
 
 type RegisterInput = {
   email: string;
@@ -130,15 +135,12 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+export { canAccessMemberPortal, getDefaultDashboardPath };
+
+/**
+ * @deprecated For redirects when you have a full user, prefer getDefaultDashboardPath(user).
+ * Role-only (no “dual portal” rule).
+ */
 export function dashboardPathForRole(role: Role): string {
-  switch (role) {
-    case 'SUPERADMIN':
-      return '/dashboard/superadmin';
-    case 'ADMIN':
-      return '/dashboard/admin/members';
-    case 'MEMBER':
-      return '/dashboard/member';
-    default:
-      return '/login';
-  }
+  return dashboardPathForRoleOnly(role);
 }

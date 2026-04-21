@@ -3,9 +3,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, CreditCard, MapPin, UserRound } from 'lucide-react';
+import { ArrowRight, CreditCard, Layers, MapPin, UserRound } from 'lucide-react';
 import { apiFetch, type MemberAddress } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+
+type ConferenceInfo = {
+  _id?: string;
+  conferenceId?: string;
+  name: string;
+  description?: string;
+  email?: string;
+  phone?: string;
+  contactPerson?: string;
+  isActive?: boolean;
+};
 
 type Church = {
   _id: string;
@@ -14,6 +25,12 @@ type Church = {
   city?: string;
   country?: string;
   phone?: string;
+  email?: string;
+  contactPerson?: string;
+  stateOrProvince?: string;
+  postalCode?: string;
+  conference?: ConferenceInfo | null;
+  councils?: Array<{ _id: string; name: string; roles?: unknown[] }>;
 };
 
 type Profile = {
@@ -62,18 +79,23 @@ export default function MemberDashboardPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'MEMBER')) {
+    if (loading) return;
+    if (!user) {
       router.replace('/login');
+      return;
+    }
+    if (!canAccessMemberPortal(user)) {
+      router.replace(getDefaultDashboardPath(user));
     }
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'MEMBER' && token) {
+    if (user && canAccessMemberPortal(user) && token) {
       load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load'));
     }
   }, [user, token, load]);
 
-  if (!user || user.role !== 'MEMBER') {
+  if (!user || !canAccessMemberPortal(user)) {
     return null;
   }
 
@@ -84,7 +106,7 @@ export default function MemberDashboardPage() {
           Member dashboard
         </h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Storefront-style account home with quick actions and subscription management.
+          Your church, conference region, councils, and account shortcuts in one place.
         </p>
       </div>
 
@@ -94,7 +116,7 @@ export default function MemberDashboardPage() {
         </p>
       ) : null}
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
           href="/dashboard/member/subscriptions"
           className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
@@ -129,14 +151,30 @@ export default function MemberDashboardPage() {
         </Link>
         <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-neutral-700">Church</p>
+            <p className="text-sm font-medium text-neutral-700">Church &amp; region</p>
             <MapPin className="size-4 text-neutral-500" />
           </div>
           <p className="mt-2 text-lg font-semibold text-neutral-900">{church?.name || '—'}</p>
           <p className="mt-1 text-xs text-neutral-500">
-            {[church?.city, church?.country].filter(Boolean).join(', ') || 'No location'}
+            {typeof church?.conference === 'object' && church?.conference && 'name' in church.conference
+              ? `Conference: ${church.conference.name}`
+              : [church?.city, church?.country].filter(Boolean).join(', ') || '—'}
           </p>
         </div>
+        <Link
+          href="/dashboard/member/councils"
+          className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-neutral-700">Councils</p>
+            <Layers className="size-4 text-neutral-500" />
+          </div>
+          <p className="mt-2 text-lg font-semibold text-neutral-900">My councils</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
+            See committees you serve on
+            <ArrowRight className="size-3.5" />
+          </p>
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -188,18 +226,50 @@ export default function MemberDashboardPage() {
         <section className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-2 text-neutral-500">
             <MapPin className="size-4" aria-hidden />
-            <h2 className="text-xs font-semibold uppercase tracking-wide">Your church</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wide">Your church &amp; conference</h2>
           </div>
           {church ? (
-            <div className="mt-4">
-              <p className="font-medium text-neutral-900">{church.name}</p>
-              <p className="mt-2 text-sm text-neutral-600">
-                {[church.address, church.city, church.country].filter(Boolean).join(' · ') ||
-                  '—'}
-              </p>
-              {church.phone ? (
-                <p className="mt-2 text-sm text-neutral-600">Phone: {church.phone}</p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Congregation</p>
+                <p className="mt-1 font-medium text-neutral-900">{church.name}</p>
+                <p className="mt-2 text-sm text-neutral-600">
+                  {[church.address, [church.city, church.stateOrProvince].filter(Boolean).join(', '), church.postalCode, church.country]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </p>
+                {church.phone ? <p className="mt-2 text-sm text-neutral-600">Phone: {church.phone}</p> : null}
+                {church.email ? <p className="text-sm text-neutral-600">Email: {church.email}</p> : null}
+                {church.contactPerson ? (
+                  <p className="text-sm text-neutral-600">Contact: {church.contactPerson}</p>
+                ) : null}
+              </div>
+              {typeof church.conference === 'object' && church.conference && church.conference.name ? (
+                <div className="border-t border-neutral-100 pt-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Conference (region)</p>
+                  <p className="mt-1 font-medium text-neutral-900">{church.conference.name}</p>
+                  {church.conference.conferenceId ? (
+                    <p className="mt-1 text-xs text-neutral-500">ID: {church.conference.conferenceId}</p>
+                  ) : null}
+                  {church.conference.description ? (
+                    <p className="mt-2 text-sm text-neutral-600">{church.conference.description}</p>
+                  ) : null}
+                  <div className="mt-2 grid gap-1 text-sm text-neutral-600 sm:grid-cols-2">
+                    {church.conference.email ? <p>Email: {church.conference.email}</p> : null}
+                    {church.conference.phone ? <p>Phone: {church.conference.phone}</p> : null}
+                    {church.conference.contactPerson ? <p>Contact: {church.conference.contactPerson}</p> : null}
+                  </div>
+                </div>
               ) : null}
+              <div className="border-t border-neutral-100 pt-3">
+                <Link
+                  href="/dashboard/member/councils"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-emerald-800 hover:text-emerald-900"
+                >
+                  View my councils
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
             </div>
           ) : (
             <p className="mt-4 text-sm text-neutral-500">Loading…</p>

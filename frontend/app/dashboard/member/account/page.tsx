@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20';
@@ -130,13 +130,18 @@ export default function MemberAccountPage() {
   }, [targetConferenceId, churches, profile]);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'MEMBER')) {
+    if (loading) return;
+    if (!user) {
       router.replace('/login');
+      return;
+    }
+    if (!canAccessMemberPortal(user)) {
+      router.replace(getDefaultDashboardPath(user));
     }
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'MEMBER' && token) {
+    if (user && canAccessMemberPortal(user) && token) {
       load().catch((e) => setLoadErr(e instanceof Error ? e.message : 'Failed to load'));
     }
   }, [user, token, load]);
@@ -190,7 +195,7 @@ export default function MemberAccountPage() {
     }
   }
 
-  if (!user || user.role !== 'MEMBER') return null;
+  if (!user || !canAccessMemberPortal(user)) return null;
 
   if (loadErr) {
     return (

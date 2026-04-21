@@ -26,18 +26,20 @@ export default function SuperadminUsersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [roleFilter, setRoleFilter] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'MEMBER' | 'ADMIN'>('ALL');
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
   const [churches, setChurches] = useState<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const roleLabel =
+    roleFilter === 'ALL' ? 'member and admin' : roleFilter === 'MEMBER' ? 'member' : 'admin';
   const usersFilterMessage = !conferenceId
-    ? `Optional filters: showing ${roleFilter.toLowerCase()} accounts from all conferences and churches.`
+    ? `Optional filters: showing ${roleLabel} accounts from all conferences and churches.`
     : churchId
-      ? `Filters applied: ${roleFilter.toLowerCase()} + conference + church selected.`
-      : `Filters applied: ${roleFilter.toLowerCase()} + conference selected. Optionally select a church to narrow results.`;
+      ? `Filters applied: ${roleLabel} + conference + church selected.`
+      : `Filters applied: ${roleLabel} + conference selected. Optionally select a church to narrow results.`;
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -109,8 +111,10 @@ export default function SuperadminUsersListPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
             Members
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">Create and manage members across conferences and churches.</p>
-          <p className="mt-1 text-xs text-neutral-500">Member roles, church assignment, and status are shown below.</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            Create and manage people across conferences and churches. The list includes church admins and members.
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">Use the role filter to show everyone, members only, or admins only.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -149,9 +153,10 @@ export default function SuperadminUsersListPage() {
           <label className="mb-1 block text-xs font-medium text-neutral-600">Role</label>
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as 'MEMBER' | 'ADMIN')}
+            onChange={(e) => setRoleFilter(e.target.value as 'ALL' | 'MEMBER' | 'ADMIN')}
             className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
           >
+            <option value="ALL">All (members + church admins)</option>
             <option value="MEMBER">Member</option>
             <option value="ADMIN">Admin</option>
           </select>
@@ -210,7 +215,7 @@ export default function SuperadminUsersListPage() {
           <button
             type="button"
             onClick={() => {
-              setRoleFilter('MEMBER');
+              setRoleFilter('ALL');
               setConferenceId('');
               setChurchId('');
             }}
@@ -229,7 +234,7 @@ export default function SuperadminUsersListPage() {
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Member ID</th>
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Member Role</th>
+                <th className="px-4 py-3 font-medium">Church role</th>
                 <th className="px-4 py-3 font-medium">Church</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -242,9 +247,11 @@ export default function SuperadminUsersListPage() {
                   <td className="px-4 py-3 font-mono text-xs text-neutral-700">{u.memberId || '—'}</td>
                   <td className="px-4 py-3">{u.fullName || '—'}</td>
                   <td className="px-4 py-3 text-neutral-700">
-                    {u.role === 'ADMIN'
-                      ? 'ADMIN'
-                      : normalizeMemberRoleLabel(u.memberRoleDisplay || u.memberCategory || 'MEMBER')}
+                    {normalizeMemberRoleLabel(
+                      u.memberRoleDisplay ||
+                        u.memberCategory ||
+                        (u.role === 'ADMIN' ? 'Church admin' : 'MEMBER'),
+                    )}
                   </td>
                   <td className="px-4 py-3 text-neutral-600">
                     {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0

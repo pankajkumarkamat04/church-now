@@ -7,7 +7,14 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 type Church = { _id: string; name: string };
-type UserRow = { id: string; fullName?: string; email: string; role: string; church?: string | { _id?: string } | null };
+type UserRow = {
+  id: string;
+  fullName?: string;
+  email: string;
+  role: string;
+  church?: string | { _id?: string } | null;
+  adminChurches?: Array<string | { _id?: string }>;
+};
 type TitheRow = {
   _id: string;
   monthKey: string;
@@ -39,7 +46,7 @@ export default function SuperadminTithesPage() {
       apiFetch<TitheRow[]>('/api/superadmin/tithes', { token }),
     ]);
     setChurches(c);
-    setMembers(u.filter((x) => x.role === 'MEMBER'));
+    setMembers(u.filter((x) => x.role === 'MEMBER' || x.role === 'ADMIN'));
     setRows(t);
     setChurchId((prev) => prev || c[0]?._id || '');
   }, [token]);
@@ -52,8 +59,11 @@ export default function SuperadminTithesPage() {
   }, [user, token, load]);
 
   const filteredMembers = members.filter((m) => {
-    const cid = typeof m.church === 'object' && m.church ? m.church._id : m.church;
-    return String(cid || '') === String(churchId || '');
+    if (!churchId) return true;
+    const primary = typeof m.church === 'object' && m.church ? m.church._id : m.church;
+    if (String(primary || '') === String(churchId)) return true;
+    const ac = m.adminChurches || [];
+    return ac.some((c) => String(typeof c === 'object' && c && '_id' in c ? c._id : c) === String(churchId));
   });
 
   useEffect(() => {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 type Plan = {
   _id: string;
@@ -43,13 +43,18 @@ export default function MemberSubscriptionsPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'MEMBER')) {
+    if (loading) return;
+    if (!user) {
       router.replace('/login');
+      return;
+    }
+    if (!canAccessMemberPortal(user)) {
+      router.replace(getDefaultDashboardPath(user));
     }
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'MEMBER' && token) {
+    if (user && canAccessMemberPortal(user) && token) {
       load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load'));
     }
   }, [user, token, load]);
@@ -89,7 +94,7 @@ export default function MemberSubscriptionsPage() {
     }
   }
 
-  if (!user || user.role !== 'MEMBER') return null;
+  if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
     <div className="max-w-5xl">

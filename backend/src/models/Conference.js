@@ -13,14 +13,6 @@ const conferenceSchema = new mongoose.Schema(
     postalCode: { type: String, trim: true, default: '' },
     country: { type: String, trim: true, default: '' },
     contactPerson: { type: String, trim: true, default: '' },
-    leadership: {
-      churchBishop: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      moderator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      secretary: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      treasurer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      superintendents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-      president: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

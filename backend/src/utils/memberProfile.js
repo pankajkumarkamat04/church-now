@@ -16,6 +16,10 @@ function toProfileResponse(userDoc) {
     String(u.memberRoleDisplay || '').trim() ||
     (memberRolesFromChurch.length > 0 ? memberRolesFromChurch.join(', ') : u.memberCategory || 'MEMBER');
 
+  const canAccessMemberPortal =
+    u.role === 'MEMBER' ||
+    (u.role === 'ADMIN' && u.church && String(u.memberId || '').trim() !== '');
+
   return {
     id: u._id,
     email: u.email,
@@ -51,6 +55,7 @@ function toProfileResponse(userDoc) {
     memberRolesFromChurch,
     memberRoleDisplay,
     memberId: u.memberId || '',
+    canAccessMemberPortal,
     adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
     isActive: u.isActive,
     createdAt: u.createdAt,

@@ -1,10 +1,12 @@
 const Church = require('../models/Church');
 const User = require('../models/User');
+const { MEMBER_CATEGORIES } = User;
 const Event = require('../models/Event');
 const GalleryItem = require('../models/GalleryItem');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
+const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 
 async function listChurches(_req, res) {
   try {
@@ -182,18 +184,112 @@ async function churchLeanForUserRoles(churchId) {
   return Church.findById(churchId).select('localLeadership councils').lean();
 }
 
+/**
+ * @param {string} roleQ uppercased role query: ALL | MEMBER | ADMIN | SUPERADMIN | …
+ * @param {import('mongoose').Types.ObjectId} churchId
+ */
+function buildChurchUserScopeFilter(roleQ, churchId) {
+  if (roleQ === 'ALL') {
+    return {
+      $or: [
+        { church: churchId, role: { $in: ['MEMBER', 'ADMIN'] } },
+        { adminChurches: churchId, role: 'ADMIN' },
+      ],
+    };
+  }
+  if (roleQ === 'MEMBER') {
+    return { church: churchId, role: 'MEMBER' };
+  }
+  if (roleQ === 'ADMIN') {
+    return {
+      $or: [
+        { church: churchId, role: 'ADMIN' },
+        { adminChurches: churchId, role: 'ADMIN' },
+      ],
+    };
+  }
+  return { church: churchId, role: roleQ };
+}
+
+/**
+ * @param {string} roleQ
+ * @param {import('mongoose').Types.ObjectId[]} churchIds
+ */
+function buildConferenceUserScopeFilter(roleQ, churchIds) {
+  if (!churchIds || churchIds.length === 0) {
+    return { _id: { $in: [] } };
+  }
+  if (roleQ === 'ALL') {
+    return {
+      $or: [
+        { church: { $in: churchIds }, role: { $in: ['MEMBER', 'ADMIN'] } },
+        { adminChurches: { $in: churchIds }, role: 'ADMIN' },
+      ],
+    };
+  }
+  if (roleQ === 'MEMBER') {
+    return { church: { $in: churchIds }, role: 'MEMBER' };
+  }
+  if (roleQ === 'ADMIN') {
+    return {
+      $or: [
+        { church: { $in: churchIds }, role: 'ADMIN' },
+        { adminChurches: { $in: churchIds }, role: 'ADMIN' },
+      ],
+    };
+  }
+  return { church: { $in: churchIds }, role: roleQ };
+}
+
 async function listUsers(req, res) {
   try {
     const filter = {};
-    if (req.query.role) {
-      filter.role = String(req.query.role).toUpperCase();
-    }
-    if (req.query.churchId) {
-      filter.church = req.query.churchId;
-    }
-    if (req.query.conferenceId) {
-      const churchIds = await Church.find({ conference: req.query.conferenceId }).distinct('_id');
-      filter.church = { $in: churchIds };
+    const roleRaw = req.query.role != null && String(req.query.role).trim() !== '' ? String(req.query.role) : null;
+    const roleQ = roleRaw ? String(roleRaw).toUpperCase() : null;
+    const churchId = req.query.churchId;
+    const conferenceId = req.query.conferenceId;
+
+    if (conferenceId && churchId) {
+      const inConf = await Church.findOne({ _id: churchId, conference: conferenceId }).select('_id').lean();
+      if (!inConf) {
+        return res.json([]);
+      }
+      if (roleQ) {
+        Object.assign(filter, buildChurchUserScopeFilter(roleQ, churchId));
+      } else {
+        Object.assign(filter, {
+          $or: [
+            { church: churchId },
+            { adminChurches: churchId },
+          ],
+        });
+      }
+    } else if (churchId) {
+      if (roleQ) {
+        Object.assign(filter, buildChurchUserScopeFilter(roleQ, churchId));
+      } else {
+        Object.assign(filter, {
+          $or: [
+            { church: churchId },
+            { adminChurches: churchId },
+          ],
+        });
+      }
+    } else if (conferenceId) {
+      const churchIds = await Church.find({ conference: conferenceId }).distinct('_id');
+      if (roleQ) {
+        Object.assign(filter, buildConferenceUserScopeFilter(roleQ, churchIds));
+      } else {
+        Object.assign(filter, {
+          $or: [{ church: { $in: churchIds } }, { adminChurches: { $in: churchIds } }],
+        });
+      }
+    } else if (roleQ) {
+      if (roleQ === 'ALL') {
+        filter.role = { $in: ['MEMBER', 'ADMIN'] };
+      } else {
+        filter.role = roleQ;
+      }
     }
 
     const users = await User.find(filter)
@@ -231,7 +327,11 @@ async function listUsers(req, res) {
 async function getUser(req, res) {
   try {
     const user = await User.findById(req.params.id)
-      .populate('church', 'name conference')
+      .populate({
+        path: 'church',
+        select: 'name conference councils',
+        populate: { path: 'conference', select: 'conferenceId name description email phone contactPerson isActive' },
+      })
       .populate('adminChurches', 'name')
       .select('-password');
     if (!user) {
@@ -248,11 +348,22 @@ async function getUser(req, res) {
 
 async function updateUser(req, res) {
   try {
-    const { fullName, isActive, churchIds, conferenceId, churchId, memberCategory, councilIds } = req.body;
+    const {
+      fullName,
+      isActive,
+      churchIds,
+      conferenceId,
+      churchId,
+      memberCategory,
+      councilIds,
+      removeAdmin,
+    } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    const previousChurchId = user.church ? String(user.church) : null;
+
     if (isActive === false && user._id.equals(req.user._id)) {
       return res.status(400).json({ message: 'You cannot deactivate your own account' });
     }
@@ -262,18 +373,21 @@ async function updateUser(req, res) {
     if (isActive !== undefined) {
       user.isActive = Boolean(isActive);
     }
-    if (user.role === 'ADMIN' && churchIds !== undefined) {
+
+    if (removeAdmin === true) {
+      if (user.role !== 'ADMIN' || !String(user.memberId || '').trim()) {
+        return res.status(400).json({
+          message: 'removeAdmin is only for church admins who were promoted from a member (have a member ID)',
+        });
+      }
+      user.role = 'MEMBER';
+      user.adminChurches = [];
+    }
+
+    const promotedMemberAdmin = user.role === 'ADMIN' && String(user.memberId || '').trim();
+    if (user.role === 'ADMIN' && churchIds !== undefined && !promotedMemberAdmin) {
       if (!Array.isArray(churchIds) || churchIds.length === 0) {
         return res.status(400).json({ message: 'At least one church is required for admin' });
-      }
-      if (user.memberId && String(user.memberId).trim()) {
-        const home = String(user.church || '');
-        if (churchIds.length !== 1 || String(churchIds[0]) !== home) {
-          return res.status(400).json({
-            message:
-              'This admin is linked to a member record and may only administer their home congregation',
-          });
-        }
       }
       const valid = await Church.find({ _id: { $in: churchIds }, isActive: true }).select('_id');
       if (valid.length !== churchIds.length) {
@@ -282,12 +396,14 @@ async function updateUser(req, res) {
       user.adminChurches = churchIds;
       user.church = churchIds[0];
     }
-    if (user.role === 'MEMBER') {
+
+    const editMemberFields = user.role === 'MEMBER' || promotedMemberAdmin;
+    if (editMemberFields) {
       if (conferenceId !== undefined || churchId !== undefined) {
         const nextConferenceId = String(conferenceId || user.conferences?.[0] || '').trim();
         const nextChurchId = String(churchId || user.church || '').trim();
         if (!nextConferenceId || !nextChurchId) {
-          return res.status(400).json({ message: 'conferenceId and churchId are required for member' });
+          return res.status(400).json({ message: 'conferenceId and churchId are required' });
         }
         const linkedChurch = await Church.findOne({
           _id: nextChurchId,
@@ -299,9 +415,16 @@ async function updateUser(req, res) {
         }
         user.church = nextChurchId;
         user.conferences = [nextConferenceId];
+        if (promotedMemberAdmin) {
+          user.adminChurches = [nextChurchId];
+        }
       }
       if (memberCategory !== undefined) {
-        user.memberCategory = String(memberCategory || '').toUpperCase();
+        const v = String(memberCategory || '').toUpperCase();
+        if (!MEMBER_CATEGORIES.includes(v)) {
+          return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
+        }
+        user.memberCategory = v;
       }
       if (councilIds !== undefined) {
         const selected = Array.isArray(councilIds)
@@ -320,9 +443,30 @@ async function updateUser(req, res) {
         user.councilIds = selected;
       }
     }
+
+    if (promotedMemberAdmin && user.church) {
+      user.adminChurches = [user.church];
+    }
+
     await user.save();
+
+    const syncIds = new Set();
+    if (previousChurchId) syncIds.add(previousChurchId);
+    if (user.church) syncIds.add(String(user.church));
+    await Promise.all(
+      [...syncIds].map((cid) =>
+        Church.findById(cid)
+          .select('localLeadership councils')
+          .then((ch) => (ch ? syncChurchMemberRoleDisplays(ch.toObject ? ch.toObject() : ch) : null))
+      )
+    );
+
     const populated = await User.findById(user._id)
-      .populate('church', 'name conference')
+      .populate({
+        path: 'church',
+        select: 'name conference councils',
+        populate: { path: 'conference', select: 'conferenceId name' },
+      })
       .populate('adminChurches', 'name')
       .select('-password');
     const pcid = populated.church && populated.church._id ? populated.church._id : populated.church;

@@ -16,10 +16,11 @@ import {
   LogOut,
   Menu,
   Shield,
+  UserCog,
   Users,
   X,
 } from 'lucide-react';
-import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
+import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import type { Role } from '@/lib/api';
 
 export type PanelVariant = 'admin' | 'superadmin';
@@ -213,6 +214,21 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
     icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
   });
   items.push({
+    href: '/dashboard/admin/events',
+    label: 'Events',
+    icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
+    href: '/dashboard/admin/gallery',
+    label: 'Gallery',
+    icon: <ImageIcon className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
+    href: '/dashboard/admin/media',
+    label: 'Media',
+    icon: <FolderOpen className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
     href: '/dashboard/admin/subscriptions',
     label: 'Subscriptions',
     icon: <CreditCard className="size-4 shrink-0 opacity-80" aria-hidden />,
@@ -247,7 +263,7 @@ export function PanelLayout({
       return;
     }
     if (user.role !== required) {
-      router.replace(dashboardPathForRole(user.role));
+      router.replace(getDefaultDashboardPath(user));
     }
   }, [loading, user, required, router]);
 
@@ -314,6 +330,17 @@ export function PanelLayout({
                 </Link>
               );
             })}
+            {variant === 'admin' && user && canAccessMemberPortal(user) && user.role === 'ADMIN' ? (
+              <Link
+                href="/dashboard/member"
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                  pathname.startsWith('/dashboard/member') ? meta.navActive : meta.navIdle
+                }`}
+              >
+                <UserCog className="size-4 shrink-0 opacity-80" aria-hidden />
+                Member portal
+              </Link>
+            ) : null}
           </nav>
 
           <div className="mt-auto space-y-3 border-t border-neutral-200 pt-4">

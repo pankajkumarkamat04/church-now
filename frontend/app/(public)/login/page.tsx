@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Church, Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
-import { dashboardPathForRole, useAuth } from '@/contexts/AuthContext';
+import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const { login, user, loading } = useAuth();
@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace(dashboardPathForRole(user.role));
+      router.replace(getDefaultDashboardPath(user));
     }
   }, [loading, user, router]);
 
@@ -28,7 +28,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const u = await login(email, password);
-      router.replace(dashboardPathForRole(u.role));
+      router.replace(getDefaultDashboardPath(u));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

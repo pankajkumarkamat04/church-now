@@ -9,6 +9,7 @@ const subscriptionController = require('../controllers/subscriptionController');
 const titheController = require('../controllers/titheController');
 const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
+const mediaController = require('../controllers/mediaController');
 
 const router = express.Router();
 
@@ -33,6 +34,9 @@ router.put('/attendance/:dateKey', asyncHandler(attendanceController.saveDay));
 
 router.get('/frontend/site', asyncHandler(frontendController.getAdminSite));
 router.put('/frontend/site', asyncHandler(frontendController.putAdminSite));
+router.get('/media', asyncHandler(mediaController.listAdmin));
+router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadAdmin));
+router.delete('/media/:fileName', asyncHandler(mediaController.removeAdmin));
 
 router.get('/events', asyncHandler(eventController.listAdmin));
 router.post('/events', asyncHandler(eventController.create));
