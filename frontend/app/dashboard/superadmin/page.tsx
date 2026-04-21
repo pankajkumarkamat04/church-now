@@ -37,6 +37,7 @@ export default function SuperadminOverviewPage() {
   const totalSuperadmins = users.filter((u) => u.role === 'SUPERADMIN').length;
   const activeUsers = users.filter((u) => u.isActive !== false).length;
   const inactiveUsers = totalUsers - activeUsers;
+  const totalCouncils = churches.reduce((sum, c) => sum + (Array.isArray(c.councils) ? c.councils.length : 0), 0);
 
   const statCards = [
     {
@@ -66,6 +67,13 @@ export default function SuperadminOverviewPage() {
       subtitle: 'Member accounts in system',
       icon: UserCog,
       tint: 'bg-amber-100 text-amber-800',
+    },
+    {
+      title: 'Councils',
+      value: totalCouncils,
+      subtitle: 'Councils across churches',
+      icon: Calendar,
+      tint: 'bg-fuchsia-100 text-fuchsia-800',
     },
   ];
 

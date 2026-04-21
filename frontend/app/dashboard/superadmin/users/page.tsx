@@ -110,6 +110,7 @@ export default function SuperadminUsersListPage() {
             Members
           </h1>
           <p className="mt-1 text-sm text-neutral-600">Create and manage members across conferences and churches.</p>
+          <p className="mt-1 text-xs text-neutral-500">Member roles, church assignment, and status are shown below.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -118,6 +119,12 @@ export default function SuperadminUsersListPage() {
           >
             <UserCog className="size-4" aria-hidden />
             Add member
+          </Link>
+          <Link
+            href="/dashboard/superadmin/churches/councils"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            Manage councils
           </Link>
           <Link
             href="/dashboard/superadmin/admins"

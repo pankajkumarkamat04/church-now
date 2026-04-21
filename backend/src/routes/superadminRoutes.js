@@ -27,6 +27,7 @@ const conferenceController = require('../controllers/conferenceController');
 const mainChurchController = require('../controllers/mainChurchController');
 const subChurchController = require('../controllers/subChurchController');
 const pastorController = require('../controllers/pastorController');
+const attendanceController = require('../controllers/attendanceController');
 
 const router = express.Router();
 
@@ -88,7 +89,12 @@ router.put('/churches/:id', asyncHandler(updateChurch));
 router.delete('/churches/:id', asyncHandler(deleteChurch));
 
 router.get('/users', asyncHandler(listUsers));
+router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembersForSuperadmin));
+router.get('/attendance', asyncHandler(attendanceController.listMonthSuperadmin));
+router.get('/attendance/:dateKey', asyncHandler(attendanceController.getDaySuperadmin));
+router.put('/attendance/:dateKey', asyncHandler(attendanceController.saveDaySuperadmin));
 router.get('/pastors', asyncHandler(pastorController.listPastorsForSuperadmin));
+router.post('/pastors', asyncHandler(pastorController.createPastorForSuperadmin));
 router.get('/pastor-terms', asyncHandler(pastorController.listSuperadminPastorTerms));
 router.post('/pastor-terms/assign', asyncHandler(pastorController.assignPastorTerm));
 router.post('/pastor-terms/:termId/renew', asyncHandler(pastorController.renewPastorTerm));

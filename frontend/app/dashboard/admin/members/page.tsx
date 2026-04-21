@@ -26,14 +26,19 @@ export default function AdminMembersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [churchName, setChurchName] = useState('My church');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const m = await apiFetch<MemberRow[]>('/api/admin/members', { token });
+    const [m, c] = await Promise.all([
+      apiFetch<MemberRow[]>('/api/admin/members', { token }),
+      apiFetch<{ name?: string }>('/api/admin/church', { token }),
+    ]);
     setMembers(m);
+    setChurchName(c?.name || 'My church');
   }, [token]);
 
   useEffect(() => {
@@ -79,15 +84,23 @@ export default function AdminMembersListPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
             Congregation
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">All member accounts for your church.</p>
+          <p className="mt-1 text-sm text-neutral-600">{churchName} members with their assigned roles.</p>
         </div>
-        <Link
-          href="/dashboard/admin/members/create"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-sky-500"
-        >
-          <Plus className="size-4" aria-hidden />
-          Add member
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/admin/members/create"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-sky-500"
+          >
+            <Plus className="size-4" aria-hidden />
+            Add member
+          </Link>
+          <Link
+            href="/dashboard/admin/councils"
+            className="inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+          >
+            Manage councils
+          </Link>
+        </div>
       </div>
 
       {err ? (
@@ -103,6 +116,7 @@ export default function AdminMembersListPage() {
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Member ID</th>
                 <th className="px-4 py-3 font-medium">Member Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -113,6 +127,7 @@ export default function AdminMembersListPage() {
                 <tr key={m.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{m.email}</td>
                   <td className="px-4 py-3">{m.fullName || '—'}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-neutral-700">{m.memberId || '—'}</td>
                   <td className="px-4 py-3">
                     {normalizeMemberRoleLabel(m.memberRoleDisplay || m.memberCategory || 'MEMBER')}
                   </td>

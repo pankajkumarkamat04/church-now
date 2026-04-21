@@ -130,13 +130,22 @@ export default function SuperadminCouncilsListPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Councils</h1>
           <p className="mt-1 text-sm text-neutral-600">Manage councils for each church.</p>
         </div>
-        <Link
-          href="/dashboard/superadmin/churches/councils/create"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
-        >
-          <Plus className="size-4" />
-          Add council
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/superadmin/users/members/create"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-900 hover:bg-violet-100"
+          >
+            <Plus className="size-4" />
+            Add member to church
+          </Link>
+          <Link
+            href="/dashboard/superadmin/churches/councils/create"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
+          >
+            <Plus className="size-4" />
+            Add council
+          </Link>
+        </div>
       </div>
 
       <div className="mb-4 grid max-w-3xl gap-3 sm:grid-cols-2">

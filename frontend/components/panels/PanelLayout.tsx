@@ -69,6 +69,9 @@ type NavItem = { href: string; label: string; icon: React.ReactNode };
 
 function isNavActive(pathname: string, href: string, variant: PanelVariant) {
   if (variant === 'admin') {
+    if (href === '/dashboard/admin') {
+      return pathname === href;
+    }
     if (href === '/dashboard/admin/members') {
       return pathname === href || pathname.startsWith('/dashboard/admin/members/');
     }
@@ -114,7 +117,12 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
       },
       {
         href: '/dashboard/superadmin/pastors',
-        label: 'Pastor records',
+        label: 'Record keeping',
+        icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/pastor-terms',
+        label: 'Leader terms',
         icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
@@ -126,6 +134,11 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
         href: '/dashboard/superadmin/admins',
         label: 'Admins',
         icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+      },
+      {
+        href: '/dashboard/superadmin/attendance',
+        label: 'Attendance',
+        icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
       },
       {
         href: '/dashboard/superadmin/events',
@@ -165,7 +178,7 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
     ];
   }
 
-  const base = '/dashboard/admin/members';
+  const base = '/dashboard/admin';
   const items: NavItem[] = [
     {
       href: base,
@@ -175,8 +188,18 @@ function navItemsFor(variant: PanelVariant): NavItem[] {
   ];
 
   items.push({
+    href: '/dashboard/admin/members',
+    label: 'Members',
+    icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
     href: '/dashboard/admin/pastors',
-    label: 'Pastor records',
+    label: 'Record keeping',
+    icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
+  });
+  items.push({
+    href: '/dashboard/admin/pastor-terms',
+    label: 'Leader terms',
     icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
   });
   items.push({

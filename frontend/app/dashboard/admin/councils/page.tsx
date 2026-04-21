@@ -1,22 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
-const field =
-  'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
-
-type CouncilRow = { key: string; _id?: string; name: string };
+type CouncilRow = { _id: string; name: string };
 
 export default function AdminCouncilsPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<CouncilRow[]>([]);
   const [churchName, setChurchName] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,49 +31,28 @@ export default function AdminCouncilsPage() {
         { token }
       );
       setChurchName(church.name || 'My church');
-      setRows(
-        Array.isArray(church.councils)
-          ? church.councils.map((c) => ({ key: c._id, _id: c._id, name: c.name || '' }))
-          : []
-      );
+      setRows(Array.isArray(church.councils) ? church.councils.map((c) => ({ _id: c._id, name: c.name || '' })) : []);
     }
     load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load councils'));
   }, [token, user]);
 
-  function addCouncil() {
-    setRows((prev) => [...prev, { key: `new-${Date.now()}`, name: '' }]);
-  }
-
-  function removeCouncil(key: string) {
-    setRows((prev) => prev.filter((r) => r.key !== key));
-  }
-
-  function updateCouncil(key: string, name: string) {
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, name } : r)));
-  }
-
-  async function onSave() {
-    if (!token) return;
-    const cleaned = rows.map((r) => r.name.trim()).filter(Boolean);
-    if (cleaned.length === 0) {
-      setErr('Add at least one council');
-      return;
-    }
+  async function removeCouncil(councilId: string) {
+    if (!token || !window.confirm('Delete this council?')) return;
+    setBusyId(councilId);
     setErr(null);
-    setBusy(true);
     try {
+      const church = await apiFetch<{ councils?: Array<{ _id: string; name: string; roles?: unknown[] }> }>('/api/admin/church', { token });
+      const next = (church.councils || []).filter((c) => c._id !== councilId);
       await apiFetch('/api/admin/church', {
         method: 'PUT',
         token,
-        body: JSON.stringify({
-          councils: cleaned.map((name) => ({ name, roles: [] })),
-        }),
+        body: JSON.stringify({ councils: next }),
       });
-      router.refresh();
+      setRows(next.map((c) => ({ _id: c._id, name: c.name })));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed to save councils');
+      setErr(e instanceof Error ? e.message : 'Failed to delete council');
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   }
 
@@ -84,49 +61,57 @@ export default function AdminCouncilsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-neutral-900">Councils</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-xl font-semibold text-neutral-900">Councils</h1>
+          <div className="flex gap-2">
+            <Link href="/dashboard/admin/members/create" className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+              Add member to church
+            </Link>
+            <Link href="/dashboard/admin/councils/create" className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500">
+              <Plus className="size-4" />
+              Add council
+            </Link>
+          </div>
+        </div>
         <p className="mt-1 text-sm text-neutral-600">
-          Manage councils for {churchName}. Members can be assigned to one or more councils during creation.
+          Manage councils for {churchName}. Use separate pages to create and edit.
         </p>
-        <div className="mt-5 space-y-3">
-          {rows.map((row) => (
-            <div key={row.key} className="flex items-center gap-2">
-              <input
-                value={row.name}
-                onChange={(e) => updateCouncil(row.key, e.target.value)}
-                placeholder="Council name"
-                className={field}
-              />
-              <button
-                type="button"
-                onClick={() => removeCouncil(row.key)}
-                className="rounded-lg border border-red-200 p-2 text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addCouncil}
-            className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 hover:bg-sky-100"
-          >
-            <Plus className="size-4" />
-            Add council
-          </button>
+        <div className="mt-5 overflow-hidden rounded-xl border border-neutral-200">
+          <table className="w-full min-w-[620px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
+                <th className="px-4 py-3 font-medium">Council</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-neutral-800">
+              {rows.map((row) => (
+                <tr key={row._id} className="border-b border-neutral-100 last:border-0">
+                  <td className="px-4 py-3">{row.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Link href={`/dashboard/admin/councils/${row._id}/edit`} className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
+                        <Pencil className="size-3.5" />
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void removeCouncil(row._id)}
+                        disabled={busyId === row._id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        <Trash2 className="size-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No councils yet.</p> : null}
         </div>
         {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={() => void onSave()}
-            disabled={busy}
-            className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-            Save councils
-          </button>
-        </div>
       </div>
     </div>
   );

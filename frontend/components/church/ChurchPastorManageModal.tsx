@@ -13,6 +13,16 @@ type PastorTerm = {
   termEnd: string;
   status: 'ASSIGNED' | 'RENEWED' | 'TRANSFER_REQUIRED' | 'TRANSFERRED';
 };
+const ACTIVE_STATUSES: PastorTerm['status'][] = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
+
+function isWithinRenewWindow(termEnd: string): boolean {
+  const end = new Date(termEnd);
+  if (Number.isNaN(end.getTime())) return false;
+  const now = new Date();
+  const windowStart = new Date(end);
+  windowStart.setMonth(windowStart.getMonth() - 1);
+  return now >= windowStart && now <= end;
+}
 
 type ChurchOption = { _id: string; name: string };
 
@@ -31,6 +41,7 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
   const [transferToByTerm, setTransferToByTerm] = useState<Record<string, string>>({});
   const [busyTermId, setBusyTermId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const hasActivePastor = rows.some((r) => ACTIVE_STATUSES.includes(r.status));
 
   async function load() {
     if (!token || !churchId) return;
@@ -96,13 +107,15 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <button
-            type="button"
-            onClick={() => setAssignOpen(true)}
-            className="mb-4 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
-          >
-            Assign spiritual pastor
-          </button>
+          {!hasActivePastor ? (
+            <button
+              type="button"
+              onClick={() => setAssignOpen(true)}
+              className="mb-4 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+            >
+              Assign spiritual pastor
+            </button>
+          ) : null}
           {err ? <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
           <div className="overflow-hidden rounded-xl border border-neutral-200">
             <table className="w-full min-w-[760px] text-left text-sm">
@@ -129,7 +142,12 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
                         <button
                           type="button"
                           onClick={() => renew(row._id)}
-                          disabled={busyTermId === row._id || row.termNumber >= 2 || row.status === 'TRANSFER_REQUIRED'}
+                          disabled={
+                            busyTermId === row._id ||
+                            row.termNumber >= 2 ||
+                            row.status === 'TRANSFER_REQUIRED' ||
+                            !isWithinRenewWindow(row.termEnd)
+                          }
                           className="rounded-lg border border-violet-300 px-2 py-1 text-xs font-medium text-violet-800 disabled:opacity-50"
                         >
                           Renew
