@@ -151,7 +151,7 @@ export default function AdminPastorsPage() {
         <p className="mt-1 text-sm text-neutral-600">Capture personal details, credentials, assignments, contact schedule, trainings, and confidential notes.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <select value={recordMemberId} onChange={(e) => setRecordMemberId(e.target.value)} className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
-            <option value="">Select reverend/pastor member</option>
+            <option value="">Select reverend/member/admin</option>
             {memberOptions.map((m) => (
               <option key={m._id} value={m._id}>
                 {(m.fullName || m.email || 'Member') + (m.memberId ? ` (${m.memberId})` : '')}

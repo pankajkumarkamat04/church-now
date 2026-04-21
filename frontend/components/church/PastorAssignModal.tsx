@@ -23,12 +23,13 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
     if (!open || !token || !churchId) return;
     const path =
       mode === 'superadmin'
-        ? `/api/superadmin/users?role=MEMBER&churchId=${encodeURIComponent(churchId)}`
+        ? `/api/superadmin/users?churchId=${encodeURIComponent(churchId)}`
         : '/api/admin/members';
     apiFetch<AuthUser[]>(path, { token })
       .then((rows) => {
-        setMembers(rows);
-        setPastorUserId(rows[0]?.id || '');
+        const filtered = rows.filter((r) => r.role === 'MEMBER' || r.role === 'ADMIN');
+        setMembers(filtered);
+        setPastorUserId(filtered[0]?.id || '');
       })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
   }, [open, token, churchId, mode]);
@@ -64,13 +65,13 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
             <X className="size-4" />
           </button>
         </div>
-        <label className="mb-1 block text-xs font-medium text-neutral-600">Church member</label>
+        <label className="mb-1 block text-xs font-medium text-neutral-600">Church member/admin</label>
         <select
           value={pastorUserId}
           onChange={(e) => setPastorUserId(e.target.value)}
           className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
         >
-          <option value="">Select member</option>
+          <option value="">Select member/admin</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>
               {(m.memberId || '—').toString()} - {m.fullName || m.email}

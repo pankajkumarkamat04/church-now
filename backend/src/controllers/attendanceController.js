@@ -45,7 +45,10 @@ async function getDay(req, res) {
     const { dateKey } = req.params;
     if (!isIsoDateKey(dateKey)) return res.status(400).json({ message: 'dateKey must be YYYY-MM-DD' });
 
-    const members = await User.find({ role: 'MEMBER', church: cid }).select('_id fullName email memberId isActive').sort({ fullName: 1, email: 1 }).lean();
+    const members = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church: cid })
+      .select('_id fullName email memberId isActive role')
+      .sort({ role: 1, fullName: 1, email: 1 })
+      .lean();
     const session = await AttendanceSession.findOne({ church: cid, dateKey }).lean();
     const byMember = new Map((session?.entries || []).map((e) => [String(e.member), e]));
 
@@ -79,7 +82,9 @@ async function saveDay(req, res) {
     if (entries.length === 0) return res.status(400).json({ message: 'entries are required' });
 
     const memberIds = entries.map((e) => String(e.memberId || '')).filter(Boolean);
-    const validMembers = await User.find({ _id: { $in: memberIds }, role: 'MEMBER', church: cid }).select('_id').lean();
+    const validMembers = await User.find({ _id: { $in: memberIds }, role: { $in: ['MEMBER', 'ADMIN'] }, church: cid })
+      .select('_id')
+      .lean();
     const validSet = new Set(validMembers.map((m) => String(m._id)));
     if (!memberIds.every((id) => validSet.has(id))) {
       return res.status(400).json({ message: 'One or more memberIds are invalid for this church' });
@@ -147,7 +152,7 @@ async function getDaySuperadmin(req, res) {
     const { dateKey } = req.params;
     if (!church) return res.status(400).json({ message: 'churchId is required' });
     if (!isIsoDateKey(dateKey)) return res.status(400).json({ message: 'dateKey must be YYYY-MM-DD' });
-    const members = await User.find({ role: 'MEMBER', church })
+    const members = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church })
       .select('_id fullName email memberId isActive')
       .sort({ fullName: 1, email: 1 })
       .lean();
@@ -182,7 +187,9 @@ async function saveDaySuperadmin(req, res) {
     const entries = Array.isArray(req.body?.entries) ? req.body.entries : [];
     if (entries.length === 0) return res.status(400).json({ message: 'entries are required' });
     const memberIds = entries.map((e) => String(e.memberId || '')).filter(Boolean);
-    const validMembers = await User.find({ _id: { $in: memberIds }, role: 'MEMBER', church }).select('_id').lean();
+    const validMembers = await User.find({ _id: { $in: memberIds }, role: { $in: ['MEMBER', 'ADMIN'] }, church })
+      .select('_id')
+      .lean();
     const validSet = new Set(validMembers.map((m) => String(m._id)));
     if (!memberIds.every((id) => validSet.has(id))) {
       return res.status(400).json({ message: 'One or more memberIds are invalid for this church' });

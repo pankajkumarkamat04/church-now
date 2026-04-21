@@ -45,7 +45,7 @@ async function listPastors(req, res) {
 async function listEligibleMembers(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const rows = await User.find({ role: 'MEMBER', church: cid, isActive: true })
+  const rows = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church: cid, isActive: true })
     .select('_id fullName firstName surname email memberId contactPhone address')
     .sort({ fullName: 1, email: 1 });
   return res.json(rows);
@@ -58,7 +58,7 @@ async function createPastor(req, res) {
     req.body || {};
   if (!memberId) return res.status(400).json({ message: 'memberId is required' });
 
-  const member = await User.findOne({ _id: memberId, role: 'MEMBER', church: cid, isActive: true });
+  const member = await User.findOne({ _id: memberId, role: { $in: ['MEMBER', 'ADMIN'] }, church: cid, isActive: true });
   if (!member) {
     return res.status(400).json({ message: 'Pastor must be an active member of this church' });
   }
@@ -119,7 +119,7 @@ async function createPastor(req, res) {
 async function listEligibleMembersForSuperadmin(req, res) {
   const targetChurchId = String(req.query.churchId || '');
   if (!targetChurchId) return res.status(400).json({ message: 'churchId is required' });
-  const rows = await User.find({ role: 'MEMBER', church: targetChurchId, isActive: true })
+  const rows = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true })
     .select('_id fullName firstName surname email memberId contactPhone address')
     .sort({ fullName: 1, email: 1 });
   return res.json(rows);
@@ -132,7 +132,7 @@ async function createPastorForSuperadmin(req, res) {
     req.body || {};
   if (!memberId) return res.status(400).json({ message: 'memberId is required' });
 
-  const member = await User.findOne({ _id: memberId, role: 'MEMBER', church: targetChurchId, isActive: true });
+  const member = await User.findOne({ _id: memberId, role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true });
   if (!member) {
     return res.status(400).json({ message: 'Pastor/Reverend must be an active member of the selected church' });
   }
@@ -247,7 +247,7 @@ async function assignPastorTerm(req, res) {
     return res.status(400).json({ message: 'churchId and pastorUserId are required' });
   }
 
-  const pastor = await User.findOne({ _id: pastorUserId, role: 'MEMBER', church: targetChurchId, isActive: true });
+  const pastor = await User.findOne({ _id: pastorUserId, role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true });
   if (!pastor) return res.status(400).json({ message: 'Pastor must be an active member of the selected church' });
 
   const existing = await PastorTerm.findOne({

@@ -178,7 +178,7 @@ export default function SuperadminPastorsPage() {
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <select value={recordMemberId} onChange={(e) => setRecordMemberId(e.target.value)} className={field} disabled={!selectedChurchId}>
-            <option value="">{selectedChurchId ? 'Select reverend/pastor member' : 'Select church first'}</option>
+            <option value="">{selectedChurchId ? 'Select reverend/member/admin' : 'Select church first'}</option>
             {memberOptions.map((m) => (
               <option key={m._id} value={m._id}>
                 {(m.fullName || m.email || 'Member') + (m.memberId ? ` (${m.memberId})` : '')}

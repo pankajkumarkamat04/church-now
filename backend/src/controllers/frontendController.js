@@ -188,10 +188,12 @@ async function listMembers(req, res) {
   try {
     const currentChurchId = churchId(req);
     const members = await User.find({
-      church: currentChurchId,
-      role: 'MEMBER',
+      $or: [
+        { church: currentChurchId, role: 'MEMBER' },
+        { role: 'ADMIN', $or: [{ church: currentChurchId }, { adminChurches: currentChurchId }] },
+      ],
     })
-      .sort({ email: 1 })
+      .sort({ role: 1, email: 1 })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
       .populate('conferences', 'conferenceId name description email phone contactPerson leadership isActive');

@@ -144,14 +144,20 @@ export default function AdminMembersListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-2">
-                      <Link
-                        href={`/dashboard/admin/members/${m.id}/edit`}
-                        className={inputBtn}
-                      >
-                        <Pencil className="mr-1 size-3.5" aria-hidden />
-                        Edit
-                      </Link>
-                      {m.isActive !== false ? (
+                      {m.role === 'MEMBER' ? (
+                        <Link
+                          href={`/dashboard/admin/members/${m.id}/edit`}
+                          className={inputBtn}
+                        >
+                          <Pencil className="mr-1 size-3.5" aria-hidden />
+                          Edit
+                        </Link>
+                      ) : (
+                        <span className="inline-flex items-center rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-500">
+                          Promoted admin
+                        </span>
+                      )}
+                      {m.role === 'MEMBER' && m.isActive !== false ? (
                         <button
                           type="button"
                           disabled={busyId === m.id}
