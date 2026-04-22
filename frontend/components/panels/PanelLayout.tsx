@@ -4,20 +4,21 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  BarChart3,
   Building2,
   Calendar,
+  ChevronDown,
   CreditCard,
-  HandCoins,
   FolderOpen,
+  HandCoins,
   Home,
-  Image as ImageIcon,
   LayoutDashboard,
-  LayoutTemplate,
   LogOut,
   Menu,
   Shield,
   UserCog,
   Users,
+  Wallet,
   X,
 } from 'lucide-react';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
@@ -66,7 +67,18 @@ const panelMeta: Record<
   },
 };
 
+/** Shared class for every sidebar nav row: top links, group headers, and nested links. */
+const NAV_ITEM_ROW =
+  'flex w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition';
+
 type NavItem = { href: string; label: string; icon: React.ReactNode };
+
+type AdminNavGroup = {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  children: { href: string; label: string; icon?: React.ReactNode }[];
+};
 
 function isNavActive(pathname: string, href: string, variant: PanelVariant) {
   if (variant === 'admin') {
@@ -76,171 +88,225 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (href === '/dashboard/admin/members') {
       return pathname === href || pathname.startsWith('/dashboard/admin/members/');
     }
-    if (href === '/dashboard/admin/subscriptions') {
-      return pathname === href || pathname.startsWith('/dashboard/admin/subscriptions/');
+    if (href === '/dashboard/admin/finance') {
+      return pathname === '/dashboard/admin/finance';
     }
-    if (href === '/dashboard/admin/tithes') {
-      return pathname === href || pathname.startsWith('/dashboard/admin/tithes/');
+    if (href === '/dashboard/member') {
+      return pathname === href || pathname.startsWith('/dashboard/member/');
+    }
+    if (
+      href === '/dashboard/admin/finance/reports' ||
+      href === '/dashboard/admin/finance/expenses' ||
+      href === '/dashboard/admin/subscriptions' ||
+      href === '/dashboard/admin/tithes' ||
+      href === '/dashboard/admin/donations'
+    ) {
+      return pathname === href || pathname.startsWith(`${href}/`);
     }
     return pathname === href;
+  }
+  if (variant === 'superadmin') {
+    if (href === '/dashboard/superadmin') {
+      return pathname === '/dashboard/superadmin';
+    }
+    if (href === '/dashboard/superadmin/finance') {
+      return pathname === '/dashboard/superadmin/finance';
+    }
+    if (
+      href === '/dashboard/superadmin/finance/reports' ||
+      href === '/dashboard/superadmin/finance/expenses' ||
+      href === '/dashboard/superadmin/subscriptions' ||
+      href === '/dashboard/superadmin/tithes' ||
+      href === '/dashboard/superadmin/donations'
+    ) {
+      return pathname === href || pathname.startsWith(`${href}/`);
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
   if (href === '/dashboard/superadmin') {
     return pathname === '/dashboard/superadmin';
   }
-  if (href === '/dashboard/superadmin/frontend') {
-    return pathname === '/dashboard/superadmin/frontend';
-  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function navItemsFor(variant: PanelVariant): NavItem[] {
-  if (variant === 'superadmin') {
-    return [
-      {
-        href: '/dashboard/superadmin',
-        label: 'Overview',
-        icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/churches',
-        label: 'Church',
-        icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/conferences',
-        label: 'Conference',
-        icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/churches/councils',
-        label: 'Councils',
-        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/pastors',
-        label: 'Record keeping',
-        icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/pastor-terms',
-        label: 'Leader terms',
-        icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/users',
-        label: 'Members',
-        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/admins',
-        label: 'Admins',
-        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/attendance',
-        label: 'Attendance',
-        icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/events',
-        label: 'Events',
-        icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/gallery',
-        label: 'Gallery',
-        icon: <ImageIcon className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/media',
-        label: 'Media',
-        icon: <FolderOpen className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/subscriptions',
-        label: 'Subscriptions',
-        icon: <CreditCard className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/tithes',
-        label: 'Tithes',
-        icon: <HandCoins className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/church-change-requests',
-        label: 'Church change',
-        icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-      {
-        href: '/dashboard/superadmin/frontend',
-        label: 'Frontend',
-        icon: <LayoutTemplate className="size-4 shrink-0 opacity-80" aria-hidden />,
-      },
-    ];
-  }
+const SUPER_DASHBOARD_LINK: NavItem = {
+  href: '/dashboard/superadmin',
+  label: 'Dashboard',
+  icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
+};
 
-  const base = '/dashboard/admin';
-  const items: NavItem[] = [
+function superadminNavGroups(): AdminNavGroup[] {
+  return [
     {
-      href: base,
-      label: 'Dashboard',
-      icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
+      id: 'congregations',
+      label: 'Congregations',
+      icon: <Building2 className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/superadmin/churches', label: 'Churches', icon: <Building2 className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/conferences', label: 'Conferences', icon: <Building2 className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/councils', label: 'Councils', icon: <Users className="size-3.5 opacity-70" /> },
+      ],
+    },
+    {
+      id: 'users',
+      label: 'Users',
+      icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/superadmin/users', label: 'Members', icon: <Users className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/admins', label: 'Admins', icon: <Shield className="size-3.5 opacity-70" /> },
+        {
+          href: '/dashboard/superadmin/church-change-requests',
+          label: 'Church change',
+          icon: <UserCog className="size-3.5 opacity-70" />,
+        },
+      ],
+    },
+    {
+      id: 'leadership',
+      label: 'Leadership',
+      icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/superadmin/pastors', label: 'Record keeping', icon: <Shield className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/pastor-terms', label: 'Leader terms', icon: <Shield className="size-3.5 opacity-70" /> },
+      ],
+    },
+    {
+      id: 'programs',
+      label: 'Programs',
+      icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/superadmin/attendance', label: 'Attendance', icon: <Calendar className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/events', label: 'Events', icon: <Calendar className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/media', label: 'Media', icon: <FolderOpen className="size-3.5 opacity-70" /> },
+      ],
+    },
+    {
+      id: 'finance',
+      label: 'Finance',
+      icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/superadmin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/subscriptions', label: 'Subscriptions', icon: <CreditCard className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/tithes', label: 'Tithes', icon: <HandCoins className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/donations', label: 'Donations', icon: <HandCoins className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
+      ],
     },
   ];
+}
 
-  items.push({
-    href: '/dashboard/admin/members',
-    label: 'Members',
-    icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
+function superadminPathInGroup(
+  groupId: string,
+  pathname: string
+): boolean {
+  if (groupId === 'congregations') {
+    return (
+      pathname.startsWith('/dashboard/superadmin/churches') ||
+      pathname.startsWith('/dashboard/superadmin/conferences') ||
+      pathname.startsWith('/dashboard/superadmin/councils')
+    );
+  }
+  if (groupId === 'users') {
+    return (
+      pathname.startsWith('/dashboard/superadmin/users') ||
+      pathname.startsWith('/dashboard/superadmin/admins') ||
+      pathname.startsWith('/dashboard/superadmin/church-change-requests')
+    );
+  }
+  if (groupId === 'leadership') {
+    return (
+      pathname.startsWith('/dashboard/superadmin/pastors') || pathname.startsWith('/dashboard/superadmin/pastor-terms')
+    );
+  }
+  if (groupId === 'programs') {
+    return (
+      pathname.startsWith('/dashboard/superadmin/attendance') ||
+      pathname.startsWith('/dashboard/superadmin/events') ||
+      pathname.startsWith('/dashboard/superadmin/media')
+    );
+  }
+  if (groupId === 'finance') {
+    return (
+      pathname === '/dashboard/superadmin/finance' ||
+      pathname.startsWith('/dashboard/superadmin/finance/') ||
+      pathname.startsWith('/dashboard/superadmin/subscriptions') ||
+      pathname.startsWith('/dashboard/superadmin/tithes') ||
+      pathname.startsWith('/dashboard/superadmin/donations')
+    );
+  }
+  return false;
+}
+
+function adminNavGroups(): AdminNavGroup[] {
+  return [
+    {
+      id: 'users',
+      label: 'Users',
+      icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/admin/members', label: 'Members', icon: <Users className="size-3.5 opacity-70" /> },
+        {
+          href: '/dashboard/member',
+          label: 'Member',
+          icon: <UserCog className="size-3.5 opacity-70" />,
+        },
+      ],
+    },
+    {
+      id: 'finance',
+      label: 'Finance',
+      icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [
+        { href: '/dashboard/admin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/subscriptions', label: 'Subscriptions', icon: <CreditCard className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/tithes', label: 'Tithes', icon: <HandCoins className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/donations', label: 'Donations', icon: <HandCoins className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
+      ],
+    },
+  ];
+}
+
+const ADMIN_DASHBOARD_LINK: NavItem = {
+  href: '/dashboard/admin',
+  label: 'Dashboard',
+  icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
+};
+
+const ADMIN_MIDDLE_LINKS: NavItem[] = [
+  {
     href: '/dashboard/admin/pastors',
     label: 'Record keeping',
     icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
+  },
+  {
     href: '/dashboard/admin/pastor-terms',
     label: 'Leader terms',
     icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
+  },
+  {
     href: '/dashboard/admin/councils',
     label: 'Councils',
     icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
+  },
+  {
     href: '/dashboard/admin/attendance',
     label: 'Attendance',
     icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
+  },
+  {
     href: '/dashboard/admin/events',
     label: 'Events',
     icon: <Calendar className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
-    href: '/dashboard/admin/gallery',
-    label: 'Gallery',
-    icon: <ImageIcon className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
+  },
+  {
     href: '/dashboard/admin/media',
     label: 'Media',
     icon: <FolderOpen className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
-    href: '/dashboard/admin/subscriptions',
-    label: 'Subscriptions',
-    icon: <CreditCard className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-  items.push({
-    href: '/dashboard/admin/tithes',
-    label: 'Tithes',
-    icon: <HandCoins className="size-4 shrink-0 opacity-80" aria-hidden />,
-  });
-
-  return items;
-}
+  },
+];
 
 export function PanelLayout({
   variant,
@@ -253,8 +319,26 @@ export function PanelLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminUsersOpen, setAdminUsersOpen] = useState(false);
+  const [adminFinanceOpen, setAdminFinanceOpen] = useState(false);
+  const [saGroupOpen, setSaGroupOpen] = useState<Record<string, boolean>>(() => {
+    const o: Record<string, boolean> = {};
+    for (const g of superadminNavGroups()) o[g.id] = false;
+    return o;
+  });
   const required = roleForVariant[variant];
   const meta = panelMeta[variant];
+
+  const adminPathUsers =
+    pathname === '/dashboard/admin/members' ||
+    pathname.startsWith('/dashboard/admin/members/') ||
+    pathname.startsWith('/dashboard/member');
+  const adminPathFinance =
+    pathname === '/dashboard/admin/finance' ||
+    pathname.startsWith('/dashboard/admin/finance/') ||
+    pathname.startsWith('/dashboard/admin/subscriptions') ||
+    pathname.startsWith('/dashboard/admin/tithes') ||
+    pathname.startsWith('/dashboard/admin/donations');
 
   useEffect(() => {
     if (loading) return;
@@ -271,6 +355,25 @@ export function PanelLayout({
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (variant === 'admin' && adminPathUsers) setAdminUsersOpen(true);
+  }, [variant, pathname, adminPathUsers]);
+
+  useEffect(() => {
+    if (variant === 'admin' && adminPathFinance) setAdminFinanceOpen(true);
+  }, [variant, pathname, adminPathFinance]);
+
+  useEffect(() => {
+    if (variant !== 'superadmin') return;
+    setSaGroupOpen((prev) => {
+      const next = { ...prev };
+      for (const g of superadminNavGroups()) {
+        if (superadminPathInGroup(g.id, pathname)) next[g.id] = true;
+      }
+      return next;
+    });
+  }, [variant, pathname]);
+
   if (loading || !user || user.role !== required) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-100">
@@ -282,7 +385,11 @@ export function PanelLayout({
     );
   }
 
-  const nav = navItemsFor(variant);
+  const showMemberPortal = variant === 'admin' && canAccessMemberPortal(user) && user.role === 'ADMIN';
+  const adminGroups = adminNavGroups().map((g) => {
+    if (g.id !== 'users' || showMemberPortal) return g;
+    return { ...g, children: g.children.filter((c) => c.href !== '/dashboard/member') };
+  });
 
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900">
@@ -315,32 +422,143 @@ export function PanelLayout({
           </div>
 
           <nav className="flex flex-1 flex-col gap-1">
-            {nav.map((item) => {
-              const active = isNavActive(pathname, item.href, variant);
-              return (
+            {variant === 'admin' ? (
+              <>
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                    active ? meta.navActive : meta.navIdle
+                  key={ADMIN_DASHBOARD_LINK.href}
+                  href={ADMIN_DASHBOARD_LINK.href}
+                  className={`${NAV_ITEM_ROW} ${
+                    isNavActive(pathname, ADMIN_DASHBOARD_LINK.href, variant) ? meta.navActive : meta.navIdle
                   }`}
                 >
-                  {item.icon}
-                  {item.label}
+                  {ADMIN_DASHBOARD_LINK.icon}
+                  {ADMIN_DASHBOARD_LINK.label}
                 </Link>
-              );
-            })}
-            {variant === 'admin' && user && canAccessMemberPortal(user) && user.role === 'ADMIN' ? (
-              <Link
-                href="/dashboard/member"
-                className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                  pathname.startsWith('/dashboard/member') ? meta.navActive : meta.navIdle
-                }`}
-              >
-                <UserCog className="size-4 shrink-0 opacity-80" aria-hidden />
-                Member portal
-              </Link>
-            ) : null}
+
+                {adminGroups.map((group) => {
+                  const isOpen = group.id === 'users' ? adminUsersOpen : adminFinanceOpen;
+                  const setOpen = group.id === 'users' ? setAdminUsersOpen : setAdminFinanceOpen;
+                  const groupHasActive = group.id === 'users' ? adminPathUsers : adminPathFinance;
+                  return (
+                    <div key={group.id} className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setOpen((v) => !v)}
+                        aria-expanded={isOpen}
+                        className={`${NAV_ITEM_ROW} justify-between text-left ${
+                          groupHasActive ? meta.navActive : meta.navIdle
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          {group.icon}
+                          {group.label}
+                        </span>
+                        <ChevronDown
+                          className={`size-4 shrink-0 text-neutral-500 transition ${isOpen ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        />
+                      </button>
+                      {isOpen ? (
+                        <ul className="mt-0.5 space-y-0.5" role="list">
+                          {group.children.map((child) => {
+                            const subActive = isNavActive(pathname, child.href, variant);
+                            return (
+                              <li key={child.href} className="pl-1">
+                                <Link
+                                  href={child.href}
+                                  className={`${NAV_ITEM_ROW} ${
+                                    subActive ? meta.navActive : meta.navIdle
+                                  }`}
+                                >
+                                  {child.icon}
+                                  {child.label}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {ADMIN_MIDDLE_LINKS.map((item) => {
+                  const active = isNavActive(pathname, item.href, variant);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`${NAV_ITEM_ROW} ${active ? meta.navActive : meta.navIdle}`}
+                    >
+                      {item.icon}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <Link
+                  key={SUPER_DASHBOARD_LINK.href}
+                  href={SUPER_DASHBOARD_LINK.href}
+                  className={`${NAV_ITEM_ROW} ${
+                    isNavActive(pathname, SUPER_DASHBOARD_LINK.href, variant) ? meta.navActive : meta.navIdle
+                  }`}
+                >
+                  {SUPER_DASHBOARD_LINK.icon}
+                  {SUPER_DASHBOARD_LINK.label}
+                </Link>
+                {superadminNavGroups().map((group) => {
+                  const isOpen = saGroupOpen[group.id] ?? false;
+                  const groupHasActive = superadminPathInGroup(group.id, pathname);
+                  return (
+                    <div key={group.id} className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSaGroupOpen((s) => ({
+                            ...s,
+                            [group.id]: !(s[group.id] ?? false),
+                          }))
+                        }
+                        aria-expanded={isOpen}
+                        className={`${NAV_ITEM_ROW} justify-between text-left ${
+                          groupHasActive ? meta.navActive : meta.navIdle
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          {group.icon}
+                          {group.label}
+                        </span>
+                        <ChevronDown
+                          className={`size-4 shrink-0 text-neutral-500 transition ${isOpen ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        />
+                      </button>
+                      {isOpen ? (
+                        <ul className="mt-0.5 space-y-0.5" role="list">
+                          {group.children.map((child) => {
+                            const subActive = isNavActive(pathname, child.href, variant);
+                            return (
+                              <li key={child.href} className="pl-1">
+                                <Link
+                                  href={child.href}
+                                  className={`${NAV_ITEM_ROW} ${
+                                    subActive ? meta.navActive : meta.navIdle
+                                  }`}
+                                >
+                                  {child.icon}
+                                  {child.label}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </nav>
 
           <div className="mt-auto space-y-3 border-t border-neutral-200 pt-4">
@@ -352,9 +570,9 @@ export function PanelLayout({
             </div>
             <Link
               href="/"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+              className={`${NAV_ITEM_ROW} ${meta.navIdle}`}
             >
-              <Home className="size-4" />
+              <Home className="size-4 shrink-0 opacity-80" />
               Home
             </Link>
             <button

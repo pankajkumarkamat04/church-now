@@ -12,17 +12,24 @@ const {
   getUser,
   updateUser,
   deleteUser,
+  listCouncils,
+  listCouncilMembers,
+  createCouncil,
+  updateCouncil,
+  deleteCouncil,
   createChurchAdmin,
   createSuperadminUser,
   createMemberUser,
 } = require('../controllers/superadminController');
 const frontendController = require('../controllers/frontendController');
 const eventController = require('../controllers/eventController');
-const galleryController = require('../controllers/galleryController');
 const mediaController = require('../controllers/mediaController');
 const subscriptionController = require('../controllers/subscriptionController');
 const churchChangeController = require('../controllers/churchChangeController');
 const titheController = require('../controllers/titheController');
+const donationController = require('../controllers/donationController');
+const expenseController = require('../controllers/expenseController');
+const financeController = require('../controllers/financeController');
 const conferenceController = require('../controllers/conferenceController');
 const mainChurchController = require('../controllers/mainChurchController');
 const subChurchController = require('../controllers/subChurchController');
@@ -51,18 +58,17 @@ router.post('/conferences', asyncHandler(conferenceController.createConference))
 router.put('/conferences/:conferenceId', asyncHandler(conferenceController.updateConference));
 router.delete('/conferences/:conferenceId', asyncHandler(conferenceController.removeConference));
 
-router.get('/frontend/site', asyncHandler(frontendController.getGlobalSite));
-router.put('/frontend/site', asyncHandler(frontendController.putGlobalSite));
 router.get('/media', asyncHandler(mediaController.list));
 router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadOne));
 router.delete('/media/:fileName', asyncHandler(mediaController.remove));
-router.get('/subscriptions/plans', asyncHandler(subscriptionController.listSuperadminPlans));
-router.get('/subscriptions/plans/:planId', asyncHandler(subscriptionController.getSuperadminPlan));
-router.post('/subscriptions/plans', asyncHandler(subscriptionController.createSuperadminPlan));
-router.put('/subscriptions/plans/:planId', asyncHandler(subscriptionController.updateSuperadminPlan));
-router.delete('/subscriptions/plans/:planId', asyncHandler(subscriptionController.removeSuperadminPlan));
 router.get('/subscriptions', asyncHandler(subscriptionController.listSuperadminSubscriptions));
 router.get('/tithes', asyncHandler(titheController.listSuperadminTithes));
+router.get('/donations', asyncHandler(donationController.listSuperadminDonations));
+router.get('/finance/summary', asyncHandler(financeController.getSuperadminFinanceSummary));
+router.get('/expenses', asyncHandler(expenseController.listSuperadminExpenses));
+router.post('/expenses', asyncHandler(expenseController.createSuperadminExpense));
+router.put('/expenses/:expenseId', asyncHandler(expenseController.updateSuperadminExpense));
+router.delete('/expenses/:expenseId', asyncHandler(expenseController.removeSuperadminExpense));
 router.post('/tithes', asyncHandler(titheController.createSuperadminTithe));
 router.put('/tithes/:titheId', asyncHandler(titheController.updateSuperadminTithe));
 router.delete('/tithes/:titheId', asyncHandler(titheController.removeSuperadminTithe));
@@ -76,11 +82,6 @@ router.get('/churches/:churchId/events/:eventId', asyncHandler(eventController.g
 router.post('/churches/:churchId/events', asyncHandler(eventController.createSuperadmin));
 router.put('/churches/:churchId/events/:eventId', asyncHandler(eventController.updateSuperadmin));
 router.delete('/churches/:churchId/events/:eventId', asyncHandler(eventController.removeSuperadmin));
-router.get('/churches/:churchId/gallery', asyncHandler(galleryController.listSuperadmin));
-router.get('/churches/:churchId/gallery/:itemId', asyncHandler(galleryController.getSuperadmin));
-router.post('/churches/:churchId/gallery', asyncHandler(galleryController.createSuperadmin));
-router.put('/churches/:churchId/gallery/:itemId', asyncHandler(galleryController.updateSuperadmin));
-router.delete('/churches/:churchId/gallery/:itemId', asyncHandler(galleryController.removeSuperadmin));
 
 router.post('/churches/:churchId/admins', asyncHandler(createChurchAdmin));
 
@@ -89,6 +90,11 @@ router.put('/churches/:id', asyncHandler(updateChurch));
 router.delete('/churches/:id', asyncHandler(deleteChurch));
 
 router.get('/users', asyncHandler(listUsers));
+router.get('/councils', asyncHandler(listCouncils));
+router.get('/councils/:councilId/members', asyncHandler(listCouncilMembers));
+router.post('/councils', asyncHandler(createCouncil));
+router.put('/councils/:councilId', asyncHandler(updateCouncil));
+router.delete('/councils/:councilId', asyncHandler(deleteCouncil));
 router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembersForSuperadmin));
 router.get('/attendance', asyncHandler(attendanceController.listMonthSuperadmin));
 router.get('/attendance/:dateKey', asyncHandler(attendanceController.getDaySuperadmin));

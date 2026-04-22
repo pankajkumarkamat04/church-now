@@ -1,4 +1,5 @@
 const Church = require('../models/Church');
+const GlobalCouncil = require('../models/GlobalCouncil');
 const User = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
 
@@ -78,25 +79,21 @@ async function getMyCouncils(req, res) {
     if (!req.user.church) {
       return res.status(400).json({ message: 'No church assigned' });
     }
-    const church = await Church.findById(req.user.church).select('name councils').lean();
+    const church = await Church.findById(req.user.church).select('name').lean();
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
     }
-    const uid = String(req.user._id);
-    const idSet = new Set((req.user.councilIds || []).map((id) => String(id)));
-    const councils = [];
-    for (const c of church.councils || []) {
-      const cid = c._id != null ? String(c._id) : '';
-      const myRoles = (c.roles || []).filter((r) => r.member && String(r.member) === uid);
-      const listed = (idSet.size && idSet.has(cid)) || myRoles.length > 0;
-      if (!listed) continue;
-      const myRoleLabels = myRoles.length
-        ? myRoles.map((r) => (r.roleLabel && String(r.roleLabel).trim()) || r.roleKey)
-        : idSet.has(cid)
-          ? ['Member']
-          : [];
-      councils.push({ _id: c._id, name: c.name, myRoleLabels });
-    }
+    const councilIds = Array.isArray(req.user.councilIds)
+      ? Array.from(new Set(req.user.councilIds.map((id) => String(id)).filter(Boolean)))
+      : [];
+    const globalCouncils = councilIds.length
+      ? await GlobalCouncil.find({ _id: { $in: councilIds }, isActive: true }).select('_id name').lean()
+      : [];
+    const councils = globalCouncils.map((c) => ({
+      _id: c._id,
+      name: c.name,
+      myRoleLabels: ['Member'],
+    }));
     return res.json({ churchName: church.name, councils });
   } catch (err) {
     console.error(err);

@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { verifyToken } = require('../utils/token');
+const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
 
 async function authenticate(req, res, next) {
   try {
@@ -10,6 +11,7 @@ async function authenticate(req, res, next) {
     const token = header.slice(7);
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.sub);
+    await syncMemberActiveStatusByPayments(user);
     if (!user || !user.isActive) {
       return res.status(401).json({ message: 'Invalid or inactive user' });
     }

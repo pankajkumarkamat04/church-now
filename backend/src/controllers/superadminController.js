@@ -1,12 +1,26 @@
 const Church = require('../models/Church');
 const User = require('../models/User');
 const { MEMBER_CATEGORIES } = User;
+const GlobalCouncil = require('../models/GlobalCouncil');
 const Event = require('../models/Event');
-const GalleryItem = require('../models/GalleryItem');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
+
+async function normalizeAndValidateGlobalCouncilIds(inputCouncilIds) {
+  const normalized = Array.isArray(inputCouncilIds)
+    ? Array.from(new Set(inputCouncilIds.map((id) => String(id)).filter(Boolean)))
+    : [];
+  if (normalized.length === 0) {
+    return { error: 'Select at least one council' };
+  }
+  const validRows = await GlobalCouncil.find({ _id: { $in: normalized }, isActive: true }).select('_id').lean();
+  if (validRows.length !== normalized.length) {
+    return { error: 'One or more selected councils are invalid or inactive' };
+  }
+  return { ids: normalized };
+}
 
 async function listChurches(_req, res) {
   try {
@@ -138,7 +152,6 @@ async function deleteChurch(req, res) {
     }
     const churchId = req.params.id;
     await Event.deleteMany({ church: churchId });
-    await GalleryItem.deleteMany({ church: churchId });
     await User.updateMany({ adminChurches: churchId }, { $pull: { adminChurches: churchId } });
     const adminsWithoutPrimary = await User.find({ role: 'ADMIN', church: churchId });
     for (const admin of adminsWithoutPrimary) {
@@ -153,6 +166,103 @@ async function deleteChurch(req, res) {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to delete church' });
+  }
+}
+
+async function listCouncils(_req, res) {
+  try {
+    const rows = await GlobalCouncil.find({ isActive: true }).sort({ name: 1 }).lean();
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to list councils' });
+  }
+}
+
+async function listCouncilMembers(req, res) {
+  try {
+    const councilId = String(req.params.councilId || '').trim();
+    const council = await GlobalCouncil.findOne({ _id: councilId, isActive: true }).select('_id name').lean();
+    if (!council) {
+      return res.status(404).json({ message: 'Council not found' });
+    }
+    const members = await User.find({
+      role: { $in: ['MEMBER', 'ADMIN'] },
+      councilIds: councilId,
+    })
+      .sort({ fullName: 1, email: 1 })
+      .select('-password')
+      .populate('church', 'name')
+      .lean();
+    return res.json({
+      council,
+      members: members.map((u) => ({
+        id: u._id,
+        email: u.email,
+        fullName: u.fullName,
+        memberId: u.memberId || '',
+        role: u.role,
+        church: u.church,
+        isActive: u.isActive,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load council members' });
+  }
+}
+
+async function createCouncil(req, res) {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ message: 'Council name is required' });
+    const row = await GlobalCouncil.create({ name });
+    return res.status(201).json(row);
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ message: 'Council name already exists' });
+    }
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to create council' });
+  }
+}
+
+async function updateCouncil(req, res) {
+  try {
+    const updates = {};
+    if (req.body?.name !== undefined) {
+      updates.name = String(req.body.name || '').trim();
+      if (!updates.name) {
+        return res.status(400).json({ message: 'Council name is required' });
+      }
+    }
+    if (req.body?.isActive !== undefined) {
+      updates.isActive = Boolean(req.body.isActive);
+    }
+    const row = await GlobalCouncil.findByIdAndUpdate(req.params.councilId, { $set: updates }, {
+      returnDocument: 'after',
+      runValidators: true,
+    });
+    if (!row) return res.status(404).json({ message: 'Council not found' });
+    return res.json(row);
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ message: 'Council name already exists' });
+    }
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to update council' });
+  }
+}
+
+async function deleteCouncil(req, res) {
+  try {
+    const removed = await GlobalCouncil.findByIdAndDelete(req.params.councilId);
+    if (!removed) return res.status(404).json({ message: 'Council not found' });
+    await User.updateMany({}, { $pull: { councilIds: String(req.params.councilId) } });
+    return res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to delete council' });
   }
 }
 
@@ -427,20 +537,11 @@ async function updateUser(req, res) {
         user.memberCategory = v;
       }
       if (councilIds !== undefined) {
-        const selected = Array.isArray(councilIds)
-          ? Array.from(new Set(councilIds.map((id) => String(id)).filter(Boolean)))
-          : [];
-        if (selected.length === 0) {
-          return res.status(400).json({ message: 'Select at least one council' });
+        const councilResult = await normalizeAndValidateGlobalCouncilIds(councilIds);
+        if (councilResult.error) {
+          return res.status(400).json({ message: councilResult.error });
         }
-        const churchDoc = await Church.findById(user.church).select('councils._id');
-        const validIds = new Set(
-          Array.isArray(churchDoc?.councils) ? churchDoc.councils.map((c) => String(c._id)) : []
-        );
-        if (!selected.every((id) => validIds.has(id))) {
-          return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
-        }
-        user.councilIds = selected;
+        user.councilIds = councilResult.ids;
       }
     }
 
@@ -619,20 +720,9 @@ async function createMemberUser(req, res) {
     if (!church) {
       return res.status(400).json({ message: 'Selected church does not belong to selected conference' });
     }
-    const normalizedCouncilIds = Array.isArray(councilIds)
-      ? Array.from(new Set(councilIds.map((id) => String(id)).filter(Boolean)))
-      : [];
-    if (normalizedCouncilIds.length === 0) {
-      return res.status(400).json({ message: 'Select at least one council' });
-    }
-    const churchWithCouncils = await Church.findById(church._id).select('councils._id');
-    const validCouncilIds = new Set(
-      Array.isArray(churchWithCouncils?.councils)
-        ? churchWithCouncils.councils.map((c) => String(c._id))
-        : []
-    );
-    if (!normalizedCouncilIds.every((id) => validCouncilIds.has(id))) {
-      return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
+    const councilResult = await normalizeAndValidateGlobalCouncilIds(councilIds);
+    if (councilResult.error) {
+      return res.status(400).json({ message: councilResult.error });
     }
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
@@ -657,7 +747,7 @@ async function createMemberUser(req, res) {
       role: 'MEMBER',
       church: church._id,
       conferences: [conferenceId],
-      councilIds: normalizedCouncilIds,
+      councilIds: councilResult.ids,
       memberCategory: String(memberCategory || 'MEMBER').toUpperCase(),
       memberId: assignedMemberId,
       gender: gender || undefined,
@@ -680,6 +770,11 @@ async function createMemberUser(req, res) {
 }
 
 module.exports = {
+  listCouncils,
+  listCouncilMembers,
+  createCouncil,
+  updateCouncil,
+  deleteCouncil,
   listChurches,
   getChurch,
   createChurch,

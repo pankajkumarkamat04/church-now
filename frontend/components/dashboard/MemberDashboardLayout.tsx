@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Wallet,
   X,
 } from 'lucide-react';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
@@ -52,7 +53,9 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const overviewActive = pathname === '/dashboard/member';
   const subscriptionsActive = pathname === '/dashboard/member/subscriptions';
   const tithesActive = pathname === '/dashboard/member/tithes';
+  const donationsActive = pathname === '/dashboard/member/donations';
   const accountActive = pathname === '/dashboard/member/account';
+  const financeRecordsActive = pathname === '/dashboard/member/finance';
   const councilsActive = pathname === '/dashboard/member/councils';
 
   const itemClass = (active: boolean) =>
@@ -77,23 +80,6 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
             <Link href="/" className="text-xl font-bold text-emerald-600">
               ChurchNow
             </Link>
-            <nav className="hidden items-center gap-6 pl-6 text-sm text-neutral-600 md:flex">
-              <Link href="/" className="hover:text-neutral-900">
-                Home
-              </Link>
-              <Link href="/dashboard/member" className="hover:text-neutral-900">
-                Dashboard
-              </Link>
-              <Link href="/dashboard/member/subscriptions" className="hover:text-neutral-900">
-                Subscription
-              </Link>
-              <Link href="/dashboard/member/councils" className="hover:text-neutral-900">
-                Councils
-              </Link>
-              <Link href="/dashboard/member/tithes" className="hover:text-neutral-900">
-                Tithes
-              </Link>
-            </nav>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -123,6 +109,10 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                   <CircleUserRound className="size-4" />
                   My Account
                 </Link>
+                <Link href="/dashboard/member/finance" className={itemClass(financeRecordsActive)}>
+                  <Wallet className="size-4" />
+                  My records
+                </Link>
                 <Link href="/dashboard/member/subscriptions" className={itemClass(subscriptionsActive)}>
                   <CreditCard className="size-4" />
                   Subscription
@@ -134,6 +124,10 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                 <Link href="/dashboard/member/tithes" className={itemClass(tithesActive)}>
                   <HandCoins className="size-4" />
                   Tithes
+                </Link>
+                <Link href="/dashboard/member/donations" className={itemClass(donationsActive)}>
+                  <HandCoins className="size-4" />
+                  Donations
                 </Link>
                 {user.role === 'ADMIN' ? (
                   <Link

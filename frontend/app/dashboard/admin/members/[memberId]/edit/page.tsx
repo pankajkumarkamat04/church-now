@@ -51,10 +51,10 @@ export default function AdminMemberEditPage() {
 
   const loadCouncils = useCallback(async () => {
     if (!token) return;
-    const church = await apiFetch<{ councils?: Array<{ _id: string; name: string }> }>('/api/admin/church', {
+    const rows = await apiFetch<Array<{ _id: string; name: string }>>('/api/admin/councils', {
       token,
     });
-    setCouncils(Array.isArray(church.councils) ? church.councils : []);
+    setCouncils(rows);
   }, [token]);
 
   useEffect(() => {

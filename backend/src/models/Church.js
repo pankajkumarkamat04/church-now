@@ -3,11 +3,21 @@ const mongoose = require('mongoose');
 const localLeadershipSchema = new mongoose.Schema(
   {
     spiritualPastor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    churchPresident: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    vicePresident: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    moderator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    viceModerator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    superintendent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    viceSuperintendent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    conferenceMinister1: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    conferenceMinister2: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    minister: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     deacon: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     viceDeacon: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     secretary: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     viceSecretary: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     treasurer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    viceTreasurer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     committeeMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { _id: false }

@@ -34,11 +34,20 @@ export default function MemberTithesPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'MEMBER')) router.replace('/login');
+    if (loading) return;
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    if (!canAccessMemberPortal(user)) {
+      router.replace(getDefaultDashboardPath(user));
+    }
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'MEMBER' && token) load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
+    if (user && canAccessMemberPortal(user) && token) {
+      load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
+    }
   }, [user, token, load]);
 
   async function onPay(e: React.FormEvent) {

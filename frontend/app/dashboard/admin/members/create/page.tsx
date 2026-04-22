@@ -62,22 +62,19 @@ export default function AdminMemberCreatePage() {
   }, []);
 
   useEffect(() => {
-    async function loadChurchCouncils() {
+    async function loadGlobalCouncils() {
       if (!token || user?.role !== 'ADMIN') return;
       try {
-        const church = await apiFetch<{ councils?: Array<{ _id: string; name: string }> }>('/api/admin/church', {
+        const rows = await apiFetch<Array<{ _id: string; name: string }>>('/api/admin/councils', {
           token,
         });
-        const rows = Array.isArray(church.councils)
-          ? church.councils.filter((c) => c?._id && c?.name)
-          : [];
         setCouncils(rows);
         setCouncilIds((prev) => (prev.length > 0 ? prev : rows[0]?._id ? [rows[0]._id] : []));
       } catch {
         setCouncils([]);
       }
     }
-    loadChurchCouncils();
+    loadGlobalCouncils();
   }, [token, user]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -208,9 +205,9 @@ export default function AdminMemberCreatePage() {
                   })}
                 </div>
                 {councils.length === 0 ? (
-                  <p className="text-xs text-neutral-500">No councils configured for this church yet.</p>
+                  <p className="text-xs text-neutral-500">No global councils available yet.</p>
                 ) : (
-                  <p className="mt-2 text-xs text-neutral-500">Select one or more councils.</p>
+                  <p className="mt-2 text-xs text-neutral-500">Select one or more councils (global list).</p>
                 )}
               </div>
             </div>

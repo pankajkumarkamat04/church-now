@@ -8,7 +8,6 @@ export function MarketingFooter(_: MarketingFooterProps) {
   const explore = [
     { href: '/#about', label: 'About' },
     { href: '/#events', label: 'Events' },
-    { href: '/#gallery', label: 'Gallery' },
   ];
 
   return (
@@ -23,7 +22,7 @@ export function MarketingFooter(_: MarketingFooterProps) {
               <span className="text-sm font-semibold">Church OS</span>
             </Link>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-neutral-600">
-              Websites, events, galleries, and member tools for churches—kept simple.
+              Events and member tools for churches-kept simple.
             </p>
           </div>
           <div>

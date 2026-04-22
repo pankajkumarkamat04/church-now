@@ -6,6 +6,7 @@ const { MEMBER_CATEGORIES } = require('../models/User');
 const { signToken } = require('../utils/token');
 const { toProfileResponse } = require('../utils/memberProfile');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
 
 const CHURCH_FIELDS =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
@@ -146,12 +147,18 @@ async function login(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate('conferences', 'conferenceId name description email phone contactPerson isActive')
       .populate('adminChurches', CHURCH_FIELDS);
-    if (!user || !user.isActive) {
+    if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const ok = await user.comparePassword(password);
     if (!ok) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    await syncMemberActiveStatusByPayments(user);
+    if (!user.isActive) {
+      return res
+        .status(403)
+        .json({ message: 'Your account is inactive because no tithe or subscription payment was made in the last 3 months' });
     }
     const token = signToken({
       sub: user._id.toString(),

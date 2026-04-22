@@ -18,8 +18,8 @@ const userSubscriptionSchema = new mongoose.Schema(
     },
     plan: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'SubscriptionPlan',
-      required: true,
+      required: false,
+      default: null,
       index: true,
     },
     status: { type: String, enum: STATUSES, default: 'ACTIVE' },

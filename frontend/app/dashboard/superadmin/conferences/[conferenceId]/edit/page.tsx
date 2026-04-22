@@ -16,7 +16,51 @@ type Conference = {
   phone?: string;
   contactPerson?: string;
   isActive: boolean;
+  localLeadership?: {
+    superintendent?: string | { _id: string };
+    viceSuperintendent?: string | { _id: string };
+    moderator?: string | { _id: string };
+    viceModerator?: string | { _id: string };
+    secretary?: string | { _id: string };
+    viceSecretary?: string | { _id: string };
+    treasurer?: string | { _id: string };
+    viceTreasurer?: string | { _id: string };
+    conferenceMinister1?: string | { _id: string };
+    conferenceMinister2?: string | { _id: string };
+  };
 };
+
+type MemberOption = { id: string; label: string };
+type LeadershipState = {
+  superintendent: string;
+  viceSuperintendent: string;
+  moderator: string;
+  viceModerator: string;
+  secretary: string;
+  viceSecretary: string;
+  treasurer: string;
+  viceTreasurer: string;
+  conferenceMinister1: string;
+  conferenceMinister2: string;
+};
+
+const LEADERSHIP_FIELDS: Array<{ key: keyof LeadershipState; label: string }> = [
+  { key: 'superintendent', label: 'Supt (minister)' },
+  { key: 'viceSuperintendent', label: 'Vice supt (minister)' },
+  { key: 'moderator', label: 'Moderator' },
+  { key: 'viceModerator', label: 'Vice moderator' },
+  { key: 'secretary', label: 'Secretary' },
+  { key: 'viceSecretary', label: 'Vice secretary' },
+  { key: 'treasurer', label: 'Treasurer' },
+  { key: 'viceTreasurer', label: 'Vice treasurer' },
+  { key: 'conferenceMinister1', label: 'Conference minister 1' },
+  { key: 'conferenceMinister2', label: 'Conference minister 2' },
+];
+
+function memberRefId(value: string | { _id: string } | null | undefined): string {
+  if (!value) return '';
+  return typeof value === 'string' ? value : value._id || '';
+}
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
@@ -33,6 +77,20 @@ export default function SuperadminConferenceEditPage() {
   const [phone, setPhone] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
+  const [spiritualMemberIds, setSpiritualMemberIds] = useState<string[]>([]);
+  const [leadership, setLeadership] = useState<LeadershipState>({
+    superintendent: '',
+    viceSuperintendent: '',
+    moderator: '',
+    viceModerator: '',
+    secretary: '',
+    viceSecretary: '',
+    treasurer: '',
+    viceTreasurer: '',
+    conferenceMinister1: '',
+    conferenceMinister2: '',
+  });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -46,6 +104,35 @@ export default function SuperadminConferenceEditPage() {
     setPhone(row.phone || '');
     setContactPerson(row.contactPerson || '');
     setIsActive(row.isActive !== false);
+    setLeadership({
+      superintendent: memberRefId(row.localLeadership?.superintendent),
+      viceSuperintendent: memberRefId(row.localLeadership?.viceSuperintendent),
+      moderator: memberRefId(row.localLeadership?.moderator),
+      viceModerator: memberRefId(row.localLeadership?.viceModerator),
+      secretary: memberRefId(row.localLeadership?.secretary),
+      viceSecretary: memberRefId(row.localLeadership?.viceSecretary),
+      treasurer: memberRefId(row.localLeadership?.treasurer),
+      viceTreasurer: memberRefId(row.localLeadership?.viceTreasurer),
+      conferenceMinister1: memberRefId(row.localLeadership?.conferenceMinister1),
+      conferenceMinister2: memberRefId(row.localLeadership?.conferenceMinister2),
+    });
+    const members = await apiFetch<
+      Array<{ id: string; fullName?: string; email: string; memberId?: string; memberRoleDisplay?: string }>
+    >(
+      `/api/superadmin/users?role=MEMBER&conferenceId=${encodeURIComponent(conferenceId)}`,
+      { token }
+    );
+    setSpiritualMemberIds(
+      members
+        .filter((m) => String(m.memberRoleDisplay || '').toLowerCase().includes('spiritual'))
+        .map((m) => m.id)
+    );
+    setMemberOptions(
+      members.map((m) => ({
+        id: m.id,
+        label: `${m.memberId ? `${m.memberId} — ` : ''}${(m.fullName || m.email || '').trim()}`,
+      }))
+    );
   }
 
   useEffect(() => {
@@ -74,6 +161,7 @@ export default function SuperadminConferenceEditPage() {
           phone,
           contactPerson,
           isActive,
+          localLeadership: leadership,
         }),
       });
       await loadConference();
@@ -138,8 +226,30 @@ export default function SuperadminConferenceEditPage() {
                 <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} placeholder="Contact person" />
               </div>
             </div>
-            <div className="text-xs text-neutral-600">
-              Leadership (deacon, secretary, etc.) is configured on each church, not on the conference.
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">Conference leadership</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {LEADERSHIP_FIELDS.map((item) => (
+                  <div key={item.key}>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600">{item.label}</label>
+                    <select
+                      value={leadership[item.key]}
+                      onChange={(e) => setLeadership((prev) => ({ ...prev, [item.key]: e.target.value }))}
+                      className={field}
+                    >
+                      <option value="">— None —</option>
+                      {(item.key === 'conferenceMinister1' || item.key === 'conferenceMinister2'
+                        ? memberOptions.filter((m) => spiritualMemberIds.includes(m.id))
+                        : memberOptions
+                      ).map((m) => (
+                        <option key={`${item.key}-${m.id}`} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-neutral-800">
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="size-4 rounded border-neutral-300" />

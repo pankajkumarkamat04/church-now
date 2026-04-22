@@ -7,10 +7,10 @@ import {
   ArrowRight,
   Building2,
   Calendar,
-  CreditCard,
   Shield,
   UserCog,
   Users,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminData } from './useSuperadminData';
@@ -103,10 +103,10 @@ export default function SuperadminOverviewPage() {
       icon: Calendar,
     },
     {
-      href: '/dashboard/superadmin/subscriptions',
-      title: 'Subscriptions',
-      description: 'Track plans and church subscriptions.',
-      icon: CreditCard,
+      href: '/dashboard/superadmin/finance',
+      title: 'Finance',
+      description: 'Tithes, subscriptions, donations, expenses, and reports.',
+      icon: Wallet,
     },
   ];
 

@@ -61,7 +61,7 @@ export default function SuperadminChurchesListPage() {
     if (
       !token ||
       !window.confirm(
-        'Delete this church? It must have no admins or members. Site content, events, and gallery for this church will be removed.'
+        'Delete this church? It must have no admins or members. Site content and events for this church will be removed.'
       )
     ) {
       return;
@@ -161,10 +161,10 @@ export default function SuperadminChurchesListPage() {
                         <Users className="size-3.5" aria-hidden />
                       </Link>
                       <Link
-                        href={`/dashboard/superadmin/churches/councils?churchId=${encodeURIComponent(c._id)}`}
+                        href="/dashboard/superadmin/councils"
                         className={btn}
-                        title="Church councils"
-                        aria-label="Church councils"
+                        title="Global councils"
+                        aria-label="Global councils"
                       >
                         <Layers className="size-3.5" aria-hidden />
                       </Link>

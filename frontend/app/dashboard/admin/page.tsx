@@ -83,6 +83,9 @@ export default function AdminDashboardIndexPage() {
           <Link href="/dashboard/admin/pastors" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
             Record keeping
           </Link>
+          <Link href="/dashboard/admin/finance" className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+            Finance
+          </Link>
         </div>
       </div>
     </div>

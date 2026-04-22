@@ -6,6 +6,7 @@ const { getProfile, updateProfile, getMyChurchInfo, getMyCouncils } = require('.
 const subscriptionController = require('../controllers/subscriptionController');
 const churchChangeController = require('../controllers/churchChangeController');
 const titheController = require('../controllers/titheController');
+const donationController = require('../controllers/donationController');
 
 const router = express.Router();
 
@@ -15,12 +16,14 @@ router.get('/profile', asyncHandler(getProfile));
 router.put('/profile', asyncHandler(updateProfile));
 router.get('/church', asyncHandler(getMyChurchInfo));
 router.get('/councils', asyncHandler(getMyCouncils));
-router.get('/subscriptions/plans', asyncHandler(subscriptionController.listMemberPlans));
 router.get('/subscriptions/me', asyncHandler(subscriptionController.getMySubscription));
+router.get('/subscriptions/history', asyncHandler(subscriptionController.listMySubscriptionHistory));
 router.post('/subscriptions/subscribe', asyncHandler(subscriptionController.subscribeMember));
 router.post('/subscriptions/cancel', asyncHandler(subscriptionController.cancelMySubscription));
 router.get('/tithes', asyncHandler(titheController.listMemberTithes));
 router.post('/tithes/pay', asyncHandler(titheController.payMemberTithe));
+router.get('/donations', asyncHandler(donationController.listMemberDonations));
+router.post('/donations/pay', asyncHandler(donationController.donateAsMember));
 router.get('/church-change-requests', asyncHandler(churchChangeController.listMyChurchChangeRequests));
 router.post('/church-change-requests', asyncHandler(churchChangeController.createChurchChangeRequest));
 

@@ -21,6 +21,7 @@ export default function SuperadminUserEditPage() {
   const [row, setRow] = useState<UserDetail | null>(null);
   const [churches, setChurches] = useState<ChurchRecord[]>([]);
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
+  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [churchIds, setChurchIds] = useState<string[]>([]);
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
@@ -64,14 +65,16 @@ export default function SuperadminUserEditPage() {
       setChurchId(cId || '');
       setCouncilIds(Array.isArray(u.councilIds) ? u.councilIds : []);
       setMemberCategory((u.memberCategory as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR') || 'MEMBER');
-      const [allConferences, allSubChurches] = await Promise.all([
+      const [allConferences, allSubChurches, allCouncils] = await Promise.all([
         apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
           token,
         }),
         apiFetch<ChurchRecord[]>('/api/superadmin/sub-churches', { token }),
+        apiFetch<Array<{ _id: string; name: string }>>('/api/superadmin/councils', { token }),
       ]);
       setConferences(allConferences);
       setChurches(allSubChurches);
+      setCouncils(allCouncils);
     }
   }, [token, userId]);
 
@@ -286,14 +289,7 @@ export default function SuperadminUserEditPage() {
                   onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
                   className={`${field} min-h-[120px]`}
                 >
-                  {churches
-                    .filter((c) => {
-                      const conf = c.conference;
-                      if (!conferenceId || !conf) return false;
-                      return typeof conf === 'string' ? conf === conferenceId : conf._id === conferenceId;
-                    })
-                    .find((c) => c._id === churchId)
-                    ?.councils?.map((c) => (
+                  {councils.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.name}
                       </option>

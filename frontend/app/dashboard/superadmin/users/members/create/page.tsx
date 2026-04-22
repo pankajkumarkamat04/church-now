@@ -16,8 +16,8 @@ type Church = {
   _id: string;
   name: string;
   conference?: string | { _id: string } | null;
-  councils?: Array<{ _id: string; name: string }>;
 };
+type Council = { _id: string; name: string };
 
 export default function SuperadminMemberCreatePage() {
   const { user, token, loading } = useAuth();
@@ -33,6 +33,7 @@ export default function SuperadminMemberCreatePage() {
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [churches, setChurches] = useState<Church[]>([]);
+  const [councils, setCouncils] = useState<Council[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -49,12 +50,14 @@ export default function SuperadminMemberCreatePage() {
   useEffect(() => {
     async function loadReferences() {
       if (!token || user?.role !== 'SUPERADMIN') return;
-      const [conferenceRows, churchRows] = await Promise.all([
+      const [conferenceRows, churchRows, councilRows] = await Promise.all([
         apiFetch<Conference[]>('/api/superadmin/conferences', { token }),
         apiFetch<Church[]>('/api/superadmin/sub-churches', { token }),
+        apiFetch<Council[]>('/api/superadmin/councils', { token }),
       ]);
       setConferences(conferenceRows);
       setChurches(churchRows);
+      setCouncils(councilRows);
       if (conferenceRows.length > 0) setConferenceId(conferenceRows[0]._id);
     }
     loadReferences().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load references'));
@@ -75,14 +78,12 @@ export default function SuperadminMemberCreatePage() {
   }, [filteredChurches]);
 
   useEffect(() => {
-    const activeChurch = filteredChurches.find((c) => c._id === churchId);
-    const available = Array.isArray(activeChurch?.councils) ? activeChurch.councils : [];
     setCouncilIds((prev) => {
-      const kept = prev.filter((id) => available.some((c) => c._id === id));
+      const kept = prev.filter((id) => councils.some((c) => c._id === id));
       if (kept.length > 0) return kept;
-      return available[0]?._id ? [available[0]._id] : [];
+      return councils[0]?._id ? [councils[0]._id] : [];
     });
-  }, [churchId, filteredChurches]);
+  }, [councils]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -155,7 +156,7 @@ export default function SuperadminMemberCreatePage() {
               <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {(filteredChurches.find((church) => church._id === churchId)?.councils || []).map((council) => {
+                  {councils.map((council) => {
                     const selected = councilIds.includes(council._id);
                     return (
                       <label
@@ -177,10 +178,10 @@ export default function SuperadminMemberCreatePage() {
                     );
                   })}
                 </div>
-                {((filteredChurches.find((church) => church._id === churchId)?.councils || []).length === 0) ? (
-                  <p className="text-xs text-neutral-500">No councils set for this church yet.</p>
+                {councils.length === 0 ? (
+                  <p className="text-xs text-neutral-500">No global councils found yet.</p>
                 ) : (
-                  <p className="mt-2 text-xs text-neutral-500">Select one or more councils.</p>
+                  <p className="mt-2 text-xs text-neutral-500">Select one or more councils (global list).</p>
                 )}
               </div>
             </div>

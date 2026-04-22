@@ -5,11 +5,21 @@
 
 const LOCAL_SINGLE_ROLE_LABELS = {
   spiritualPastor: 'Spiritual Pastor',
+  churchPresident: 'Church president',
+  vicePresident: 'Vice president',
+  moderator: 'Moderator',
+  viceModerator: 'Vice moderator',
+  superintendent: 'Superintendent',
+  viceSuperintendent: 'Vice superintendent',
+  conferenceMinister1: 'Conference minister',
+  conferenceMinister2: 'Conference minister',
+  minister: 'Minister',
   deacon: 'Deacon',
   viceDeacon: 'Vice Deacon',
   secretary: 'Secretary',
   viceSecretary: 'V/Secretary',
   treasurer: 'Treasurer',
+  viceTreasurer: 'Vice treasurer',
 };
 
 function sameId(a, b) {

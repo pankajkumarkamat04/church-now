@@ -8,11 +8,21 @@ export type ChurchMemberRef = {
 
 export type LocalLeadership = {
   spiritualPastor?: ChurchMemberRef | string | null;
+  churchPresident?: ChurchMemberRef | string | null;
+  vicePresident?: ChurchMemberRef | string | null;
+  moderator?: ChurchMemberRef | string | null;
+  viceModerator?: ChurchMemberRef | string | null;
+  superintendent?: ChurchMemberRef | string | null;
+  viceSuperintendent?: ChurchMemberRef | string | null;
+  conferenceMinister1?: ChurchMemberRef | string | null;
+  conferenceMinister2?: ChurchMemberRef | string | null;
+  minister?: ChurchMemberRef | string | null;
   deacon?: ChurchMemberRef | string | null;
   viceDeacon?: ChurchMemberRef | string | null;
   secretary?: ChurchMemberRef | string | null;
   viceSecretary?: ChurchMemberRef | string | null;
   treasurer?: ChurchMemberRef | string | null;
+  viceTreasurer?: ChurchMemberRef | string | null;
   committeeMembers?: Array<ChurchMemberRef | string>;
 };
 

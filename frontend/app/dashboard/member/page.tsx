@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, CreditCard, Layers, MapPin, UserRound } from 'lucide-react';
+import { ArrowRight, CreditCard, HandCoins, Layers, MapPin, UserRound } from 'lucide-react';
 import { apiFetch, type MemberAddress } from '@/lib/api';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
@@ -116,7 +116,7 @@ export default function MemberDashboardPage() {
         </p>
       ) : null}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Link
           href="/dashboard/member/subscriptions"
           className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
@@ -172,6 +172,20 @@ export default function MemberDashboardPage() {
           <p className="mt-2 text-lg font-semibold text-neutral-900">My councils</p>
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
             See committees you serve on
+            <ArrowRight className="size-3.5" />
+          </p>
+        </Link>
+        <Link
+          href="/dashboard/member/donations"
+          className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-neutral-700">Donations</p>
+            <HandCoins className="size-4 text-neutral-500" />
+          </div>
+          <p className="mt-2 text-lg font-semibold text-neutral-900">Give support</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
+            Donate any amount to your church
             <ArrowRight className="size-3.5" />
           </p>
         </Link>

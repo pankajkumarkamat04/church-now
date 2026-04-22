@@ -21,20 +21,49 @@ function leadershipFromRecord(row: ChurchRecord | null): LocalLeadership {
 }
 
 const LOCAL_ROLE_LABELS: Record<string, string> = {
+  churchPresident: 'Church president (minister)',
+  vicePresident: 'Vice president (minister)',
+  moderator: 'Moderator',
+  viceModerator: 'Vice moderator',
+  superintendent: 'Superintendent (minister)',
+  viceSuperintendent: 'Vice superintendent (minister)',
+  conferenceMinister1: 'Conference minister 1',
+  conferenceMinister2: 'Conference minister 2',
+  minister: 'Minister',
   deacon: 'Deacon (elected)',
   viceDeacon: 'Vice deacon',
   secretary: 'Secretary',
   viceSecretary: 'Vice secretary',
   treasurer: 'Treasurer',
+  viceTreasurer: 'Vice treasurer',
 };
 
-const LOCAL_SINGLE_KEYS = [
+const MAIN_LEADERSHIP_KEYS = [
+  'churchPresident',
+  'vicePresident',
+  'moderator',
+  'viceModerator',
+  'secretary',
+  'viceSecretary',
+  'treasurer',
+  'viceTreasurer',
+  'minister',
+  'superintendent',
+  'viceSuperintendent',
+  'conferenceMinister1',
+  'conferenceMinister2',
+] as const;
+
+const SUB_LEADERSHIP_KEYS = [
   'deacon',
   'viceDeacon',
   'secretary',
   'viceSecretary',
   'treasurer',
+  'viceTreasurer',
 ] as const;
+
+const LOCAL_SINGLE_KEYS = [...MAIN_LEADERSHIP_KEYS, ...SUB_LEADERSHIP_KEYS] as const;
 
 type ChurchLeadershipModalProps = {
   open: boolean;
@@ -58,13 +87,24 @@ export function ChurchLeadershipModal({
   onSaved,
 }: ChurchLeadershipModalProps) {
   const [members, setMembers] = useState<MemberOption[]>([]);
+  const [spiritualMemberIds, setSpiritualMemberIds] = useState<string[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [singleRoles, setSingleRoles] = useState<Record<(typeof LOCAL_SINGLE_KEYS)[number], string>>({
-    deacon: '',
-    viceDeacon: '',
+    churchPresident: '',
+    vicePresident: '',
+    moderator: '',
+    viceModerator: '',
     secretary: '',
     viceSecretary: '',
     treasurer: '',
+    viceTreasurer: '',
+    minister: '',
+    superintendent: '',
+    viceSuperintendent: '',
+    conferenceMinister1: '',
+    conferenceMinister2: '',
+    deacon: '',
+    viceDeacon: '',
   });
   const [committeeIds, setCommitteeIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -78,6 +118,11 @@ export function ChurchLeadershipModal({
     const rows = await apiFetch<AuthUser[]>(
       `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}`,
       { token }
+    );
+    setSpiritualMemberIds(
+      rows
+        .filter((u) => String(u.memberRoleDisplay || '').toLowerCase().includes('spiritual'))
+        .map((u) => u.id)
     );
     setMembers(
       rows.map((u) => {
@@ -100,11 +145,21 @@ export function ChurchLeadershipModal({
     if (!open || !row) return;
     const l = leadershipFromRecord(row);
     setSingleRoles({
+      churchPresident: memberRefId(l.churchPresident),
+      vicePresident: memberRefId(l.vicePresident),
+      moderator: memberRefId(l.moderator),
+      viceModerator: memberRefId(l.viceModerator),
+      superintendent: memberRefId(l.superintendent),
+      viceSuperintendent: memberRefId(l.viceSuperintendent),
+      conferenceMinister1: memberRefId(l.conferenceMinister1),
+      conferenceMinister2: memberRefId(l.conferenceMinister2),
+      minister: memberRefId(l.minister),
       deacon: memberRefId(l.deacon),
       viceDeacon: memberRefId(l.viceDeacon),
       secretary: memberRefId(l.secretary),
       viceSecretary: memberRefId(l.viceSecretary),
       treasurer: memberRefId(l.treasurer),
+      viceTreasurer: memberRefId(l.viceTreasurer),
     });
     const committee = l.committeeMembers;
     if (Array.isArray(committee)) {
@@ -125,11 +180,21 @@ export function ChurchLeadershipModal({
     setBusy(true);
     try {
       const localLeadership = {
+        churchPresident: singleRoles.churchPresident || null,
+        vicePresident: singleRoles.vicePresident || null,
+        moderator: singleRoles.moderator || null,
+        viceModerator: singleRoles.viceModerator || null,
+        superintendent: singleRoles.superintendent || null,
+        viceSuperintendent: singleRoles.viceSuperintendent || null,
+        conferenceMinister1: singleRoles.conferenceMinister1 || null,
+        conferenceMinister2: singleRoles.conferenceMinister2 || null,
+        minister: singleRoles.minister || null,
         deacon: singleRoles.deacon || null,
         viceDeacon: singleRoles.viceDeacon || null,
         secretary: singleRoles.secretary || null,
         viceSecretary: singleRoles.viceSecretary || null,
         treasurer: singleRoles.treasurer || null,
+        viceTreasurer: singleRoles.viceTreasurer || null,
         committeeMembers: committeeIds,
       };
       const endpoint =
@@ -186,7 +251,7 @@ export function ChurchLeadershipModal({
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-neutral-900">Local church leadership</h3>
             <div className="grid gap-3 sm:grid-cols-2">
-              {LOCAL_SINGLE_KEYS.map((key) => (
+              {(churchType === 'MAIN' ? MAIN_LEADERSHIP_KEYS : SUB_LEADERSHIP_KEYS).map((key) => (
                 <div key={key}>
                   <label className="mb-1 block text-xs font-medium text-neutral-600">{LOCAL_ROLE_LABELS[key]}</label>
                   <select
@@ -194,7 +259,10 @@ export function ChurchLeadershipModal({
                     onChange={(e) => setSingleRoles((s) => ({ ...s, [key]: e.target.value }))}
                     className={field}
                   >
-                    {memberSelectOptions.map((m) => (
+                    {(key === 'minister' || key === 'conferenceMinister1' || key === 'conferenceMinister2'
+                      ? memberSelectOptions.filter((m) => !m.id || spiritualMemberIds.includes(m.id))
+                      : memberSelectOptions
+                    ).map((m) => (
                       <option key={`${key}-${m.id || 'none'}`} value={m.id}>
                         {m.label}
                       </option>
@@ -259,7 +327,7 @@ export function ChurchLeadershipModal({
 export function leadershipSummary(row: ChurchRecord | null): string {
   if (!row?.localLeadership) return 'Not set';
   const l = row.localLeadership;
-  const filled = LOCAL_SINGLE_KEYS.filter((k) => memberRefId(l[k])).length;
+  const filled = [...new Set(LOCAL_SINGLE_KEYS)].filter((k) => memberRefId(l[k])).length;
   const committee = Array.isArray(l.committeeMembers) ? l.committeeMembers.length : 0;
   const councils = row.councils?.length || 0;
   const parts: string[] = [];

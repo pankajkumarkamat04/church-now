@@ -4,12 +4,23 @@ const { ACTIVE_PASTOR_TERM_STATUSES } = require('./memberRoleSync');
 
 const SINGLE_ROLE_KEYS = [
   'spiritualPastor',
+  'churchPresident',
+  'vicePresident',
+  'moderator',
+  'viceModerator',
+  'superintendent',
+  'viceSuperintendent',
+  'conferenceMinister1',
+  'conferenceMinister2',
+  'minister',
   'deacon',
   'viceDeacon',
   'secretary',
   'viceSecretary',
   'treasurer',
+  'viceTreasurer',
 ];
+const PASTOR_ONLY_ROLE_KEYS = ['spiritualPastor', 'minister', 'conferenceMinister1', 'conferenceMinister2'];
 
 function toIdOrNull(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -95,15 +106,37 @@ async function validateChurchLeadershipPayload(churchId, localLeadership, counci
     throw err;
   }
   await assertUsersAreMembersOfChurch(churchId, allIds);
+  const uniqueIds = [...new Set(allIds.map(String))];
   const activePastorTerms = await PastorTerm.find({
     church: churchId,
     status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
-    pastor: { $in: [...new Set(allIds.map(String))] },
+    pastor: { $in: uniqueIds },
   })
     .select('pastor')
     .lean();
-  if (activePastorTerms.length > 0) {
-    const err = new Error('Members assigned as spiritual leader/pastor cannot be assigned to other leadership roles');
+  const pastorIdSet = new Set(activePastorTerms.map((t) => String(t.pastor)));
+
+  // Minister/spiritual roles can only be assigned to active spiritual leaders.
+  const ministerRoleIds = PASTOR_ONLY_ROLE_KEYS.map((k) => leadership[k]).filter(Boolean).map(String);
+  if (ministerRoleIds.some((id) => !pastorIdSet.has(id))) {
+    const err = new Error('Minister roles can only be assigned to members who are Spiritual leader/Pastor');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Active spiritual leaders cannot be placed into non-minister leadership roles.
+  const disallowedLeadershipIds = SINGLE_ROLE_KEYS
+    .filter((k) => !PASTOR_ONLY_ROLE_KEYS.includes(k))
+    .map((k) => leadership[k])
+    .filter(Boolean)
+    .map(String);
+  const disallowedIds = [
+    ...disallowedLeadershipIds,
+    ...((leadership.committeeMembers || []).map(String)),
+    ...collectUserIdsFromCouncils(councilList).map(String),
+  ];
+  if (disallowedIds.some((id) => pastorIdSet.has(id))) {
+    const err = new Error('Members assigned as spiritual leader/pastor cannot be assigned to non-minister leadership roles');
     err.statusCode = 400;
     throw err;
   }
@@ -114,11 +147,21 @@ const LEADERSHIP_MEMBER_SELECT = 'email fullName firstName surname';
 
 const populateLeadershipPaths = [
   { path: 'localLeadership.spiritualPastor', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.churchPresident', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.vicePresident', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.moderator', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.viceModerator', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.superintendent', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.viceSuperintendent', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.conferenceMinister1', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.conferenceMinister2', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.minister', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'localLeadership.deacon', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'localLeadership.viceDeacon', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'localLeadership.secretary', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'localLeadership.viceSecretary', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'localLeadership.treasurer', select: LEADERSHIP_MEMBER_SELECT },
+  { path: 'localLeadership.viceTreasurer', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'localLeadership.committeeMembers', select: LEADERSHIP_MEMBER_SELECT },
   { path: 'councils.roles.member', select: LEADERSHIP_MEMBER_SELECT },
 ];

@@ -1,12 +1,12 @@
 const Church = require('../models/Church');
 const User = require('../models/User');
 const Event = require('../models/Event');
-const GalleryItem = require('../models/GalleryItem');
 const Conference = require('../models/Conference');
 const ChurchChangeRequest = require('../models/ChurchChangeRequest');
-const SubscriptionPlan = require('../models/SubscriptionPlan');
 const UserSubscription = require('../models/UserSubscription');
 const TithePayment = require('../models/TithePayment');
+const Donation = require('../models/Donation');
+const Expense = require('../models/Expense');
 
 async function validateConferenceOrThrow(conferenceId) {
   if (!conferenceId) return null;
@@ -40,10 +40,10 @@ async function removeChurchWithDependencies(churchId) {
   }).select('_id church adminChurches');
 
   await Event.deleteMany({ church: churchId });
-  await GalleryItem.deleteMany({ church: churchId });
-  await SubscriptionPlan.deleteMany({ church: churchId });
   await UserSubscription.deleteMany({ church: churchId });
   await TithePayment.deleteMany({ church: churchId });
+  await Donation.deleteMany({ church: churchId });
+  await Expense.deleteMany({ church: churchId });
 
   await ChurchChangeRequest.deleteMany({
     $or: [{ fromChurch: churchId }, { toChurch: churchId }],
@@ -53,6 +53,8 @@ async function removeChurchWithDependencies(churchId) {
     await ChurchChangeRequest.deleteMany({ user: { $in: memberIds } });
     await UserSubscription.deleteMany({ user: { $in: memberIds } });
     await TithePayment.deleteMany({ user: { $in: memberIds } });
+    await Donation.deleteMany({ user: { $in: memberIds } });
+    await Expense.deleteMany({ createdBy: { $in: memberIds } });
     await User.deleteMany({ _id: { $in: memberIds } });
   }
 

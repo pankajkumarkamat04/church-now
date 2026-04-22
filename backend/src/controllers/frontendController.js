@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const Church = require('../models/Church');
-const GlobalSiteContent = require('../models/GlobalSiteContent');
+const GlobalCouncil = require('../models/GlobalCouncil');
 const Conference = require('../models/Conference');
 const PastorTerm = require('../models/PastorTerm');
 const { MEMBER_CATEGORIES } = require('../models/User');
@@ -12,6 +12,20 @@ const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 const CHURCH_POPULATE =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
 const ACTIVE_PASTOR_TERM_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
+
+async function normalizeAndValidateGlobalCouncilIds(inputCouncilIds) {
+  const normalized = Array.isArray(inputCouncilIds)
+    ? Array.from(new Set(inputCouncilIds.map((id) => String(id)).filter(Boolean)))
+    : [];
+  if (normalized.length === 0) {
+    return { error: 'Select at least one council' };
+  }
+  const validRows = await GlobalCouncil.find({ _id: { $in: normalized }, isActive: true }).select('_id').lean();
+  if (validRows.length !== normalized.length) {
+    return { error: 'One or more selected councils are invalid or inactive' };
+  }
+  return { ids: normalized };
+}
 
 function mergeSpiritualLeaderLabel(profile, hasActivePastorTerm) {
   if (!hasActivePastorTerm) return profile;
@@ -28,91 +42,6 @@ function mergeSpiritualLeaderLabel(profile, hasActivePastorTerm) {
 
 function churchId(req) {
   return req.user?.church;
-}
-
-async function getOrCreateGlobalSiteContent() {
-  let doc = await GlobalSiteContent.findOne({ key: 'default' });
-  if (doc) return doc;
-
-  doc = await GlobalSiteContent.create({
-    key: 'default',
-    heroTitle: 'Welcome',
-    heroSubtitle: '',
-    heroImageUrl: '',
-    miniAboutTitle: 'About us',
-    miniAboutText: '',
-    miniAboutImageUrl: '',
-    aboutBox1Title: 'Plain and clear',
-    aboutBox1Text: 'Interfaces that stay out of the way.',
-    aboutBox2Title: 'Roles that fit',
-    aboutBox2Text: 'Superadmin, church admin, and member views.',
-    aboutBox3Title: 'Life together',
-    aboutBox3Text: 'Events and photos tell your story.',
-    aboutPageTitle: 'About us',
-    aboutPageBody: '## Our story\n\nTell your congregation’s story here.',
-    contactHeading: 'Contact',
-    contactIntro: 'We would love to hear from you.',
-    contactEmail: '',
-    contactPhone: '',
-    contactAddress: '',
-  });
-  return doc;
-}
-
-const SITE_CONTENT_FIELDS = [
-  'heroTitle',
-  'heroSubtitle',
-  'heroImageUrl',
-  'miniAboutTitle',
-  'miniAboutText',
-  'miniAboutImageUrl',
-  'aboutBox1Title',
-  'aboutBox1Text',
-  'aboutBox2Title',
-  'aboutBox2Text',
-  'aboutBox3Title',
-  'aboutBox3Text',
-  'aboutPageTitle',
-  'aboutPageBody',
-  'contactHeading',
-  'contactIntro',
-  'contactEmail',
-  'contactPhone',
-  'contactAddress',
-];
-
-const CHURCH_PATCH_KEYS = [
-  'name',
-  'address',
-  'city',
-  'stateOrProvince',
-  'postalCode',
-  'country',
-  'phone',
-  'email',
-  'contactPerson',
-  'latitude',
-  'longitude',
-];
-
-function applySiteFields(site, body) {
-  for (const key of SITE_CONTENT_FIELDS) {
-    if (body[key] !== undefined) site[key] = body[key];
-  }
-}
-
-async function applyChurchPatchFromBody(church, body, churchId) {
-  const churchUpdates = {};
-  for (const key of CHURCH_PATCH_KEYS) {
-    if (body.church && body.church[key] !== undefined) {
-      churchUpdates[key] = body.church[key];
-    }
-  }
-  if (Object.keys(churchUpdates).length) {
-    Object.assign(church, churchUpdates);
-    await church.save();
-  }
-  return {};
 }
 
 async function getMyChurch(req, res) {
@@ -211,6 +140,45 @@ async function listMembers(req, res) {
   }
 }
 
+async function listGlobalCouncils(_req, res) {
+  try {
+    const rows = await GlobalCouncil.find({ isActive: true }).sort({ name: 1 }).lean();
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load councils' });
+  }
+}
+
+async function listAdminCouncilMembers(req, res) {
+  try {
+    const currentChurchId = churchId(req);
+    const councilId = String(req.params.councilId || '').trim();
+    if (!currentChurchId) {
+      return res.status(400).json({ message: 'No church assigned' });
+    }
+    const council = await GlobalCouncil.findOne({ _id: councilId, isActive: true }).select('_id name').lean();
+    if (!council) {
+      return res.status(404).json({ message: 'Council not found' });
+    }
+    const members = await User.find({
+      church: currentChurchId,
+      role: { $in: ['MEMBER', 'ADMIN'] },
+      councilIds: councilId,
+    })
+      .sort({ fullName: 1, email: 1 })
+      .select('-password')
+      .populate('church', 'name');
+    return res.json({
+      council,
+      members: members.map((m) => toProfileResponse(m)),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load council members' });
+  }
+}
+
 async function createMember(req, res) {
   try {
     const {
@@ -272,24 +240,13 @@ async function createMember(req, res) {
     if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
       return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
     }
-    const normalizedCouncilIds = Array.isArray(councilIds)
-      ? Array.from(new Set(councilIds.map((id) => String(id)).filter(Boolean)))
-      : [];
-    if (normalizedCouncilIds.length === 0) {
-      return res.status(400).json({ message: 'Select at least one council' });
-    }
-    const adminChurchWithCouncils = await Church.findById(churchId(req)).select('councils._id');
-    const validCouncilIds = new Set(
-      Array.isArray(adminChurchWithCouncils?.councils)
-        ? adminChurchWithCouncils.councils.map((c) => String(c._id))
-        : []
-    );
-    if (!normalizedCouncilIds.every((id) => validCouncilIds.has(id))) {
-      return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
+    const councilResult = await normalizeAndValidateGlobalCouncilIds(councilIds);
+    if (councilResult.error) {
+      return res.status(400).json({ message: councilResult.error });
     }
     const patchResult = applyMemberProfilePatch(member, {
       conferenceIds: [selectedConferenceIds[0]],
-      councilIds: normalizedCouncilIds,
+      councilIds: councilResult.ids,
       memberCategory: normalizedCategory,
       gender,
       dateOfBirth,
@@ -363,20 +320,11 @@ async function updateMember(req, res) {
       return res.status(400).json({ message: patchResult.error });
     }
     if (req.body.councilIds !== undefined) {
-      const selected = Array.isArray(req.body.councilIds)
-        ? Array.from(new Set(req.body.councilIds.map((id) => String(id)).filter(Boolean)))
-        : [];
-      if (selected.length === 0) {
-        return res.status(400).json({ message: 'Select at least one council' });
+      const councilResult = await normalizeAndValidateGlobalCouncilIds(req.body.councilIds);
+      if (councilResult.error) {
+        return res.status(400).json({ message: councilResult.error });
       }
-      const churchDoc = await Church.findById(churchId(req)).select('councils._id');
-      const validIds = new Set(
-        Array.isArray(churchDoc?.councils) ? churchDoc.councils.map((c) => String(c._id)) : []
-      );
-      if (!selected.every((id) => validIds.has(id))) {
-        return res.status(400).json({ message: 'One or more selected councils are invalid for this church' });
-      }
-      member.councilIds = selected;
+      member.councilIds = councilResult.ids;
     }
     await member.save();
     const populated = await User.findById(member._id)
@@ -418,90 +366,6 @@ async function deactivateMember(req, res) {
   }
 }
 
-async function getAdminSite(req, res) {
-  try {
-    const id = churchId(req);
-    if (!id) {
-      return res.status(400).json({ message: 'No church assigned' });
-    }
-    const church = await Church.findById(id);
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
-    }
-    const site = await getOrCreateGlobalSiteContent();
-    return res.json({ church, site });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load site settings' });
-  }
-}
-
-async function putAdminSite(req, res) {
-  try {
-    const id = churchId(req);
-    if (!id) {
-      return res.status(400).json({ message: 'No church assigned' });
-    }
-    const church = await Church.findById(id);
-    if (!church) {
-      return res.status(404).json({ message: 'Church not found' });
-    }
-
-    const patch = await applyChurchPatchFromBody(church, req.body, id);
-    if (patch.error) {
-      return res.status(patch.status || 400).json({ message: patch.error });
-    }
-
-    const freshChurch = await Church.findById(id);
-    const site = await getOrCreateGlobalSiteContent();
-    return res.json({ church: freshChurch, site });
-  } catch (err) {
-    console.error(err);
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to save site settings' });
-  }
-}
-
-/** Superadmin: platform-wide public site copy (one for all churches) */
-async function getGlobalSite(req, res) {
-  try {
-    const site = await getOrCreateGlobalSiteContent();
-    return res.json({ site });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load site settings' });
-  }
-}
-
-async function putGlobalSite(req, res) {
-  try {
-    const site = await getOrCreateGlobalSiteContent();
-    applySiteFields(site, req.body);
-    await site.save();
-    const fresh = await GlobalSiteContent.findOne({ key: 'default' });
-    return res.json({ site: fresh });
-  } catch (err) {
-    console.error(err);
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to save site settings' });
-  }
-}
-
-/** Marketing homepage at `/` — same global copy as church sites, without a congregation context */
-async function getPublicGlobalSite(_req, res) {
-  try {
-    const site = await getOrCreateGlobalSiteContent();
-    return res.json({ site: site.toObject() });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Failed to load site' });
-  }
-}
-
 async function listPublicChurches(_req, res) {
   try {
     const churches = await Church.find({ isActive: true })
@@ -518,14 +382,11 @@ module.exports = {
   getMyChurch,
   updateMyChurch,
   listMembers,
+  listGlobalCouncils,
+  listAdminCouncilMembers,
   createMember,
   getMember,
   updateMember,
   deactivateMember,
-  getAdminSite,
-  putAdminSite,
-  getPublicGlobalSite,
   listPublicChurches,
-  getGlobalSite,
-  putGlobalSite,
 };
