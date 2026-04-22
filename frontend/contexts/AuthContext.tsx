@@ -56,6 +56,11 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Global session provider: restores JWT from storage, exposes `user` / `token`,
+ * and implements `login`, `register`, `logout`, `refreshUser`.
+ * Mount once in `app/layout.tsx`. Use `ProtectedRoute` for route guards.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -133,6 +138,14 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
+}
+
+/** Alias for apps that prefer “user” naming; same provider and context as `AuthProvider`. */
+export const UserProvider = AuthProvider;
+
+/** Alias for `useAuth` — same session, user, token, and actions. */
+export function useUser(): AuthContextValue {
+  return useAuth();
 }
 
 export { canAccessMemberPortal, getDefaultDashboardPath };
