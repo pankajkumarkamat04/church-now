@@ -21,7 +21,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
-import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import type { Role } from '@/lib/api';
 
 export type PanelVariant = 'admin' | 'superadmin';
@@ -241,19 +241,6 @@ function superadminPathInGroup(
 function adminNavGroups(): AdminNavGroup[] {
   return [
     {
-      id: 'users',
-      label: 'Users',
-      icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
-      children: [
-        { href: '/dashboard/admin/members', label: 'Members', icon: <Users className="size-3.5 opacity-70" /> },
-        {
-          href: '/dashboard/member',
-          label: 'Member',
-          icon: <UserCog className="size-3.5 opacity-70" />,
-        },
-      ],
-    },
-    {
       id: 'finance',
       label: 'Finance',
       icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
@@ -273,6 +260,12 @@ const ADMIN_DASHBOARD_LINK: NavItem = {
   href: '/dashboard/admin',
   label: 'Dashboard',
   icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
+};
+
+const ADMIN_MEMBERS_LINK: NavItem = {
+  href: '/dashboard/admin/members',
+  label: 'Members',
+  icon: <Users className="size-4 shrink-0 opacity-80" aria-hidden />,
 };
 
 const ADMIN_MIDDLE_LINKS: NavItem[] = [
@@ -319,7 +312,6 @@ export function PanelLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [adminUsersOpen, setAdminUsersOpen] = useState(false);
   const [adminFinanceOpen, setAdminFinanceOpen] = useState(false);
   const [saGroupOpen, setSaGroupOpen] = useState<Record<string, boolean>>(() => {
     const o: Record<string, boolean> = {};
@@ -329,10 +321,6 @@ export function PanelLayout({
   const required = roleForVariant[variant];
   const meta = panelMeta[variant];
 
-  const adminPathUsers =
-    pathname === '/dashboard/admin/members' ||
-    pathname.startsWith('/dashboard/admin/members/') ||
-    pathname.startsWith('/dashboard/member');
   const adminPathFinance =
     pathname === '/dashboard/admin/finance' ||
     pathname.startsWith('/dashboard/admin/finance/') ||
@@ -354,10 +342,6 @@ export function PanelLayout({
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if (variant === 'admin' && adminPathUsers) setAdminUsersOpen(true);
-  }, [variant, pathname, adminPathUsers]);
 
   useEffect(() => {
     if (variant === 'admin' && adminPathFinance) setAdminFinanceOpen(true);
@@ -385,11 +369,7 @@ export function PanelLayout({
     );
   }
 
-  const showMemberPortal = variant === 'admin' && canAccessMemberPortal(user) && user.role === 'ADMIN';
-  const adminGroups = adminNavGroups().map((g) => {
-    if (g.id !== 'users' || showMemberPortal) return g;
-    return { ...g, children: g.children.filter((c) => c.href !== '/dashboard/member') };
-  });
+  const adminGroups = adminNavGroups();
 
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900">
@@ -434,11 +414,21 @@ export function PanelLayout({
                   {ADMIN_DASHBOARD_LINK.icon}
                   {ADMIN_DASHBOARD_LINK.label}
                 </Link>
+                <Link
+                  key={ADMIN_MEMBERS_LINK.href}
+                  href={ADMIN_MEMBERS_LINK.href}
+                  className={`${NAV_ITEM_ROW} ${
+                    isNavActive(pathname, ADMIN_MEMBERS_LINK.href, variant) ? meta.navActive : meta.navIdle
+                  }`}
+                >
+                  {ADMIN_MEMBERS_LINK.icon}
+                  {ADMIN_MEMBERS_LINK.label}
+                </Link>
 
                 {adminGroups.map((group) => {
-                  const isOpen = group.id === 'users' ? adminUsersOpen : adminFinanceOpen;
-                  const setOpen = group.id === 'users' ? setAdminUsersOpen : setAdminFinanceOpen;
-                  const groupHasActive = group.id === 'users' ? adminPathUsers : adminPathFinance;
+                  const isOpen = adminFinanceOpen;
+                  const setOpen = setAdminFinanceOpen;
+                  const groupHasActive = adminPathFinance;
                   return (
                     <div key={group.id} className="flex flex-col gap-0.5">
                       <button
