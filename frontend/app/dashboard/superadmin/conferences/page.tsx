@@ -48,7 +48,7 @@ export default function SuperadminConferencesPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900">Conferences</h1>
@@ -63,7 +63,7 @@ export default function SuperadminConferencesPage() {
         </Link>
       </div>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-neutral-50 text-neutral-600">

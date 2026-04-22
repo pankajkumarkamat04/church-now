@@ -123,7 +123,7 @@ export default function SuperadminChurchEditPage() {
 
   if (loadErr) {
     return (
-      <div className="max-w-lg">
+      <div className="mx-auto w-full min-w-0 max-w-lg">
         <Link href="/dashboard/superadmin/churches" className="text-sm text-violet-700">
           ← Back
         </Link>
@@ -143,7 +143,7 @@ export default function SuperadminChurchEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <Link
         href="/dashboard/superadmin/churches"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"

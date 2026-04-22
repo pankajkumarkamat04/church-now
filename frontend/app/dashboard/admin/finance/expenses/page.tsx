@@ -107,7 +107,7 @@ export default function AdminFinanceExpensesPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <FinanceSectionNav variant="admin" />
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Finance</p>
@@ -160,7 +160,7 @@ export default function AdminFinanceExpensesPage() {
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>

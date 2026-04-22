@@ -183,7 +183,7 @@ export default function SuperadminConferenceEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <div className="mb-6">
         <Link href="/dashboard/superadmin/conferences" className="text-sm font-medium text-violet-700 hover:text-violet-900">
           ← Back to conferences

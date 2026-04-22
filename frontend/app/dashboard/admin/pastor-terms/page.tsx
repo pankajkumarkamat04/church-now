@@ -70,7 +70,7 @@ export default function AdminPastorTermsPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-6">
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Spiritual leader term management</h1>
         <p className="mt-1 text-sm text-neutral-600">
@@ -88,7 +88,7 @@ export default function AdminPastorTermsPage() {
         {err ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

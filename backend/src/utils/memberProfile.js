@@ -1,4 +1,5 @@
 const { GENDERS, MEMBER_CATEGORIES } = require('../models/User');
+const GlobalCouncil = require('../models/GlobalCouncil');
 const { collectCongregationRoleLabelsForUser } = require('./churchMemberRoles');
 
 /**
@@ -20,16 +21,33 @@ function toProfileResponse(userDoc) {
     u.role === 'MEMBER' ||
     (u.role === 'ADMIN' && u.church && String(u.memberId || '').trim() !== '');
 
+  const confList = Array.isArray(u.conferences) ? u.conferences : [];
+  const conference = confList[0] && typeof confList[0] === 'object' ? confList[0] : null;
+  const dob = u.dateOfBirth ? u.dateOfBirth.toISOString().slice(0, 10) : null;
+  const mship = u.membershipDate ? u.membershipDate.toISOString().slice(0, 10) : null;
+  const bap = u.baptismDate ? u.baptismDate.toISOString().slice(0, 10) : null;
+
   return {
     id: u._id,
+    /** System user id (Mongo) */
     email: u.email,
     firstName: u.firstName || '',
     surname: u.surname || '',
     fullName: u.fullName || '',
+    /** Display / legal name (same as fullName) */
+    name: u.fullName || '',
     idNumber: u.idNumber || '',
     contactPhone: u.contactPhone || '',
+    /** Same as `email` (account / primary contact) */
+    contact_email: u.email,
+    contact_phone: u.contactPhone || '',
     gender: u.gender ?? null,
-    dateOfBirth: u.dateOfBirth ? u.dateOfBirth.toISOString().slice(0, 10) : null,
+    dateOfBirth: dob,
+    date_of_birth: dob,
+    membershipDate: mship,
+    membership_date: mship,
+    baptismDate: bap,
+    baptism_date: bap,
     address: u.address
       ? {
           line1: u.address.line1 || '',
@@ -49,11 +67,16 @@ function toProfileResponse(userDoc) {
         },
     role: u.role,
     church: u.church ?? null,
-    conferences: Array.isArray(u.conferences) ? u.conferences : [],
+    conferences: confList,
+    /** Primary / first conference for this member (if any) */
+    conference: conference,
     councilIds: Array.isArray(u.councilIds) ? u.councilIds.map((id) => String(id)) : [],
+    /** Resolved global councils (name per council id) — set by `attachCouncilNamesToProfiles` */
+    councils: [],
     memberCategory: u.memberCategory || 'MEMBER',
     memberRolesFromChurch,
     memberRoleDisplay,
+    /** Congregation-unique member number (not the system user id) */
     memberId: u.memberId || '',
     canAccessMemberPortal,
     adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
@@ -70,6 +93,18 @@ function parseDateOfBirth(value) {
   const now = new Date();
   if (d > now) return undefined;
   const min = new Date('1900-01-01T00:00:00.000Z');
+  if (d < min) return undefined;
+  return d;
+}
+
+/** Membership / baptism: not in the future, after 1800. */
+function parseChurchRecordDate(value) {
+  if (value === null || value === '' || value === undefined) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const now = new Date();
+  if (d > now) return undefined;
+  const min = new Date('1800-01-01T00:00:00.000Z');
   if (d < min) return undefined;
   return d;
 }
@@ -138,6 +173,23 @@ function applyMemberProfilePatch(user, body, options = {}) {
     user.dateOfBirth = d;
   }
 
+  const mshipIn = body.membershipDate !== undefined ? body.membershipDate : body.membership_date;
+  if (mshipIn !== undefined) {
+    const d = parseChurchRecordDate(mshipIn);
+    if (d === undefined && mshipIn !== null && mshipIn !== '') {
+      return { error: 'Invalid membership date' };
+    }
+    user.membershipDate = d;
+  }
+  const bapIn = body.baptismDate !== undefined ? body.baptismDate : body.baptism_date;
+  if (bapIn !== undefined) {
+    const d = parseChurchRecordDate(bapIn);
+    if (d === undefined && bapIn !== null && bapIn !== '') {
+      return { error: 'Invalid baptism date' };
+    }
+    user.baptismDate = d;
+  }
+
   if (body.address !== undefined) {
     const current = user.address?.toObject?.() || user.address || {};
     user.address = mergeAddress(current, body.address);
@@ -158,9 +210,46 @@ function applyMemberProfilePatch(user, body, options = {}) {
   return {};
 }
 
+/**
+ * Fills `councils: [{ _id, name }]` from `councilIds` (global council documents).
+ */
+async function attachCouncilNamesToProfile(profile) {
+  const ids = Array.isArray(profile.councilIds) ? profile.councilIds.map(String) : [];
+  if (ids.length === 0) {
+    return { ...profile, councils: [] };
+  }
+  const rows = await GlobalCouncil.find({ _id: { $in: ids } }).select('_id name').lean();
+  const nameBy = new Map(rows.map((r) => [String(r._id), r.name || '—']));
+  return {
+    ...profile,
+    councils: ids.map((id) => ({ _id: id, name: nameBy.get(String(id)) || '—' })),
+  };
+}
+
+/** Batch version for list endpoints. */
+async function attachCouncilNamesToProfiles(profiles) {
+  if (!Array.isArray(profiles) || profiles.length === 0) return [];
+  const all = new Set();
+  for (const p of profiles) {
+    (p.councilIds || []).forEach((id) => all.add(String(id)));
+  }
+  if (all.size === 0) {
+    return profiles.map((p) => ({ ...p, councils: [] }));
+  }
+  const rows = await GlobalCouncil.find({ _id: { $in: [...all] } }).select('_id name').lean();
+  const nameBy = new Map(rows.map((r) => [String(r._id), r.name || '—']));
+  return profiles.map((p) => ({
+    ...p,
+    councils: (p.councilIds || []).map((id) => ({ _id: id, name: nameBy.get(String(id)) || '—' })),
+  }));
+}
+
 module.exports = {
   toProfileResponse,
   applyMemberProfilePatch,
   parseDateOfBirth,
+  parseChurchRecordDate,
   mergeAddress,
+  attachCouncilNamesToProfile,
+  attachCouncilNamesToProfiles,
 };

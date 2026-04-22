@@ -1,6 +1,5 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
-import { ConditionalPublicShell } from '@/components/marketing/ConditionalPublicShell';
 import { AuthProvider } from '@/contexts/AuthContext';
 import './globals.css';
 
@@ -15,16 +14,20 @@ export const metadata: Metadata = {
   description: 'Multi-church management system',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#ffffff',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable} data-scroll-behavior="smooth">
       <body
         suppressHydrationWarning
-        className="min-h-screen bg-white font-sans text-neutral-900 antialiased"
+        className="min-h-screen w-full min-w-0 overflow-x-clip bg-white font-sans text-neutral-900 antialiased"
       >
-        <AuthProvider>
-          <ConditionalPublicShell>{children}</ConditionalPublicShell>
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

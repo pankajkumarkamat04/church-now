@@ -122,7 +122,7 @@ export default function SuperadminFinanceExpensesPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <FinanceSectionNav variant="superadmin" />
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>
@@ -204,7 +204,7 @@ export default function SuperadminFinanceExpensesPage() {
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>

@@ -4,7 +4,7 @@ const Church = require('../models/Church');
 const Conference = require('../models/Conference');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const { signToken } = require('../utils/token');
-const { toProfileResponse } = require('../utils/memberProfile');
+const { toProfileResponse, attachCouncilNamesToProfile } = require('../utils/memberProfile');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
 
@@ -114,6 +114,7 @@ async function register(req, res) {
       conferences: [selectedConferenceIds[0]],
       memberCategory: normalizedCategory,
       memberId,
+      membershipDate: new Date(),
     });
     const populated = await User.findById(user._id).populate('church', CHURCH_FIELDS);
     const token = signToken({
@@ -122,7 +123,7 @@ async function register(req, res) {
     });
     return res.status(201).json({
       token,
-      user: toProfileResponse(populated),
+      user: await attachCouncilNamesToProfile(toProfileResponse(populated)),
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -166,7 +167,7 @@ async function login(req, res) {
     });
     return res.json({
       token,
-      user: toProfileResponse(user),
+      user: await attachCouncilNamesToProfile(toProfileResponse(user)),
     });
   } catch (err) {
     console.error(err);
@@ -183,7 +184,7 @@ async function me(req, res) {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    return res.json(toProfileResponse(user));
+    return res.json(await attachCouncilNamesToProfile(toProfileResponse(user)));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load profile' });
@@ -211,10 +212,6 @@ async function requestPasswordReset(req, res) {
     const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetPath = `/reset-password?email=${encodeURIComponent(normalized)}&token=${rawToken}`;
     const resetLink = `${frontendBase.replace(/\/$/, '')}${resetPath}`;
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.info('[password-reset]', user.email, resetLink);
-    }
 
     return res.json({
       message: GENERIC_FORGOT_MESSAGE,

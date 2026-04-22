@@ -113,7 +113,7 @@ export default function SuperadminAttendancePage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-7xl">
+    <div className="w-full min-w-0 max-w-7xl">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Attendance</p>
         <h1 className="mt-1 text-2xl font-semibold text-neutral-900 sm:text-3xl">Calendar attendance</h1>

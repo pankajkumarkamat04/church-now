@@ -4,7 +4,12 @@ const GlobalCouncil = require('../models/GlobalCouncil');
 const Conference = require('../models/Conference');
 const PastorTerm = require('../models/PastorTerm');
 const { MEMBER_CATEGORIES } = require('../models/User');
-const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
+const {
+  toProfileResponse,
+  applyMemberProfilePatch,
+  attachCouncilNamesToProfile,
+  attachCouncilNamesToProfiles,
+} = require('../utils/memberProfile');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { validateChurchLeadershipPayload } = require('../utils/churchLeadershipValidation');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
@@ -133,7 +138,11 @@ async function listMembers(req, res) {
       .select('pastor')
       .lean();
     const pastorIds = new Set(activePastorTerms.map((t) => String(t.pastor)));
-    return res.json(members.map((m) => mergeSpiritualLeaderLabel(toProfileResponse(m), pastorIds.has(String(m._id)))));
+    const base = members.map((m) => toProfileResponse(m));
+    const withCouncils = await attachCouncilNamesToProfiles(base);
+    return res.json(
+      withCouncils.map((p, i) => mergeSpiritualLeaderLabel(p, pastorIds.has(String(members[i]._id))))
+    );
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list members' });
@@ -171,7 +180,7 @@ async function listAdminCouncilMembers(req, res) {
       .populate('church', 'name');
     return res.json({
       council,
-      members: members.map((m) => toProfileResponse(m)),
+      members: await attachCouncilNamesToProfiles(members.map((m) => toProfileResponse(m))),
     });
   } catch (err) {
     console.error(err);
@@ -194,6 +203,10 @@ async function createMember(req, res) {
       gender,
       dateOfBirth,
       address,
+      membershipDate,
+      membership_date,
+      baptismDate,
+      baptism_date,
     } = req.body;
     const incomingConferenceIds = Array.isArray(conferenceIds)
       ? conferenceIds
@@ -251,9 +264,14 @@ async function createMember(req, res) {
       gender,
       dateOfBirth,
       address,
+      membershipDate: membershipDate !== undefined ? membershipDate : membership_date,
+      baptismDate: baptismDate !== undefined ? baptismDate : baptism_date,
     });
     if (patchResult.error) {
       return res.status(400).json({ message: patchResult.error });
+    }
+    if (member.membershipDate == null) {
+      member.membershipDate = new Date();
     }
     try {
       member.memberId = await resolveMemberIdForChurch(churchId(req), null);
@@ -264,7 +282,7 @@ async function createMember(req, res) {
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
       .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
-    return res.status(201).json(toProfileResponse(populated));
+    return res.status(201).json(await attachCouncilNamesToProfile(toProfileResponse(populated)));
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Email already registered' });
@@ -298,7 +316,12 @@ async function getMember(req, res) {
     })
       .select('_id')
       .lean();
-    return res.json(mergeSpiritualLeaderLabel(toProfileResponse(member), Boolean(activePastorTerm)));
+    return res.json(
+      mergeSpiritualLeaderLabel(
+        await attachCouncilNamesToProfile(toProfileResponse(member)),
+        Boolean(activePastorTerm)
+      )
+    );
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load member' });
@@ -337,7 +360,12 @@ async function updateMember(req, res) {
     })
       .select('_id')
       .lean();
-    return res.json(mergeSpiritualLeaderLabel(toProfileResponse(populated), Boolean(activePastorTerm)));
+    return res.json(
+      mergeSpiritualLeaderLabel(
+        await attachCouncilNamesToProfile(toProfileResponse(populated)),
+        Boolean(activePastorTerm)
+      )
+    );
   } catch (err) {
     console.error(err);
     if (err.name === 'ValidationError') {

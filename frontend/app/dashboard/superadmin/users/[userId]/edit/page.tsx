@@ -153,7 +153,7 @@ export default function SuperadminUserEditPage() {
 
   if (loadErr) {
     return (
-      <div className="max-w-lg">
+      <div className="mx-auto w-full min-w-0 max-w-lg">
         <Link href="/dashboard/superadmin/users" className="text-sm text-violet-700">
           ← Back
         </Link>
@@ -179,7 +179,7 @@ export default function SuperadminUserEditPage() {
   const backHref = isLegacyChurchAdmin ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users';
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">
         ← Back
       </Link>

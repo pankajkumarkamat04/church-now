@@ -7,4 +7,13 @@
 /* Smooth scrolling for in-app anchors */
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Media never overflows small viewports */
+img,
+video {
+  max-width: 100%;
+  height: auto;
 }

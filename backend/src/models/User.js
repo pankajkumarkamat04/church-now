@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema(
       enum: GENDERS,
     },
     dateOfBirth: { type: Date, default: null },
+    /** When the person was received / joined the congregation (record-keeping). */
+    membershipDate: { type: Date, default: null },
+    /** Baptism date if applicable. */
+    baptismDate: { type: Date, default: null },
     address: { type: addressSchema, default: () => ({}) },
     role: {
       type: String,

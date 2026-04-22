@@ -46,7 +46,7 @@ export default function SuperadminSubscriptionsPage() {
   const activeCount = subscriptions.filter((s) => s.status === 'ACTIVE').length;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Subscriptions</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
@@ -73,7 +73,7 @@ export default function SuperadminSubscriptionsPage() {
       ) : null}
 
       <div className="space-y-6">
-        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
             <h2 className="text-sm font-semibold text-neutral-900">Member subscriptions</h2>
           </div>

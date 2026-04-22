@@ -102,7 +102,7 @@ export default function SuperadminUsersListPage() {
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
@@ -226,7 +226,7 @@ export default function SuperadminUsersListPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>

@@ -64,7 +64,7 @@ export default function SuperadminChurchChangeRequestsPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
           Church change requests
@@ -78,7 +78,7 @@ export default function SuperadminChurchChangeRequestsPage() {
         <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-neutral-200 text-sm">
             <thead className="bg-neutral-50">

@@ -78,7 +78,7 @@ export default function MemberSubscriptionsPage() {
   if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full min-w-0 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Subscriptions</h1>
         <p className="mt-1 text-sm text-neutral-600">Pay a subscription to your church and see your full payment history here.</p>
@@ -138,7 +138,7 @@ export default function MemberSubscriptionsPage() {
         </form>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-xl border border-neutral-200 bg-white p-0 shadow-sm">
+      <section className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white p-0 shadow-sm">
         <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-3">
           <h2 className="text-sm font-semibold text-neutral-900">All subscription records</h2>
           <p className="mt-0.5 text-xs text-neutral-500">Active and past payments you made at this church.</p>

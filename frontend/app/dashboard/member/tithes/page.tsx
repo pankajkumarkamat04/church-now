@@ -74,7 +74,7 @@ export default function MemberTithesPage() {
   if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full min-w-0 max-w-5xl">
       <h1 className="text-2xl font-semibold text-neutral-900">Tithes</h1>
       <p className="mt-1 text-sm text-neutral-600">Pay monthly tithe with any amount.</p>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
@@ -101,7 +101,7 @@ export default function MemberTithesPage() {
         </button>
       </form>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>

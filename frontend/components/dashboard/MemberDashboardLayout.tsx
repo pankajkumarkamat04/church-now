@@ -66,35 +66,47 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
     }`;
 
   return (
-    <div className="min-h-screen bg-neutral-100 text-neutral-900">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen w-full min-w-0 bg-neutral-100 text-neutral-900">
+      {mobileNavOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-20 bg-neutral-900/30 backdrop-blur-[1px] lg:hidden"
+          aria-label="Close menu"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      ) : null}
+      <header className="relative z-30 border-b border-neutral-200 bg-white">
+        <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
-              className="rounded-lg p-2 text-neutral-700 hover:bg-neutral-100 lg:hidden"
+              className="shrink-0 rounded-lg p-2.5 text-neutral-700 hover:bg-neutral-100 lg:hidden"
               onClick={() => setMobileNavOpen((v) => !v)}
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
             >
               {mobileNavOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-            <Link href="/" className="text-xl font-bold text-emerald-600">
+            <Link href="/" className="truncate text-lg font-bold text-emerald-600 sm:text-xl">
               ChurchNow
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="shrink-0">
             <Link
               href="/dashboard/member/account"
-              className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+              className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 sm:px-3 sm:text-sm"
             >
-              My Account
+              <span className="sm:hidden">Account</span>
+              <span className="hidden sm:inline">My Account</span>
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-6 lg:grid-cols-12">
-          <aside className={`lg:col-span-3 ${mobileNavOpen ? 'block' : 'hidden lg:block'}`}>
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-12">
+          <aside
+            className={`relative z-30 lg:col-span-3 ${mobileNavOpen ? 'block' : 'hidden lg:block'}`}
+          >
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
               <div className="mb-4 border-b border-neutral-100 pb-4">
                 <p className="truncate text-sm font-semibold text-neutral-900">{user.fullName || 'Member'}</p>
@@ -158,14 +170,13 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
               </div>
             </div>
           </aside>
-          <section className="lg:col-span-9">{children}</section>
+          <section className="min-w-0 lg:col-span-9">{children}</section>
         </div>
       </main>
 
       <footer className="mt-10 bg-slate-900 text-slate-200">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 text-center text-xs sm:px-6 lg:px-8">
           <p>© {new Date().getFullYear()} Church OS</p>
-          <p className="text-slate-300">Member dashboard</p>
         </div>
       </footer>
     </div>

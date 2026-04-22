@@ -33,7 +33,7 @@ export default function AdminCouncilsPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-neutral-900">Councils</h1>
@@ -41,7 +41,7 @@ export default function AdminCouncilsPage() {
         <p className="mt-1 text-sm text-neutral-600">
           Councils are global across all churches and conferences.
         </p>
-        <div className="mt-5 overflow-hidden rounded-xl border border-neutral-200">
+        <div className="mt-5 overflow-x-auto rounded-xl border border-neutral-200">
           <table className="w-full min-w-[620px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

@@ -100,7 +100,7 @@ export default function MemberDashboardPage() {
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
           Member dashboard

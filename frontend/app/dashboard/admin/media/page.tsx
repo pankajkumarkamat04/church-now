@@ -89,7 +89,7 @@ export default function AdminMediaPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Media</p>

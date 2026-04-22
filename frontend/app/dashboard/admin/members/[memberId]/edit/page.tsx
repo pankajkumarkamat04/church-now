@@ -28,6 +28,8 @@ export default function AdminMemberEditPage() {
   const [fullName, setFullName] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [membershipDate, setMembershipDate] = useState('');
+  const [baptismDate, setBaptismDate] = useState('');
   const [address, setAddress] = useState<MemberAddress>(emptyAddress);
   const [isActive, setIsActive] = useState(true);
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
@@ -43,7 +45,9 @@ export default function AdminMemberEditPage() {
     setProfile(p);
     setFullName(p.fullName || '');
     setGender((p.gender as Gender) || '');
-    setDateOfBirth(p.dateOfBirth || '');
+    setDateOfBirth(p.dateOfBirth || p.date_of_birth || '');
+    setMembershipDate(p.membershipDate || p.membership_date || '');
+    setBaptismDate(p.baptismDate || p.baptism_date || '');
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
     setIsActive(p.isActive !== false);
     setCouncilIds(Array.isArray(p.councilIds) ? p.councilIds : []);
@@ -83,6 +87,8 @@ export default function AdminMemberEditPage() {
           fullName,
           gender: gender || null,
           dateOfBirth: dateOfBirth || null,
+          membershipDate: membershipDate || null,
+          baptismDate: baptismDate || null,
           address,
           isActive,
           councilIds,
@@ -102,7 +108,7 @@ export default function AdminMemberEditPage() {
 
   if (loadErr) {
     return (
-      <div className="max-w-lg">
+      <div className="mx-auto w-full min-w-0 max-w-lg">
         <Link href="/dashboard/admin/members" className="text-sm text-sky-700">
           ← Back
         </Link>
@@ -122,7 +128,7 @@ export default function AdminMemberEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <Link
         href="/dashboard/admin/members"
         className="text-sm font-medium text-sky-700 hover:text-sky-900"
@@ -157,6 +163,24 @@ export default function AdminMemberEditPage() {
               type="date"
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
+              className={field}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
+            <input
+              type="date"
+              value={membershipDate}
+              onChange={(e) => setMembershipDate(e.target.value)}
+              className={field}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
+            <input
+              type="date"
+              value={baptismDate}
+              onChange={(e) => setBaptismDate(e.target.value)}
               className={field}
             />
           </div>

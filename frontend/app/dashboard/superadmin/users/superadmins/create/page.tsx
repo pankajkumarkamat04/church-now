@@ -50,7 +50,7 @@ export default function SuperadminCreateSuperadminPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <Link
         href="/dashboard/superadmin/admins"
         className="text-sm font-medium text-violet-700 hover:text-violet-900"

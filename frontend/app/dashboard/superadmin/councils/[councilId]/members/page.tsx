@@ -45,7 +45,7 @@ export default function SuperadminCouncilMembersPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <Link href="/dashboard/superadmin/councils" className="text-sm font-medium text-violet-700 hover:text-violet-900">
         ← Back to councils
       </Link>
@@ -53,7 +53,7 @@ export default function SuperadminCouncilMembersPage() {
         {data?.council?.name || 'Council'} members
       </h1>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <div className="mt-5 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="mt-5 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

@@ -7,6 +7,7 @@ const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
+const { enrichChurchRowsForLocalMinisterList } = require('../utils/churchListLocalMinister');
 
 async function normalizeAndValidateGlobalCouncilIds(inputCouncilIds) {
   const normalized = Array.isArray(inputCouncilIds)
@@ -27,8 +28,11 @@ async function listChurches(_req, res) {
     const churches = await Church.find()
       .populate('conference', 'name conferenceId')
       .populate('mainChurch', 'name')
-      .sort({ name: 1 });
-    return res.json(churches);
+      .populate(populateLeadershipPaths)
+      .sort({ name: 1 })
+      .lean();
+    const enriched = await enrichChurchRowsForLocalMinisterList(churches);
+    return res.json(enriched);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list churches' });
@@ -753,6 +757,7 @@ async function createMemberUser(req, res) {
       gender: gender || undefined,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       address: address || {},
+      membershipDate: new Date(),
     });
     const safe = await User.findById(user._id).populate('church', 'name conference').select('-password');
     const lean = await churchLeanForUserRoles(church._id);

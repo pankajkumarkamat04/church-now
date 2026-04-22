@@ -4,17 +4,53 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  displayChurchName,
+  displayCurrentRole,
+  displayPastorName,
+  formatDateOnly,
+  memberAddressString,
+} from '@/lib/pastorRecordDisplay';
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
 
 type ChurchOption = { _id: string; name: string; churchType?: 'MAIN' | 'SUB' };
-type MemberOption = { _id: string; fullName?: string; email?: string; memberId?: string };
+type MemberAddress = {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  stateOrProvince?: string;
+  postalCode?: string;
+  country?: string;
+};
+type MemberOption = {
+  _id: string;
+  fullName?: string;
+  email?: string;
+  memberId?: string;
+  contactPhone?: string;
+  address?: MemberAddress;
+  dateOfBirth?: string;
+  gender?: string;
+};
 type PastorRecordRow = {
   _id: string;
+  currentRole?: string;
   church?: { _id?: string; name?: string } | string;
   member?: { _id?: string; fullName?: string; email?: string; memberId?: string };
-  personal?: { fullName?: string; email?: string; contactPhone?: string; addressText?: string };
+  personal?: {
+    name?: string;
+    fullName?: string;
+    title?: string;
+    contactEmail?: string;
+    email?: string;
+    contactPhone?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    addressText?: string;
+  };
   credentials?: { ordinationDate?: string; denomination?: string; qualifications?: string[] };
   assignmentHistory?: Array<{ roleTitle?: string; churchName?: string; startDate?: string; endDate?: string; notes?: string }>;
   contactSchedule?: { availability?: string; officeHours?: string; emergencyContactName?: string; emergencyContactPhone?: string };
@@ -30,6 +66,13 @@ export default function SuperadminPastorsPage() {
   const [rows, setRows] = useState<PastorRecordRow[]>([]);
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
   const [recordMemberId, setRecordMemberId] = useState('');
+  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState('');
+  const [address, setAddress] = useState('');
   const [denomination, setDenomination] = useState('');
   const [ordinationDate, setOrdinationDate] = useState('');
   const [qualificationsText, setQualificationsText] = useState('');
@@ -85,6 +128,31 @@ export default function SuperadminPastorsPage() {
     loadMembersForChurch().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
   }, [selectedChurchId, token]);
 
+  useEffect(() => {
+    if (!recordMemberId) {
+      setName('');
+      setTitle('');
+      setContactEmail('');
+      setContactPhone('');
+      setDateOfBirth('');
+      setGender('');
+      setAddress('');
+      return;
+    }
+    const m = memberOptions.find((x) => x._id === recordMemberId);
+    if (!m) return;
+    setName(m.fullName || '');
+    setContactEmail(m.email || '');
+    setContactPhone(m.contactPhone || '');
+    if (m.dateOfBirth) {
+      const t = new Date(m.dateOfBirth);
+      if (!Number.isNaN(t.getTime())) setDateOfBirth(t.toISOString().slice(0, 10));
+      else setDateOfBirth('');
+    } else setDateOfBirth('');
+    setGender(m.gender || '');
+    setAddress(memberAddressString(m.address) || '');
+  }, [recordMemberId, memberOptions]);
+
   async function createRecord() {
     if (!token || !selectedChurchId || !recordMemberId) {
       setErr('Select church and member');
@@ -99,6 +167,14 @@ export default function SuperadminPastorsPage() {
         body: JSON.stringify({
           churchId: selectedChurchId,
           memberId: recordMemberId,
+          name: name || undefined,
+          title: title || undefined,
+          contactEmail: contactEmail || undefined,
+          contactPhone: contactPhone || undefined,
+          dateOfBirth: dateOfBirth || null,
+          gender: gender || undefined,
+          address: address || undefined,
+          currentRole: currentRole || undefined,
           credentials: {
             ordinationDate: ordinationDate || null,
             denomination,
@@ -148,7 +224,7 @@ export default function SuperadminPastorsPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Record keeping</p>
@@ -185,10 +261,17 @@ export default function SuperadminPastorsPage() {
               </option>
             ))}
           </select>
-          <input value={ordinationDate} onChange={(e) => setOrdinationDate(e.target.value)} type="date" className={field} />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={field} />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (Reverend, Pastor, Dr., …)" className={field} />
+          <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} type="email" placeholder="Contact email" className={field} />
+          <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Contact phone" className={field} />
+          <input value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} type="date" className={field} title="Date of birth" />
+          <input value={gender} onChange={(e) => setGender(e.target.value)} placeholder="Gender" className={field} />
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" className={field} />
+          <input value={ordinationDate} onChange={(e) => setOrdinationDate(e.target.value)} type="date" className={field} title="Ordination date" />
           <input value={denomination} onChange={(e) => setDenomination(e.target.value)} placeholder="Denomination" className={field} />
           <input value={qualificationsText} onChange={(e) => setQualificationsText(e.target.value)} placeholder="Qualifications (comma separated)" className={field} />
-          <input value={currentRole} onChange={(e) => setCurrentRole(e.target.value)} placeholder="Current role title" className={field} />
+          <input value={currentRole} onChange={(e) => setCurrentRole(e.target.value)} placeholder="Current role" className={field} />
           <input value={currentRoleChurch} onChange={(e) => setCurrentRoleChurch(e.target.value)} placeholder="Current/previous church name" className={field} />
           <input value={currentRoleStartDate} onChange={(e) => setCurrentRoleStartDate(e.target.value)} type="date" className={field} />
           <input value={currentRoleEndDate} onChange={(e) => setCurrentRoleEndDate(e.target.value)} type="date" className={field} />
@@ -214,27 +297,53 @@ export default function SuperadminPastorsPage() {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full min-w-[760px] text-left text-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <table className="w-full min-w-[1400px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
-              <th className="px-4 py-3 font-medium">Church</th>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Contact</th>
-              <th className="px-4 py-3 font-medium">Denomination</th>
-              <th className="px-4 py-3 font-medium">Ordination</th>
-              <th className="px-4 py-3 font-medium">Current Role</th>
+              <th className="px-3 py-3 font-medium">Church assigned to</th>
+              <th className="px-3 py-3 font-medium">Name</th>
+              <th className="px-3 py-3 font-medium">Title</th>
+              <th className="px-3 py-3 font-medium">Contact email</th>
+              <th className="px-3 py-3 font-medium">Contact phone</th>
+              <th className="px-3 py-3 font-medium">DOB</th>
+              <th className="px-3 py-3 font-medium">Gender</th>
+              <th className="px-3 py-3 font-medium">Address</th>
+              <th className="px-3 py-3 font-medium">Ordination</th>
+              <th className="px-3 py-3 font-medium">Denomination</th>
+              <th className="px-3 py-3 font-medium">Qualifications</th>
+              <th className="px-3 py-3 font-medium">Current role</th>
             </tr>
           </thead>
           <tbody className="text-neutral-800">
             {filteredByChurch.map((r) => (
               <tr key={r._id} className="border-b border-neutral-100 last:border-0">
-                <td className="px-4 py-3">{typeof r.church === 'object' && r.church ? r.church.name || '—' : '—'}</td>
-                <td className="px-4 py-3">{r.personal?.fullName || r.member?.fullName || '—'}</td>
-                <td className="px-4 py-3">{r.personal?.contactPhone || r.personal?.email || '—'}</td>
-                <td className="px-4 py-3">{r.credentials?.denomination || '—'}</td>
-                <td className="px-4 py-3">{r.credentials?.ordinationDate ? new Date(r.credentials.ordinationDate).toLocaleDateString() : '—'}</td>
-                <td className="px-4 py-3">{r.assignmentHistory?.[0]?.roleTitle || '—'}</td>
+                <td className="px-3 py-3 max-w-[12rem] truncate" title={displayChurchName(r)}>
+                  {displayChurchName(r)}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap">{displayPastorName(r)}</td>
+                <td className="px-3 py-3 max-w-[8rem] truncate" title={r.personal?.title || ''}>
+                  {r.personal?.title || '—'}
+                </td>
+                <td className="px-3 py-3 max-w-[10rem] truncate" title={r.personal?.contactEmail || r.personal?.email || ''}>
+                  {r.personal?.contactEmail || r.personal?.email || '—'}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap">{r.personal?.contactPhone || '—'}</td>
+                <td className="px-3 py-3 whitespace-nowrap">{formatDateOnly(r.personal?.dateOfBirth)}</td>
+                <td className="px-3 py-3">{r.personal?.gender || '—'}</td>
+                <td className="px-3 py-3 max-w-[14rem] text-xs" title={r.personal?.address || r.personal?.addressText || ''}>
+                  {r.personal?.address || r.personal?.addressText || '—'}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap">{formatDateOnly(r.credentials?.ordinationDate)}</td>
+                <td className="px-3 py-3 max-w-[8rem] truncate" title={r.credentials?.denomination || ''}>
+                  {r.credentials?.denomination || '—'}
+                </td>
+                <td className="px-3 py-3 max-w-[12rem] text-xs" title={(r.credentials?.qualifications || []).join(', ')}>
+                  {(r.credentials?.qualifications || []).length ? (r.credentials?.qualifications || []).join(', ') : '—'}
+                </td>
+                <td className="px-3 py-3 max-w-[10rem] truncate" title={displayCurrentRole(r)}>
+                  {displayCurrentRole(r)}
+                </td>
               </tr>
             ))}
           </tbody>

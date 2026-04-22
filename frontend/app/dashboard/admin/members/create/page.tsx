@@ -21,6 +21,8 @@ export default function AdminMemberCreatePage() {
   const [surname, setSurname] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [membershipDate, setMembershipDate] = useState('');
+  const [baptismDate, setBaptismDate] = useState('');
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY'>('MALE');
   const [contactPhone, setContactPhone] = useState('');
   const [line1, setLine1] = useState('');
@@ -106,6 +108,8 @@ export default function AdminMemberCreatePage() {
           gender,
           contactPhone,
           address: { line1, line2, city, stateOrProvince, postalCode, country },
+          membershipDate: membershipDate || undefined,
+          baptismDate: baptismDate || undefined,
         }),
       });
       router.replace('/dashboard/admin/members');
@@ -121,7 +125,7 @@ export default function AdminMemberCreatePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <Link
         href="/dashboard/admin/members"
         className="text-sm font-medium text-sky-700 hover:text-sky-900"
@@ -218,6 +222,21 @@ export default function AdminMemberCreatePage() {
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
               <input required type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
+              <input
+                type="date"
+                value={membershipDate}
+                onChange={(e) => setMembershipDate(e.target.value)}
+                className={field}
+                title="Leave empty to use today’s date"
+              />
+              <p className="mt-0.5 text-xs text-neutral-500">Optional — defaults to today if left blank</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
+              <input type="date" value={baptismDate} onChange={(e) => setBaptismDate(e.target.value)} className={field} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>

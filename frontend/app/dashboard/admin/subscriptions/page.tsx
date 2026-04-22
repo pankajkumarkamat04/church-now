@@ -52,7 +52,7 @@ export default function AdminSubscriptionsPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Subscriptions</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
@@ -63,7 +63,7 @@ export default function AdminSubscriptionsPage() {
 
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p> : null}
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
           <h2 className="text-sm font-semibold text-neutral-900">Church subscription records</h2>
         </div>

@@ -1,7 +1,7 @@
 const Church = require('../models/Church');
 const GlobalCouncil = require('../models/GlobalCouncil');
 const User = require('../models/User');
-const { toProfileResponse, applyMemberProfilePatch } = require('../utils/memberProfile');
+const { toProfileResponse, applyMemberProfilePatch, attachCouncilNamesToProfile } = require('../utils/memberProfile');
 
 const CHURCH_FIELDS =
   'name address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
@@ -17,7 +17,7 @@ async function getProfile(req, res) {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    return res.json(toProfileResponse(user));
+    return res.json(await attachCouncilNamesToProfile(toProfileResponse(user)));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load profile' });
@@ -42,7 +42,7 @@ async function updateProfile(req, res) {
         'conferences',
         'conferenceId name description email phone contactPerson isActive'
       );
-    return res.json(toProfileResponse(fresh));
+    return res.json(await attachCouncilNamesToProfile(toProfileResponse(fresh)));
   } catch (err) {
     console.error(err);
     if (err.name === 'ValidationError') {

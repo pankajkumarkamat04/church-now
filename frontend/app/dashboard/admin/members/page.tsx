@@ -22,6 +22,13 @@ function normalizeMemberRoleLabel(value: string): string {
   return raw;
 }
 
+function formatShortDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return '—';
+  return t.toLocaleDateString();
+}
+
 export default function AdminMembersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
@@ -77,14 +84,16 @@ export default function AdminMembersListPage() {
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Members</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
             Congregation
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">{churchName} members with their assigned roles.</p>
+          <p className="mt-1 text-sm text-neutral-600">
+          {churchName} members: ID, contact, church and conference, councils, membership, and role.
+        </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -109,14 +118,17 @@ export default function AdminMembersListPage() {
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Member ID</th>
+                <th className="px-4 py-3 font-medium">Conference</th>
+                <th className="px-4 py-3 font-medium">Councils</th>
+                <th className="px-4 py-3 font-medium">Membership</th>
                 <th className="px-4 py-3 font-medium">Member Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -126,8 +138,17 @@ export default function AdminMembersListPage() {
               {members.map((m) => (
                 <tr key={m.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{m.email}</td>
-                  <td className="px-4 py-3">{m.fullName || '—'}</td>
+                  <td className="px-4 py-3">{m.name || m.fullName || '—'}</td>
                   <td className="px-4 py-3 font-mono text-xs text-neutral-700">{m.memberId || '—'}</td>
+                  <td className="max-w-[10rem] truncate px-4 py-3 text-xs" title={m.conference && typeof m.conference === 'object' ? m.conference.name : ''}>
+                    {m.conference && typeof m.conference === 'object' && m.conference.name ? m.conference.name : '—'}
+                  </td>
+                  <td className="max-w-[10rem] px-4 py-3 text-xs" title={(m.councils || []).map((c) => c.name).join(', ')}>
+                    {(m.councils || []).length ? (m.councils || []).map((c) => c.name).join(', ') : '—'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-neutral-700">
+                    {formatShortDate(m.membershipDate || m.membership_date || null)}
+                  </td>
                   <td className="px-4 py-3">
                     {normalizeMemberRoleLabel(m.memberRoleDisplay || m.memberCategory || 'MEMBER')}
                   </td>

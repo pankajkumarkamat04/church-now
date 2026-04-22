@@ -55,7 +55,7 @@ export default function SuperadminChurchMembersPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6">
         <Link href="/dashboard/superadmin/churches" className="text-sm font-medium text-violet-700 hover:text-violet-900">
           ← Back to churches
@@ -69,7 +69,7 @@ export default function SuperadminChurchMembersPage() {
           <Loader2 className="size-7 animate-spin text-violet-600" />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead className="bg-neutral-50 text-neutral-600">

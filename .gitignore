@@ -11,6 +11,7 @@ pnpm-debug.log*
 out/
 dist/
 coverage/
+*.tsbuildinfo
 
 # Python / backend artifacts
 __pycache__/

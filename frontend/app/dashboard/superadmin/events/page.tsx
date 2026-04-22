@@ -111,7 +111,7 @@ export default function SuperadminEventsPage() {
 
   if (loadErr || churchesErr) {
     return (
-      <div className="max-w-lg">
+      <div className="mx-auto w-full min-w-0 max-w-lg px-4 sm:px-0">
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {loadErr || churchesErr}
         </p>
@@ -128,7 +128,7 @@ export default function SuperadminEventsPage() {
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Events</p>
@@ -148,7 +148,7 @@ export default function SuperadminEventsPage() {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
             <h2 className="text-sm font-semibold text-neutral-900">Events</h2>
             <div className="w-full sm:w-72">

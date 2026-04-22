@@ -17,10 +17,20 @@ export type AuthUser = {
   firstName?: string;
   surname?: string;
   fullName: string;
+  /** Display name (same as fullName) */
+  name?: string;
   idNumber?: string;
   contactPhone?: string;
+  /** Alias for email (primary contact) */
+  contact_email?: string;
+  contact_phone?: string;
   gender?: Gender | null;
   dateOfBirth?: string | null;
+  date_of_birth?: string | null;
+  membershipDate?: string | null;
+  membership_date?: string | null;
+  baptismDate?: string | null;
+  baptism_date?: string | null;
   address?: MemberAddress;
   conferences?: Array<
     | {
@@ -34,7 +44,19 @@ export type AuthUser = {
       }
     | string
   >;
+  /** First linked conference (when populated) */
+  conference?: {
+    _id: string;
+    conferenceId?: string;
+    name: string;
+    description?: string;
+    email?: string;
+    phone?: string;
+    contactPerson?: string;
+  } | null;
   councilIds?: string[];
+  /** Global councils linked via councilIds (names from API) */
+  councils?: Array<{ _id: string; name: string }>;
   memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR';
   /** Labels from church localLeadership / councils (backend-computed). */
   memberRolesFromChurch?: string[];

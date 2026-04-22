@@ -40,7 +40,7 @@ export function ChurchContentHub({
   const base = manageBasePath.replace(/\/$/, '');
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">{moduleLabel}</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
@@ -55,8 +55,7 @@ export function ChurchContentHub({
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
@@ -81,7 +80,6 @@ export function ChurchContentHub({
               ))}
             </tbody>
           </table>
-        </div>
         {churches.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No churches yet.</p>
         ) : null}

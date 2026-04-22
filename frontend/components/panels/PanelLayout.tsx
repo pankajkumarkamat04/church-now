@@ -589,37 +589,37 @@ export function PanelLayout({
         />
       ) : null}
 
-      <div className="lg:pl-72">
+      <div className="w-full min-w-0 lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur-md">
-          <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
-                className="rounded-lg p-2 text-neutral-600 hover:bg-neutral-100 lg:hidden"
+                className="shrink-0 rounded-lg p-2.5 text-neutral-600 hover:bg-neutral-100 lg:hidden"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Open menu"
               >
                 <Menu className="size-5" />
               </button>
-              <div className="flex items-center gap-2">
-                <span className={`hidden rounded-lg p-1.5 sm:inline-flex ${meta.badgeStyle}`}>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className={`inline-flex shrink-0 rounded-lg p-1.5 ${meta.badgeStyle}`}>
                   {variant === 'superadmin' ? (
                     <Shield className="size-4" />
                   ) : (
                     <Building2 className="size-4" />
                   )}
                 </span>
-                <div>
-                  <h1 className="text-sm font-semibold text-neutral-900 sm:text-base">
+                <div className="min-w-0">
+                  <h1 className="truncate text-sm font-semibold text-neutral-900 sm:text-base">
                     {meta.title}
                   </h1>
-                  <p className="text-xs text-neutral-500">{meta.tagline}</p>
+                  <p className="truncate text-xs text-neutral-500">{meta.tagline}</p>
                 </div>
               </div>
             </div>
-            <div className="hidden items-center gap-2 sm:flex">
+            <div className="flex shrink-0 items-center gap-2">
               <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${meta.rolePill}`}
+                className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ring-1 sm:px-3 sm:text-xs ${meta.rolePill}`}
               >
                 {user.role}
               </span>
@@ -627,7 +627,7 @@ export function PanelLayout({
           </div>
         </header>
 
-        <div className="px-4 py-8 sm:px-6 lg:px-10">{children}</div>
+        <div className="w-full min-w-0 max-w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">{children}</div>
       </div>
     </div>
   );

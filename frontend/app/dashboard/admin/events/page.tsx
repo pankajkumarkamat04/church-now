@@ -109,14 +109,14 @@ export default function AdminEventsPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Events</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Church events</h1>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p> : null}
       <div className="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
-        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full min-w-[620px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

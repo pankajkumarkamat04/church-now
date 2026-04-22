@@ -121,7 +121,7 @@ export default function SuperadminMemberCreatePage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <Link href="/dashboard/superadmin/users" className="text-sm font-medium text-violet-700 hover:text-violet-900">
         ← Back to members
       </Link>

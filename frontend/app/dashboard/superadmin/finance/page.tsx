@@ -43,7 +43,7 @@ export default function SuperadminFinanceOverviewPage() {
   const primary = summary?.byCurrency?.USD || Object.values(summary?.byCurrency || {})[0];
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full min-w-0 max-w-6xl">
       <FinanceSectionNav variant="superadmin" />
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>

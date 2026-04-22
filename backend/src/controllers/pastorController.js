@@ -29,6 +29,98 @@ function parseDate(value) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function memberAddressString(member) {
+  const address = (member && member.address) || {};
+  return [address.line1, address.line2, address.city, address.stateOrProvince, address.postalCode, address.country]
+    .filter(Boolean)
+    .join(', ');
+}
+
+function pickStr(...vals) {
+  for (const v of vals) {
+    if (v === undefined || v === null) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+/**
+ * Maps request body (camelCase or snake_case) + member profile into
+ * personal, credentials, and currentRole for PastorRecord.
+ */
+function buildPastorRecordFromBody(reqBody, member) {
+  const b = reqBody || {};
+  const memberAddr = memberAddressString(member);
+  const name = pickStr(
+    b.name,
+    b.personal && b.personal.name,
+    member.fullName,
+    `${(member.firstName || '').trim()} ${(member.surname || '').trim()}`.trim()
+  );
+  const address = pickStr(b.address, b.personal && b.personal.address) || memberAddr;
+  const rawEmail = pickStr(
+    b.contactEmail,
+    b.contact_email,
+    b.personal && b.personal.contactEmail,
+    b.personal && b.personal.email,
+    member.email
+  );
+  const contactEmail = rawEmail ? rawEmail.toLowerCase() : '';
+  const contactPhone = pickStr(
+    b.contactPhone,
+    b.contact_phone,
+    b.personal && b.personal.contactPhone,
+    member.contactPhone
+  );
+  const title = pickStr(b.title, b.personal && b.personal.title);
+  const gender = pickStr(b.gender, b.personal && b.personal.gender, member.gender);
+  const dateOfBirth = parseDate(
+    b.dateOfBirth != null
+      ? b.dateOfBirth
+      : b.date_of_birth != null
+        ? b.date_of_birth
+        : b.personal && b.personal.dateOfBirth != null
+          ? b.personal.dateOfBirth
+          : member.dateOfBirth
+  );
+  const credIn = b.credentials || {};
+  const qualRaw = credIn.qualifications != null ? credIn.qualifications : b.qualifications;
+  let qualifications;
+  if (Array.isArray(qualRaw)) {
+    qualifications = qualRaw.map((q) => String(q).trim()).filter(Boolean);
+  } else if (typeof qualRaw === 'string' && qualRaw.trim()) {
+    qualifications = qualRaw.split(/[,\n]/).map((q) => q.trim()).filter(Boolean);
+  } else {
+    qualifications = [];
+  }
+  const personal = {
+    name,
+    title,
+    contactEmail,
+    contactPhone,
+    dateOfBirth,
+    gender,
+    address,
+    fullName: name,
+    email: contactEmail,
+    addressText: address,
+  };
+  const credentials = {
+    ordinationDate: parseDate(
+      credIn.ordinationDate != null
+        ? credIn.ordinationDate
+        : b.ordinationDate != null
+          ? b.ordinationDate
+          : b.ordination_date
+    ),
+    denomination: String(credIn.denomination || b.denomination || '').trim(),
+    qualifications,
+  };
+  const currentRole = String(b.currentRole != null ? b.currentRole : b.current_role != null ? b.current_role : '').trim();
+  return { personal, credentials, currentRole };
+}
+
 function churchId(req) {
   return req.user?.church ? String(req.user.church) : '';
 }
@@ -38,7 +130,8 @@ async function listPastors(req, res) {
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const rows = await PastorRecord.find({ church: cid })
     .populate('member', 'fullName email memberId contactPhone')
-    .sort({ 'personal.fullName': 1, createdAt: -1 });
+    .populate('church', 'name churchType')
+    .sort({ 'personal.name': 1, 'personal.fullName': 1, createdAt: -1 });
   return res.json(rows);
 }
 
@@ -46,7 +139,7 @@ async function listEligibleMembers(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const rows = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church: cid, isActive: true })
-    .select('_id fullName firstName surname email memberId contactPhone address')
+    .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender')
     .sort({ fullName: 1, email: 1 });
   return res.json(rows);
 }
@@ -54,8 +147,8 @@ async function listEligibleMembers(req, res) {
 async function createPastor(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const { memberId, credentials, assignmentHistory, contactSchedule, trainings, confidentialNotes, isActive } =
-    req.body || {};
+  const b = req.body || {};
+  const { memberId, assignmentHistory, contactSchedule, trainings, confidentialNotes, isActive } = b;
   if (!memberId) return res.status(400).json({ message: 'memberId is required' });
 
   const member = await User.findOne({ _id: memberId, role: { $in: ['MEMBER', 'ADMIN'] }, church: cid, isActive: true });
@@ -63,27 +156,14 @@ async function createPastor(req, res) {
     return res.status(400).json({ message: 'Pastor must be an active member of this church' });
   }
 
-  const address = member.address || {};
-  const addressText = [address.line1, address.line2, address.city, address.stateOrProvince, address.postalCode, address.country]
-    .filter(Boolean)
-    .join(', ');
+  const { personal, credentials, currentRole } = buildPastorRecordFromBody(b, member);
 
   const doc = await PastorRecord.create({
     church: cid,
     member: member._id,
-    personal: {
-      fullName: member.fullName || `${member.firstName || ''} ${member.surname || ''}`.trim(),
-      email: member.email || '',
-      contactPhone: member.contactPhone || '',
-      addressText,
-    },
-    credentials: {
-      ordinationDate: parseDate(credentials?.ordinationDate),
-      denomination: String(credentials?.denomination || '').trim(),
-      qualifications: Array.isArray(credentials?.qualifications)
-        ? credentials.qualifications.map((q) => String(q).trim()).filter(Boolean)
-        : [],
-    },
+    personal,
+    currentRole,
+    credentials,
     assignmentHistory: Array.isArray(assignmentHistory)
       ? assignmentHistory.map((a) => ({
           roleTitle: String(a?.roleTitle || '').trim(),
@@ -112,7 +192,9 @@ async function createPastor(req, res) {
     isActive: isActive !== false,
   });
 
-  const fresh = await PastorRecord.findById(doc._id).populate('member', 'fullName email memberId contactPhone');
+  const fresh = await PastorRecord.findById(doc._id)
+    .populate('member', 'fullName email memberId contactPhone')
+    .populate('church', 'name churchType');
   return res.status(201).json(fresh);
 }
 
@@ -120,7 +202,7 @@ async function listEligibleMembersForSuperadmin(req, res) {
   const targetChurchId = String(req.query.churchId || '');
   if (!targetChurchId) return res.status(400).json({ message: 'churchId is required' });
   const rows = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true })
-    .select('_id fullName firstName surname email memberId contactPhone address')
+    .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender')
     .sort({ fullName: 1, email: 1 });
   return res.json(rows);
 }
@@ -128,8 +210,8 @@ async function listEligibleMembersForSuperadmin(req, res) {
 async function createPastorForSuperadmin(req, res) {
   const targetChurchId = String(req.body?.churchId || '');
   if (!targetChurchId) return res.status(400).json({ message: 'churchId is required' });
-  const { memberId, credentials, assignmentHistory, contactSchedule, trainings, confidentialNotes, isActive } =
-    req.body || {};
+  const b = req.body || {};
+  const { memberId, assignmentHistory, contactSchedule, trainings, confidentialNotes, isActive } = b;
   if (!memberId) return res.status(400).json({ message: 'memberId is required' });
 
   const member = await User.findOne({ _id: memberId, role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true });
@@ -137,27 +219,14 @@ async function createPastorForSuperadmin(req, res) {
     return res.status(400).json({ message: 'Pastor/Reverend must be an active member of the selected church' });
   }
 
-  const address = member.address || {};
-  const addressText = [address.line1, address.line2, address.city, address.stateOrProvince, address.postalCode, address.country]
-    .filter(Boolean)
-    .join(', ');
+  const { personal, credentials, currentRole } = buildPastorRecordFromBody(b, member);
 
   const doc = await PastorRecord.create({
     church: targetChurchId,
     member: member._id,
-    personal: {
-      fullName: member.fullName || `${member.firstName || ''} ${member.surname || ''}`.trim(),
-      email: member.email || '',
-      contactPhone: member.contactPhone || '',
-      addressText,
-    },
-    credentials: {
-      ordinationDate: parseDate(credentials?.ordinationDate),
-      denomination: String(credentials?.denomination || '').trim(),
-      qualifications: Array.isArray(credentials?.qualifications)
-        ? credentials.qualifications.map((q) => String(q).trim()).filter(Boolean)
-        : [],
-    },
+    personal,
+    currentRole,
+    credentials,
     assignmentHistory: Array.isArray(assignmentHistory)
       ? assignmentHistory.map((a) => ({
           roleTitle: String(a?.roleTitle || '').trim(),
@@ -197,7 +266,7 @@ async function listPastorsForSuperadmin(req, res) {
   const rows = await PastorRecord.find(churchFilter)
     .populate('church', 'name churchType')
     .populate('member', 'fullName email memberId contactPhone')
-    .sort({ createdAt: -1 });
+    .sort({ 'personal.name': 1, 'personal.fullName': 1, createdAt: -1 });
   return res.json(rows);
 }
 

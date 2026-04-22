@@ -149,7 +149,7 @@ export default function SuperadminEditEventPage() {
 
   if (!originChurchId) {
     return (
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto w-full min-w-0 max-w-xl">
         <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           Church id is missing. Please open edit from the events list.
         </p>
@@ -159,7 +159,7 @@ export default function SuperadminEditEventPage() {
 
   if (loadErr || churchesErr) {
     return (
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto w-full min-w-0 max-w-xl">
         <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {loadErr || churchesErr}
         </p>
@@ -176,7 +176,7 @@ export default function SuperadminEditEventPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <div className="mb-6">
         <Link href="/dashboard/superadmin/events" className="text-sm font-medium text-violet-700 hover:text-violet-900">
           ← Back to events

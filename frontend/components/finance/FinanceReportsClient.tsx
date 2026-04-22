@@ -195,7 +195,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   }
 
   return (
-    <div className="max-w-7xl">
+    <div className="w-full min-w-0 max-w-7xl">
       <FinanceSectionNav variant={variant} />
       <div className="mb-6">
         <p className={`text-xs font-semibold uppercase tracking-wide ${labelClass}`}>Finance</p>
@@ -214,7 +214,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
               <select
                 value={churchId}
                 onChange={(e) => setChurchId(e.target.value)}
-                className="min-w-[200px] rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                className="w-full min-w-0 sm:min-w-[200px] sm:max-w-xs rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               >
                 <option value="">All churches</option>
                 {churches.map((c) => (
@@ -269,7 +269,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Party, description, type…"
-                className="min-w-[200px] rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                className="w-full min-w-0 sm:min-w-[200px] sm:max-w-xs rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -317,8 +317,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             ) : null}
           </p>
 
-          <div className="mb-6 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <div className="mb-6 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
               <h2 className="text-sm font-semibold text-neutral-900">Amount by payment type ({chartCurrency})</h2>
               <p className="mt-0.5 text-xs text-neutral-500">Only rows in the selected chart currency in the filtered set.</p>
               <div className="mt-2 h-64 w-full">
@@ -338,7 +338,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                 </ResponsiveContainer>
               </div>
             </div>
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
               <h2 className="text-sm font-semibold text-neutral-900">Transactions by type (count)</h2>
               <p className="mt-0.5 text-xs text-neutral-500">Uses the same table filters (search + type checks).</p>
               <div className="mt-2 h-64 w-full">
@@ -365,12 +365,11 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             </div>
           </div>
 
-          <div className="mb-6 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="mb-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
               <h2 className="text-sm font-semibold text-neutral-900">Totals by currency (summary)</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-left text-sm">
+            <table className="w-full min-w-[600px] text-left text-sm">
                 <thead className="text-neutral-600">
                   <tr>
                     <th className="px-4 py-2 font-medium">Currency</th>
@@ -392,13 +391,12 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                   ))}
                 </tbody>
               </table>
-            </div>
             {Object.keys(summary.byCurrency).length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-neutral-500">No summary totals in this range.</p>
             ) : null}
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
               <h2 className="text-sm font-semibold text-neutral-900">All payment &amp; expense lines</h2>
               <p className="text-xs text-neutral-500">
