@@ -46,7 +46,7 @@ export default function SignupPage() {
   }, [churches, churchId]);
   const eligibleChurches = useMemo(
     () => churches.filter((c) => Boolean(c.conference)),
-    [churches].
+    [churches]
   );
 
   async function onSubmit(e: React.FormEvent) {
