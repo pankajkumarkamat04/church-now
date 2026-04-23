@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed:superadmin": "node src/scripts/seedSuperadmin.js"
+    "seed:superadmin": "node src/scripts/seedSuperadmin.js",
+    "clean:dups": "node src/scripts/cleanDups.js"
   },
   "engines": {
     "node": ">=20"
