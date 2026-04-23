@@ -115,7 +115,6 @@ async function createConference(req, res) {
     stateOrProvince,
     postalCode,
     country,
-    contactPerson,
     isActive,
   } = req.body;
   if (!name) return res.status(400).json({ message: 'name is required' });
@@ -136,7 +135,6 @@ async function createConference(req, res) {
         stateOrProvince: String(stateOrProvince || '').trim(),
         postalCode: String(postalCode || '').trim(),
         country: String(country || '').trim(),
-        contactPerson: String(contactPerson || '').trim(),
         localLeadership: normalizeConferenceLeadership(req.body.localLeadership),
         isActive: isActive !== false,
       });
@@ -164,7 +162,6 @@ async function updateConference(req, res) {
     'stateOrProvince',
     'postalCode',
     'country',
-    'contactPerson',
     'isActive',
   ].forEach((k) => {
     if (req.body[k] !== undefined) row[k] = req.body[k];

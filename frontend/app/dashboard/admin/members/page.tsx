@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Pencil, Plus, UserX } from 'lucide-react';
+import { CheckCircle2, Pencil, Plus, UserX } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -68,6 +68,23 @@ export default function AdminMembersListPage() {
     setErr(null);
     try {
       await apiFetch(`/api/admin/members/${memberId}/deactivate`, {
+        method: 'PATCH',
+        token,
+      });
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function approve(memberId: string) {
+    if (!token) return;
+    setBusyId(memberId);
+    setErr(null);
+    try {
+      await apiFetch(`/api/admin/members/${memberId}/approve`, {
         method: 'PATCH',
         token,
       });
@@ -155,12 +172,18 @@ export default function AdminMembersListPage() {
                   <td className="px-4 py-3">
                     <span
                       className={
-                        m.isActive === false
+                        m.approvalStatus === 'PENDING'
+                          ? 'rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-900'
+                          : m.isActive === false
                           ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
                           : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
                       }
                     >
-                      {m.isActive === false ? 'Inactive' : 'Active'}
+                      {m.approvalStatus === 'PENDING'
+                        ? 'Pending approval'
+                        : m.isActive === false
+                          ? 'Inactive'
+                          : 'Active'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -187,6 +210,17 @@ export default function AdminMembersListPage() {
                         >
                           <UserX className="mr-1 size-3.5" aria-hidden />
                           {busyId === m.id ? '…' : 'Deactivate'}
+                        </button>
+                      ) : null}
+                      {m.role === 'MEMBER' && m.approvalStatus === 'PENDING' ? (
+                        <button
+                          type="button"
+                          disabled={busyId === m.id}
+                          onClick={() => approve(m.id)}
+                          className={`${inputBtn} border-emerald-200 text-emerald-800 hover:bg-emerald-50`}
+                        >
+                          <CheckCircle2 className="mr-1 size-3.5" aria-hidden />
+                          {busyId === m.id ? '…' : 'Approve'}
                         </button>
                       ) : null}
                     </div>

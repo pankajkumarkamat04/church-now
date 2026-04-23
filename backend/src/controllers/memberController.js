@@ -4,7 +4,7 @@ const User = require('../models/User');
 const { toProfileResponse, applyMemberProfilePatch, attachCouncilNamesToProfile } = require('../utils/memberProfile');
 
 const CHURCH_FIELDS =
-  'name address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
+  'name address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
 
 async function getProfile(req, res) {
   try {
@@ -12,7 +12,7 @@ async function getProfile(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate(
         'conferences',
-        'conferenceId name description email phone contactPerson isActive'
+        'conferenceId name description email phone isActive'
       );
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -40,7 +40,7 @@ async function updateProfile(req, res) {
       .populate('church', CHURCH_FIELDS)
       .populate(
         'conferences',
-        'conferenceId name description email phone contactPerson isActive'
+        'conferenceId name description email phone isActive'
       );
     return res.json(await attachCouncilNamesToProfile(toProfileResponse(fresh)));
   } catch (err) {
@@ -59,7 +59,7 @@ async function getMyChurchInfo(req, res) {
     }
     const church = await Church.findById(req.user.church).populate(
       'conference',
-      'conferenceId name description email phone contactPerson isActive'
+      'conferenceId name description email phone isActive'
     );
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });

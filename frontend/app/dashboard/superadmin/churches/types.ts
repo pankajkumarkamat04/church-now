@@ -66,7 +66,6 @@ export type ChurchRecord = {
   country?: string;
   phone?: string;
   email?: string;
-  contactPerson?: string;
   latitude?: number | null;
   longitude?: number | null;
   isActive?: boolean;

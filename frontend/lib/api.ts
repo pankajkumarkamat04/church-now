@@ -40,7 +40,6 @@ export type AuthUser = {
         description?: string;
         email?: string;
         phone?: string;
-        contactPerson?: string;
       }
     | string
   >;
@@ -52,7 +51,6 @@ export type AuthUser = {
     description?: string;
     email?: string;
     phone?: string;
-    contactPerson?: string;
   } | null;
   councilIds?: string[];
   /** Global councils linked via councilIds (names from API) */
@@ -79,7 +77,6 @@ export type AuthUser = {
         country?: string;
         phone?: string;
         email?: string;
-        contactPerson?: string;
         latitude?: number | null;
         longitude?: number | null;
         isActive?: boolean;
@@ -91,6 +88,8 @@ export type AuthUser = {
     name: string;
   }>;
   isActive?: boolean;
+  approvalStatus?: 'PENDING' | 'APPROVED';
+  registrationSource?: 'SYSTEM' | 'SELF_SIGNUP';
 };
 
 const STORAGE_KEY = 'church_auth';

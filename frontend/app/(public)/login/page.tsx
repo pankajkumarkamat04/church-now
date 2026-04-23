@@ -110,7 +110,10 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-neutral-600">
-        No account? Contact your church admin.
+        No account?{' '}
+        <Link href="/signup" className="font-medium text-neutral-900 underline underline-offset-2">
+          Register here
+        </Link>
       </p>
       <p className="mt-2 text-center text-sm">
         <Link href="/donate" className="font-medium text-neutral-700 hover:text-neutral-900">

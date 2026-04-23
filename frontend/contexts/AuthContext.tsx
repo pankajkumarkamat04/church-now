@@ -44,12 +44,18 @@ type RegisterInput = {
   };
 };
 
+type RegisterResponse = {
+  message: string;
+  requiresApproval: boolean;
+  userId?: string;
+};
+
 type AuthContextValue = {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (input: RegisterInput) => Promise<AuthUser>;
+  register: (input: RegisterInput) => Promise<RegisterResponse>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 };
@@ -110,14 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
-    const res = await apiFetch<{ token: string; user: AuthUser }>('/api/auth/register', {
+    const res = await apiFetch<RegisterResponse>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    saveAuth(res.token, res.user);
-    setToken(res.token);
-    setUser(res.user);
-    return res.user;
+    return res;
   }, []);
 
   const logout = useCallback(() => {

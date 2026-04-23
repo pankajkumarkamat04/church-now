@@ -21,7 +21,6 @@ export default function SuperadminChurchCreatePage() {
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
   const [conferenceId, setConferenceId] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
   const [hasMainChurch, setHasMainChurch] = useState(false);
@@ -75,7 +74,6 @@ export default function SuperadminChurchCreatePage() {
           country,
           phone,
           email,
-          contactPerson,
         }),
       });
       router.replace('/dashboard/superadmin/churches');
@@ -161,10 +159,6 @@ export default function SuperadminChurchCreatePage() {
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
-            </div>
-            <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>
-            <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} />
             </div>
           </div>
           {err ? (

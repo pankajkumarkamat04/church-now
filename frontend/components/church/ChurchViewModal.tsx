@@ -96,7 +96,6 @@ export function ChurchViewModal({ open, onClose, church, localMinister }: Props)
             <Row label="Address" value={formatAddress(c)} />
             <Row label="Phone" value={c.phone || '—'} />
             <Row label="Email" value={c.email || '—'} />
-            <Row label="Contact person" value={c.contactPerson || '—'} />
             <Row label="Coordinates" value={coords} />
           </dl>
         </div>

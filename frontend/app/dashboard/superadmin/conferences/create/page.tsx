@@ -17,7 +17,6 @@ export default function SuperadminConferenceCreatePage() {
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,7 +39,6 @@ export default function SuperadminConferenceCreatePage() {
           description,
           email,
           phone,
-          contactPerson,
           isActive,
         }),
       });
@@ -85,10 +83,6 @@ export default function SuperadminConferenceCreatePage() {
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Phone</label>
               <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>
-              <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} />
             </div>
           </div>
           <div className="space-y-3">

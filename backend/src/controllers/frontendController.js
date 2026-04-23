@@ -15,7 +15,7 @@ const { validateChurchLeadershipPayload } = require('../utils/churchLeadershipVa
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 
 const CHURCH_POPULATE =
-  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
+  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
 const ACTIVE_PASTOR_TERM_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
 
 async function normalizeAndValidateGlobalCouncilIds(inputCouncilIds) {
@@ -81,7 +81,6 @@ async function updateMyChurch(req, res) {
       'country',
       'phone',
       'email',
-      'contactPerson',
       'latitude',
       'longitude',
     ];
@@ -130,7 +129,7 @@ async function listMembers(req, res) {
       .sort({ role: 1, email: 1 })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
+      .populate('conferences', 'conferenceId name description email phone isActive');
     const activePastorTerms = await PastorTerm.find({
       church: currentChurchId,
       status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
@@ -208,19 +207,18 @@ async function createMember(req, res) {
       baptismDate,
       baptism_date,
     } = req.body;
-    const incomingConferenceIds = Array.isArray(conferenceIds)
-      ? conferenceIds
-      : req.body.conferenceId
-        ? [req.body.conferenceId]
-        : [];
-    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone || incomingConferenceIds.length === 0) {
+    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone) {
       return res.status(400).json({
         message:
-          'Email, password, firstName, surname, idNumber, contactPhone, and conference are required',
+          'Email, password, firstName, surname, idNumber, and contactPhone are required',
       });
     }
     if (!churchId(req)) {
       return res.status(400).json({ message: 'No church assigned' });
+    }
+    const adminChurch = await Church.findById(churchId(req)).select('conference');
+    if (!adminChurch || !adminChurch.conference) {
+      return res.status(400).json({ message: 'Church or conference not found' });
     }
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
@@ -237,18 +235,6 @@ async function createMember(req, res) {
       role: 'MEMBER',
       church: churchId(req),
     });
-    const selectedConferenceIds = Array.from(new Set(incomingConferenceIds.map((id) => String(id)).filter(Boolean)));
-    if (selectedConferenceIds.length !== 1) {
-      return res.status(400).json({ message: 'Select exactly one conference' });
-    }
-    const conferences = await Conference.find({ _id: { $in: selectedConferenceIds }, isActive: true }).select('_id');
-    if (conferences.length !== selectedConferenceIds.length) {
-      return res.status(400).json({ message: 'One or more selected conferences are invalid' });
-    }
-    const adminChurch = await Church.findById(churchId(req)).select('conference');
-    if (!adminChurch || !adminChurch.conference || String(adminChurch.conference) !== selectedConferenceIds[0]) {
-      return res.status(400).json({ message: 'Selected conference does not match this church conference' });
-    }
     const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
     if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
       return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
@@ -258,7 +244,7 @@ async function createMember(req, res) {
       return res.status(400).json({ message: councilResult.error });
     }
     const patchResult = applyMemberProfilePatch(member, {
-      conferenceIds: [selectedConferenceIds[0]],
+      conferenceIds: [adminChurch.conference],
       councilIds: councilResult.ids,
       memberCategory: normalizedCategory,
       gender,
@@ -281,7 +267,7 @@ async function createMember(req, res) {
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
+      .populate('conferences', 'conferenceId name description email phone isActive');
     return res.status(201).json(await attachCouncilNamesToProfile(toProfileResponse(populated)));
   } catch (err) {
     if (err.code === 11000) {
@@ -305,7 +291,7 @@ async function getMember(req, res) {
     })
       .select('-password')
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
+      .populate('conferences', 'conferenceId name description email phone isActive');
     if (!member) {
       return res.status(404).json({ message: 'Member not found' });
     }
@@ -352,7 +338,7 @@ async function updateMember(req, res) {
     await member.save();
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
-      .populate('conferences', 'conferenceId name description email phone contactPerson isActive');
+      .populate('conferences', 'conferenceId name description email phone isActive');
     const activePastorTerm = await PastorTerm.findOne({
       church: churchId(req),
       pastor: member._id,
@@ -394,6 +380,32 @@ async function deactivateMember(req, res) {
   }
 }
 
+async function approveMember(req, res) {
+  try {
+    const member = await User.findOne({
+      _id: req.params.memberId,
+      church: churchId(req),
+      role: 'MEMBER',
+    });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+    member.approvalStatus = 'APPROVED';
+    if (member.isActive === false) {
+      member.isActive = true;
+    }
+    await member.save();
+    return res.json({
+      id: member._id,
+      approvalStatus: member.approvalStatus,
+      isActive: member.isActive,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to approve member' });
+  }
+}
+
 async function listPublicChurches(_req, res) {
   try {
     const churches = await Church.find({ isActive: true })
@@ -416,5 +428,6 @@ module.exports = {
   getMember,
   updateMember,
   deactivateMember,
+  approveMember,
   listPublicChurches,
 };

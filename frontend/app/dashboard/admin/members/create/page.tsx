@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApiBase } from '@/lib/api';
+
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
@@ -31,8 +31,6 @@ export default function AdminMemberCreatePage() {
   const [stateOrProvince, setStateOrProvince] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('');
-  const [conferences, setConferences] = useState<Array<{ _id: string; name: string }>>([]);
-  const [conferenceIds, setConferenceIds] = useState<string[]>([]);
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -48,20 +46,7 @@ export default function AdminMemberCreatePage() {
     }
   }, [loading, user, router]);
 
-  useEffect(() => {
-    async function loadConferences() {
-      try {
-        const res = await fetch(`${getApiBase()}/api/public/conferences`);
-        if (!res.ok) return;
-        const rows = (await res.json()) as Array<{ _id: string; name: string }>;
-        setConferences(rows);
-        setConferenceIds((prev) => (prev.length ? prev : rows[0]?._id ? [rows[0]._id] : []));
-      } catch {
-        // no-op
-      }
-    }
-    loadConferences();
-  }, []);
+
 
   useEffect(() => {
     async function loadGlobalCouncils() {
@@ -82,10 +67,7 @@ export default function AdminMemberCreatePage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
-    if (conferenceIds.length === 0) {
-      setErr('Select at least one conference');
-      return;
-    }
+
     if (councilIds.length === 0) {
       setErr('Select at least one council');
       return;
@@ -102,7 +84,7 @@ export default function AdminMemberCreatePage() {
           firstName,
           surname,
           idNumber,
-          conferenceIds,
+
           councilIds,
           dateOfBirth,
           gender,
@@ -167,21 +149,7 @@ export default function AdminMemberCreatePage() {
               <label className="mb-1 block text-xs font-medium text-neutral-600">Surname</label>
               <input required value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Conferences</label>
-              <select
-                multiple
-                value={conferenceIds}
-                onChange={(e) => setConferenceIds(Array.from(e.target.selectedOptions).map((option) => option.value))}
-                className={`${field} min-h-[110px]`}
-              >
-                {conferences.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">

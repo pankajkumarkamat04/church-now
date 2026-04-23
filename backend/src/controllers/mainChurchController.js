@@ -16,7 +16,6 @@ const BASE_FIELDS = [
   'country',
   'phone',
   'email',
-  'contactPerson',
   'latitude',
   'longitude',
   'isActive',

@@ -14,7 +14,6 @@ type Conference = {
   description?: string;
   email?: string;
   phone?: string;
-  contactPerson?: string;
   isActive: boolean;
   localLeadership?: {
     superintendent?: string | { _id: string };
@@ -75,7 +74,6 @@ export default function SuperadminConferenceEditPage() {
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
   const [spiritualMemberIds, setSpiritualMemberIds] = useState<string[]>([]);
@@ -102,7 +100,6 @@ export default function SuperadminConferenceEditPage() {
     setDescription(row.description || '');
     setEmail(row.email || '');
     setPhone(row.phone || '');
-    setContactPerson(row.contactPerson || '');
     setIsActive(row.isActive !== false);
     setLeadership({
       superintendent: memberRefId(row.localLeadership?.superintendent),
@@ -159,7 +156,6 @@ export default function SuperadminConferenceEditPage() {
           description,
           email,
           phone,
-          contactPerson,
           isActive,
           localLeadership: leadership,
         }),
@@ -220,10 +216,6 @@ export default function SuperadminConferenceEditPage() {
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Phone</label>
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} placeholder="Phone" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>
-                <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} placeholder="Contact person" />
               </div>
             </div>
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">

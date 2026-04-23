@@ -66,7 +66,6 @@ async function createChurch(req, res) {
       country,
       phone,
       email,
-      contactPerson,
       latitude,
       longitude,
       conferenceId,
@@ -85,7 +84,6 @@ async function createChurch(req, res) {
       country: country || '',
       phone: phone || '',
       email: email || '',
-      contactPerson: contactPerson || '',
       latitude: latitude ?? null,
       longitude: longitude ?? null,
       conference: conferenceId || null,
@@ -113,7 +111,6 @@ async function updateChurch(req, res) {
       'country',
       'phone',
       'email',
-      'contactPerson',
       'latitude',
       'longitude',
       'isActive',
@@ -444,7 +441,7 @@ async function getUser(req, res) {
       .populate({
         path: 'church',
         select: 'name conference councils',
-        populate: { path: 'conference', select: 'conferenceId name description email phone contactPerson isActive' },
+        populate: { path: 'conference', select: 'conferenceId name description email phone isActive' },
       })
       .populate('adminChurches', 'name')
       .select('-password');

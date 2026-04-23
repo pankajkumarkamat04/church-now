@@ -28,7 +28,6 @@ const conferenceSchema = new mongoose.Schema(
     stateOrProvince: { type: String, trim: true, default: '' },
     postalCode: { type: String, trim: true, default: '' },
     country: { type: String, trim: true, default: '' },
-    contactPerson: { type: String, trim: true, default: '' },
     localLeadership: { type: conferenceLeadershipSchema, default: () => ({}) },
     isActive: { type: Boolean, default: true },
   },

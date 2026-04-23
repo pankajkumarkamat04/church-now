@@ -9,7 +9,7 @@ const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
 
 const CHURCH_FIELDS =
-  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email contactPerson latitude longitude isActive localLeadership councils';
+  'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
 
 const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
@@ -42,35 +42,27 @@ async function register(req, res) {
       : req.body.conferenceId
         ? [req.body.conferenceId]
         : [];
-    if (!email || !password || !churchId || incomingConferenceIds.length === 0) {
-      return res
-        .status(400)
-        .json({ message: 'Email, password, church selection and conference are required' });
-    }
-    const selectedConferenceIds = Array.from(new Set(incomingConferenceIds.map((id) => String(id)).filter(Boolean)));
-    if (selectedConferenceIds.length !== 1) {
-      return res.status(400).json({ message: 'Select exactly one conference' });
-    }
-    if (!firstName || !surname || !idNumber || !dateOfBirth || !gender || !contactPhone) {
+    if (!email || !password || !churchId || !firstName || !surname || !contactPhone) {
       return res.status(400).json({
-        message:
-          'firstName, surname, idNumber, dateOfBirth, gender and contactPhone are required',
-      });
-    }
-    const requiredAddress =
-      address &&
-      address.line1 &&
-      address.city &&
-      address.stateOrProvince &&
-      address.postalCode &&
-      address.country;
-    if (!requiredAddress) {
-      return res.status(400).json({
-        message:
-          'Residential address is required (line1, city, stateOrProvince, postalCode, country)',
+        message: 'Email, password, church selection, first name, surname and contact phone are required',
       });
     }
     const church = await Church.findOne({ _id: churchId, isActive: true });
+    const selectedConferenceIds = Array.from(
+      new Set(
+        (incomingConferenceIds.length > 0
+          ? incomingConferenceIds
+          : church.conference
+            ? [String(church.conference)]
+            : []
+        )
+          .map((id) => String(id))
+          .filter(Boolean)
+      )
+    );
+    if (selectedConferenceIds.length !== 1) {
+      return res.status(400).json({ message: 'Select exactly one conference' });
+    }
     if (!church) {
       return res.status(400).json({
         message: 'Selected church was not found or is inactive.',
@@ -104,26 +96,34 @@ async function register(req, res) {
       firstName: String(firstName).trim(),
       surname: String(surname).trim(),
       fullName: `${String(firstName).trim()} ${String(surname).trim()}`.trim(),
-      idNumber: String(idNumber).trim(),
+      idNumber: String(idNumber || '').trim(),
       contactPhone: String(contactPhone).trim(),
-      gender,
-      dateOfBirth: new Date(dateOfBirth),
-      address,
+      gender: gender || undefined,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      address:
+        address && typeof address === 'object'
+          ? {
+              line1: String(address.line1 || '').trim(),
+              line2: String(address.line2 || '').trim(),
+              city: String(address.city || '').trim(),
+              stateOrProvince: String(address.stateOrProvince || '').trim(),
+              postalCode: String(address.postalCode || '').trim(),
+              country: String(address.country || '').trim(),
+            }
+          : {},
       role: 'MEMBER',
       church: church._id,
       conferences: [selectedConferenceIds[0]],
       memberCategory: normalizedCategory,
       memberId,
       membershipDate: new Date(),
-    });
-    const populated = await User.findById(user._id).populate('church', CHURCH_FIELDS);
-    const token = signToken({
-      sub: user._id.toString(),
-      role: user.role,
+      approvalStatus: 'PENDING',
+      registrationSource: 'SELF_SIGNUP',
     });
     return res.status(201).json({
-      token,
-      user: await attachCouncilNamesToProfile(toProfileResponse(populated)),
+      message: 'Registration submitted. Wait for your church admin to approve your membership.',
+      requiresApproval: true,
+      userId: user._id,
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -146,7 +146,7 @@ async function login(req, res) {
     const user = await User.findOne({ email: email.toLowerCase() })
       .select('+password')
       .populate('church', CHURCH_FIELDS)
-      .populate('conferences', 'conferenceId name description email phone contactPerson isActive')
+      .populate('conferences', 'conferenceId name description email phone isActive')
       .populate('adminChurches', CHURCH_FIELDS);
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -154,6 +154,11 @@ async function login(req, res) {
     const ok = await user.comparePassword(password);
     if (!ok) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    if (user.role === 'MEMBER' && user.approvalStatus === 'PENDING') {
+      return res.status(403).json({
+        message: 'Your membership is pending approval by your church admin.',
+      });
     }
     await syncMemberActiveStatusByPayments(user);
     if (!user.isActive) {
@@ -179,7 +184,7 @@ async function me(req, res) {
   try {
     const user = await User.findById(req.user._id)
       .populate('church', CHURCH_FIELDS)
-      .populate('conferences', 'conferenceId name description email phone contactPerson isActive')
+      .populate('conferences', 'conferenceId name description email phone isActive')
       .populate('adminChurches', CHURCH_FIELDS);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

@@ -26,6 +26,7 @@ router.post('/members', asyncHandler(frontendController.createMember));
 router.get('/members/:memberId', asyncHandler(frontendController.getMember));
 router.put('/members/:memberId', asyncHandler(frontendController.updateMember));
 router.patch('/members/:memberId/deactivate', asyncHandler(frontendController.deactivateMember));
+router.patch('/members/:memberId/approve', asyncHandler(frontendController.approveMember));
 router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembers));
 router.get('/pastors', asyncHandler(pastorController.listPastors));
 router.post('/pastors', asyncHandler(pastorController.createPastor));

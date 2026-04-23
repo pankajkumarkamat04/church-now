@@ -55,7 +55,6 @@ const churchSchema = new mongoose.Schema(
     country: { type: String, trim: true, default: '' },
     phone: { type: String, trim: true, default: '' },
     email: { type: String, trim: true, lowercase: true, default: '' },
-    contactPerson: { type: String, trim: true, default: '' },
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
     isActive: { type: Boolean, default: true },

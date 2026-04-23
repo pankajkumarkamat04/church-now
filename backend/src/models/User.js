@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const ROLES = ['SUPERADMIN', 'ADMIN', 'MEMBER'];
+const APPROVAL_STATUSES = ['PENDING', 'APPROVED'];
+const REGISTRATION_SOURCES = ['SYSTEM', 'SELF_SIGNUP'];
 
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_SAY'];
 const MEMBER_CATEGORIES = ['MEMBER', 'PRESIDENT', 'MODERATOR', 'PASTOR'];
@@ -75,6 +77,17 @@ const userSchema = new mongoose.Schema(
       },
     ],
     isActive: { type: Boolean, default: true },
+    approvalStatus: {
+      type: String,
+      enum: APPROVAL_STATUSES,
+      default: 'APPROVED',
+      index: true,
+    },
+    registrationSource: {
+      type: String,
+      enum: REGISTRATION_SOURCES,
+      default: 'SYSTEM',
+    },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
   },
@@ -86,7 +99,6 @@ userSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      role: 'MEMBER',
       memberId: { $gt: '' },
     },
   }
@@ -109,3 +121,6 @@ module.exports = mongoose.model('User', userSchema);
 module.exports.ROLES = ROLES;
 module.exports.GENDERS = GENDERS;
 module.exports.MEMBER_CATEGORIES = MEMBER_CATEGORIES;
+module.exports.APPROVAL_STATUSES = APPROVAL_STATUSES;
+module.exports.REGISTRATION_SOURCES = REGISTRATION_SOURCES;
+

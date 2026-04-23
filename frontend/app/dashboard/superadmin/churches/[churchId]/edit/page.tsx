@@ -25,7 +25,6 @@ export default function SuperadminChurchEditPage() {
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [churchType, setChurchType] = useState<'MAIN' | 'SUB'>('MAIN');
   const [conferenceId, setConferenceId] = useState('');
@@ -47,7 +46,6 @@ export default function SuperadminChurchEditPage() {
     setCountry(c.country || '');
     setPhone(c.phone || '');
     setEmail(c.email || '');
-    setContactPerson(c.contactPerson || '');
     setIsActive(c.isActive !== false);
     setChurchType(c.churchType === 'SUB' ? 'SUB' : 'MAIN');
     setConferenceId(
@@ -105,7 +103,6 @@ export default function SuperadminChurchEditPage() {
           country,
           phone,
           email,
-          contactPerson,
           isActive,
         }),
       });
@@ -225,10 +222,6 @@ export default function SuperadminChurchEditPage() {
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
-            </div>
-            <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact person</label>
-            <input value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} className={field} />
             </div>
           </div>
           <div className="flex items-center gap-2">

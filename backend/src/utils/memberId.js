@@ -14,7 +14,6 @@ async function resolveMemberIdForChurch(churchId, requestedRaw) {
   if (requested) {
     const dup = await User.findOne({
       church: churchId,
-      role: 'MEMBER',
       memberId: requested,
     }).select('_id');
     if (dup) {
@@ -28,7 +27,6 @@ async function resolveMemberIdForChurch(churchId, requestedRaw) {
   const pattern = new RegExp(`^${prefix}\\d{6}$`);
   const members = await User.find({
     church: churchId,
-    role: 'MEMBER',
     memberId: pattern,
   })
     .select('memberId')

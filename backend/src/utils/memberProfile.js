@@ -81,6 +81,8 @@ function toProfileResponse(userDoc) {
     canAccessMemberPortal,
     adminChurches: Array.isArray(u.adminChurches) ? u.adminChurches : [],
     isActive: u.isActive,
+    approvalStatus: u.approvalStatus || 'APPROVED',
+    registrationSource: u.registrationSource || 'SYSTEM',
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
@@ -91,7 +93,8 @@ function parseDateOfBirth(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return undefined;
   const now = new Date();
-  if (d > now) return undefined;
+  const futureLimit = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // allow +2 days for tz
+  if (d > futureLimit) return undefined;
   const min = new Date('1900-01-01T00:00:00.000Z');
   if (d < min) return undefined;
   return d;
@@ -103,7 +106,8 @@ function parseChurchRecordDate(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return undefined;
   const now = new Date();
-  if (d > now) return undefined;
+  const futureLimit = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // allow +2 days for tz
+  if (d > futureLimit) return undefined;
   const min = new Date('1800-01-01T00:00:00.000Z');
   if (d < min) return undefined;
   return d;

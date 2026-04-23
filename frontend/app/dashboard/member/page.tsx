@@ -14,7 +14,6 @@ type ConferenceInfo = {
   description?: string;
   email?: string;
   phone?: string;
-  contactPerson?: string;
   isActive?: boolean;
 };
 
@@ -26,7 +25,6 @@ type Church = {
   country?: string;
   phone?: string;
   email?: string;
-  contactPerson?: string;
   stateOrProvince?: string;
   postalCode?: string;
   conference?: ConferenceInfo | null;
@@ -254,9 +252,6 @@ export default function MemberDashboardPage() {
                 </p>
                 {church.phone ? <p className="mt-2 text-sm text-neutral-600">Phone: {church.phone}</p> : null}
                 {church.email ? <p className="text-sm text-neutral-600">Email: {church.email}</p> : null}
-                {church.contactPerson ? (
-                  <p className="text-sm text-neutral-600">Contact: {church.contactPerson}</p>
-                ) : null}
               </div>
               {typeof church.conference === 'object' && church.conference && church.conference.name ? (
                 <div className="border-t border-neutral-100 pt-4">
@@ -271,7 +266,6 @@ export default function MemberDashboardPage() {
                   <div className="mt-2 grid gap-1 text-sm text-neutral-600 sm:grid-cols-2">
                     {church.conference.email ? <p>Email: {church.conference.email}</p> : null}
                     {church.conference.phone ? <p>Phone: {church.conference.phone}</p> : null}
-                    {church.conference.contactPerson ? <p>Contact: {church.conference.contactPerson}</p> : null}
                   </div>
                 </div>
               ) : null}
