@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -70,7 +71,7 @@ export default function AdminPastorsPage() {
   const [ordinationDate, setOrdinationDate] = useState('');
   const [qualificationsText, setQualificationsText] = useState('');
   const [currentRole, setCurrentRole] = useState('');
-  const [savingRecord, setSavingRecord] = useState(false);
+
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
