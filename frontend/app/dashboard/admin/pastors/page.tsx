@@ -13,6 +13,8 @@ import {
   memberAddressString,
 } from '@/lib/pastorRecordDisplay';
 
+const field = 'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
+
 type MemberAddress = {
   line1?: string;
   line2?: string;
@@ -174,26 +176,62 @@ export default function AdminPastorsPage() {
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Record keeping (Reverends/Pastors)</h1>
         <p className="mt-1 text-sm text-neutral-600">Capture personal details, credentials, assignments, contact schedule, trainings, and confidential notes.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <select value={recordMemberId} onChange={(e) => setRecordMemberId(e.target.value)} className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm">
-            <option value="">Select reverend/member/admin</option>
-            {memberOptions.map((m) => (
-              <option key={m._id} value={m._id}>
-                {(m.fullName || m.email || 'Member') + (m.memberId ? ` (${m.memberId})` : '')}
-              </option>
-            ))}
-          </select>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (Reverend, Pastor, Dr., …)" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} type="email" placeholder="Contact email" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Contact phone" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} type="date" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" title="Date of birth" />
-          <input value={gender} onChange={(e) => setGender(e.target.value)} placeholder="Gender" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={ordinationDate} onChange={(e) => setOrdinationDate(e.target.value)} type="date" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" title="Ordination date" />
-          <input value={denomination} onChange={(e) => setDenomination(e.target.value)} placeholder="Denomination" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={qualificationsText} onChange={(e) => setQualificationsText(e.target.value)} placeholder="Qualifications (comma separated)" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
-          <input value={currentRole} onChange={(e) => setCurrentRole(e.target.value)} placeholder="Current role" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Reverend / Member / Admin</label>
+            <select value={recordMemberId} onChange={(e) => setRecordMemberId(e.target.value)} className={field}>
+              <option value="">Select reverend/member/admin</option>
+              {memberOptions.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {(m.fullName || m.email || 'Member') + (m.memberId ? ` (${m.memberId})` : '')}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (Reverend, Pastor, Dr., …)" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact Email</label>
+            <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} type="email" placeholder="Contact email" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact Phone</label>
+            <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Contact phone" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Date of Birth</label>
+            <input value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} type="date" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+            <input value={gender} onChange={(e) => setGender(e.target.value)} placeholder="Gender" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Address</label>
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Ordination Date</label>
+            <input value={ordinationDate} onChange={(e) => setOrdinationDate(e.target.value)} type="date" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Denomination</label>
+            <input value={denomination} onChange={(e) => setDenomination(e.target.value)} placeholder="Denomination" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Qualifications</label>
+            <input value={qualificationsText} onChange={(e) => setQualificationsText(e.target.value)} placeholder="Qualifications (comma separated)" className={field} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Current Role</label>
+            <input value={currentRole} onChange={(e) => setCurrentRole(e.target.value)} placeholder="Current role" className={field} />
+          </div>
         </div>
         <button
           type="button"
