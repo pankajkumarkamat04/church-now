@@ -52,10 +52,6 @@ type PastorRecordRow = {
     addressText?: string;
   };
   credentials?: { ordinationDate?: string; denomination?: string; qualifications?: string[] };
-  assignmentHistory?: Array<{ roleTitle?: string; churchName?: string; startDate?: string; endDate?: string; notes?: string }>;
-  contactSchedule?: { availability?: string; officeHours?: string; emergencyContactName?: string; emergencyContactPhone?: string };
-  trainings?: Array<{ title?: string; provider?: string; date?: string; certificateRef?: string; notes?: string }>;
-  confidentialNotes?: string;
 };
 
 export default function SuperadminPastorsPage() {
@@ -77,20 +73,6 @@ export default function SuperadminPastorsPage() {
   const [ordinationDate, setOrdinationDate] = useState('');
   const [qualificationsText, setQualificationsText] = useState('');
   const [currentRole, setCurrentRole] = useState('');
-  const [currentRoleChurch, setCurrentRoleChurch] = useState('');
-  const [currentRoleStartDate, setCurrentRoleStartDate] = useState('');
-  const [currentRoleEndDate, setCurrentRoleEndDate] = useState('');
-  const [currentRoleNotes, setCurrentRoleNotes] = useState('');
-  const [availability, setAvailability] = useState('');
-  const [officeHours, setOfficeHours] = useState('');
-  const [emergencyContactName, setEmergencyContactName] = useState('');
-  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
-  const [trainingTitle, setTrainingTitle] = useState('');
-  const [trainingProvider, setTrainingProvider] = useState('');
-  const [trainingDate, setTrainingDate] = useState('');
-  const [trainingCertificateRef, setTrainingCertificateRef] = useState('');
-  const [trainingNotes, setTrainingNotes] = useState('');
-  const [confidentialNotes, setConfidentialNotes] = useState('');
   const [savingRecord, setSavingRecord] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -180,30 +162,6 @@ export default function SuperadminPastorsPage() {
             denomination,
             qualifications: qualificationsText.split(',').map((x) => x.trim()).filter(Boolean),
           },
-          assignmentHistory: currentRole
-            ? [
-                {
-                  roleTitle: currentRole,
-                  churchName: currentRoleChurch,
-                  startDate: currentRoleStartDate || null,
-                  endDate: currentRoleEndDate || null,
-                  notes: currentRoleNotes,
-                },
-              ]
-            : [],
-          contactSchedule: { availability, officeHours, emergencyContactName, emergencyContactPhone },
-          trainings: trainingTitle
-            ? [
-                {
-                  title: trainingTitle,
-                  provider: trainingProvider,
-                  date: trainingDate || null,
-                  certificateRef: trainingCertificateRef,
-                  notes: trainingNotes,
-                },
-              ]
-            : [],
-          confidentialNotes,
         }),
       });
       const pastorRows = await apiFetch<PastorRecordRow[]>('/api/superadmin/pastors', { token });
@@ -272,21 +230,7 @@ export default function SuperadminPastorsPage() {
           <input value={denomination} onChange={(e) => setDenomination(e.target.value)} placeholder="Denomination" className={field} />
           <input value={qualificationsText} onChange={(e) => setQualificationsText(e.target.value)} placeholder="Qualifications (comma separated)" className={field} />
           <input value={currentRole} onChange={(e) => setCurrentRole(e.target.value)} placeholder="Current role" className={field} />
-          <input value={currentRoleChurch} onChange={(e) => setCurrentRoleChurch(e.target.value)} placeholder="Current/previous church name" className={field} />
-          <input value={currentRoleStartDate} onChange={(e) => setCurrentRoleStartDate(e.target.value)} type="date" className={field} />
-          <input value={currentRoleEndDate} onChange={(e) => setCurrentRoleEndDate(e.target.value)} type="date" className={field} />
-          <input value={availability} onChange={(e) => setAvailability(e.target.value)} placeholder="Availability" className={field} />
-          <input value={officeHours} onChange={(e) => setOfficeHours(e.target.value)} placeholder="Office hours" className={field} />
-          <input value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} placeholder="Emergency contact name" className={field} />
-          <input value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)} placeholder="Emergency contact phone" className={field} />
-          <input value={trainingTitle} onChange={(e) => setTrainingTitle(e.target.value)} placeholder="Training/workshop title" className={field} />
-          <input value={trainingProvider} onChange={(e) => setTrainingProvider(e.target.value)} placeholder="Training provider" className={field} />
-          <input value={trainingDate} onChange={(e) => setTrainingDate(e.target.value)} type="date" className={field} />
-          <input value={trainingCertificateRef} onChange={(e) => setTrainingCertificateRef(e.target.value)} placeholder="Certificate ref" className={field} />
         </div>
-        <textarea value={currentRoleNotes} onChange={(e) => setCurrentRoleNotes(e.target.value)} placeholder="Assignment notes" className={`mt-3 w-full ${field}`} rows={2} />
-        <textarea value={trainingNotes} onChange={(e) => setTrainingNotes(e.target.value)} placeholder="Training notes" className={`mt-3 w-full ${field}`} rows={2} />
-        <textarea value={confidentialNotes} onChange={(e) => setConfidentialNotes(e.target.value)} placeholder="Confidential notes" className={`mt-3 w-full ${field}`} rows={3} />
         <button
           type="button"
           onClick={() => void createRecord()}

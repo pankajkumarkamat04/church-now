@@ -1,27 +1,5 @@
 const mongoose = require('mongoose');
 
-const assignmentSchema = new mongoose.Schema(
-  {
-    roleTitle: { type: String, trim: true, default: '' },
-    churchName: { type: String, trim: true, default: '' },
-    startDate: { type: Date, default: null },
-    endDate: { type: Date, default: null },
-    notes: { type: String, trim: true, default: '' },
-  },
-  { _id: false }
-);
-
-const trainingSchema = new mongoose.Schema(
-  {
-    title: { type: String, trim: true, default: '' },
-    provider: { type: String, trim: true, default: '' },
-    date: { type: Date, default: null },
-    certificateRef: { type: String, trim: true, default: '' },
-    notes: { type: String, trim: true, default: '' },
-  },
-  { _id: false }
-);
-
 const personalSchema = new mongoose.Schema(
   {
     /** Display / legal name (Reverend/Pastor record) */
@@ -52,16 +30,6 @@ const credentialsSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const contactScheduleSchema = new mongoose.Schema(
-  {
-    availability: { type: String, trim: true, default: '' },
-    officeHours: { type: String, trim: true, default: '' },
-    emergencyContactName: { type: String, trim: true, default: '' },
-    emergencyContactPhone: { type: String, trim: true, default: '' },
-  },
-  { _id: false }
-);
-
 const pastorRecordSchema = new mongoose.Schema(
   {
     church: { type: mongoose.Schema.Types.ObjectId, ref: 'Church', required: true, index: true },
@@ -70,10 +38,6 @@ const pastorRecordSchema = new mongoose.Schema(
     /** Primary role label for this record (e.g. Lead pastor) */
     currentRole: { type: String, trim: true, default: '' },
     credentials: { type: credentialsSchema, default: () => ({}) },
-    assignmentHistory: { type: [assignmentSchema], default: [] },
-    contactSchedule: { type: contactScheduleSchema, default: () => ({}) },
-    trainings: { type: [trainingSchema], default: [] },
-    confidentialNotes: { type: String, trim: true, default: '' },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
