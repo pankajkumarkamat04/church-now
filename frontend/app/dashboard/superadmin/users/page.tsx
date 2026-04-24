@@ -31,6 +31,9 @@ export default function SuperadminUsersListPage() {
   const [churchId, setChurchId] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
   const [churches, setChurches] = useState<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>([]);
+  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
+  const [councilId, setCouncilId] = useState('');
+  const [isActiveFilter, setIsActiveFilter] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const roleLabel =
@@ -47,9 +50,11 @@ export default function SuperadminUsersListPage() {
     const query = new URLSearchParams({ role: roleFilter });
     if (conferenceId) query.set('conferenceId', conferenceId);
     if (churchId) query.set('churchId', churchId);
+    if (councilId) query.set('councilId', councilId);
+    if (isActiveFilter) query.set('isActive', isActiveFilter);
     const u = await apiFetch<UserRow[]>(`/api/superadmin/users?${query.toString()}`, { token });
     setUsers(u);
-  }, [token, roleFilter, conferenceId, churchId]);
+  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -66,7 +71,7 @@ export default function SuperadminUsersListPage() {
   useEffect(() => {
     async function loadReferences() {
       if (!token || user?.role !== 'SUPERADMIN') return;
-      const [conferenceRows, churchRows] = await Promise.all([
+      const [conferenceRows, churchRows, councilRows] = await Promise.all([
         apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
           token,
         }),
@@ -74,9 +79,11 @@ export default function SuperadminUsersListPage() {
           '/api/superadmin/sub-churches',
           { token }
         ),
+        apiFetch<Array<{ _id: string; name: string }>>('/api/superadmin/councils', { token }),
       ]);
       setConferences(conferenceRows);
       setChurches(churchRows);
+      setCouncils(councilRows);
     }
     loadReferences().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load filters'));
   }, [token, user]);
@@ -148,7 +155,7 @@ export default function SuperadminUsersListPage() {
 
       <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-700">Filters</p>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-600">Role</label>
           <select
@@ -156,7 +163,7 @@ export default function SuperadminUsersListPage() {
             onChange={(e) => setRoleFilter(e.target.value as 'ALL' | 'MEMBER' | 'ADMIN')}
             className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
           >
-            <option value="ALL">All (members + church admins)</option>
+            <option value="ALL">All</option>
             <option value="MEMBER">Member</option>
             <option value="ADMIN">Admin</option>
           </select>
@@ -175,7 +182,6 @@ export default function SuperadminUsersListPage() {
             {conferences.map((c) => (
               <option key={c._id} value={c._id}>
                 {c.name}
-                {c.conferenceId ? ` (${c.conferenceId})` : ''}
               </option>
             ))}
           </select>
@@ -203,6 +209,33 @@ export default function SuperadminUsersListPage() {
               ))}
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Council</label>
+          <select
+            value={councilId}
+            onChange={(e) => setCouncilId(e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+          >
+            <option value="">All councils</option>
+            {councils.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Status</label>
+          <select
+            value={isActiveFilter}
+            onChange={(e) => setIsActiveFilter(e.target.value)}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+          >
+            <option value="">All statuses</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
         </div>
         <div
           className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
@@ -218,6 +251,8 @@ export default function SuperadminUsersListPage() {
               setRoleFilter('ALL');
               setConferenceId('');
               setChurchId('');
+              setCouncilId('');
+              setIsActiveFilter('');
             }}
             className="text-xs font-medium text-violet-700 hover:text-violet-900"
           >

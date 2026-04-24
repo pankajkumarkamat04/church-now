@@ -34,19 +34,25 @@ export default function AdminMembersListPage() {
   const router = useRouter();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [churchName, setChurchName] = useState('My church');
+  const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
+  const [councilId, setCouncilId] = useState('');
+  const [isActiveFilter, setIsActiveFilter] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
+    const query = new URLSearchParams();
+    if (councilId) query.set('councilId', councilId);
+    if (isActiveFilter) query.set('isActive', isActiveFilter);
     const [m, c] = await Promise.all([
-      apiFetch<MemberRow[]>('/api/admin/members', { token }),
+      apiFetch<MemberRow[]>(`/api/admin/members?${query.toString()}`, { token }),
       apiFetch<{ name?: string }>('/api/admin/church', { token }),
     ]);
     setMembers(m);
     setChurchName(c?.name || 'My church');
-  }, [token]);
+  }, [token, councilId, isActiveFilter]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -59,6 +65,19 @@ export default function AdminMembersListPage() {
       load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load'));
     }
   }, [user, token, load]);
+
+  useEffect(() => {
+    async function loadReferences() {
+      if (!token || user?.role !== 'ADMIN') return;
+      try {
+        const councilRows = await apiFetch<Array<{ _id: string; name: string }>>('/api/admin/councils', { token });
+        setCouncils(councilRows);
+      } catch (e) {
+        console.error('Failed to load councils', e);
+      }
+    }
+    loadReferences();
+  }, [token, user]);
 
   async function deactivate(memberId: string) {
     if (!token || !window.confirm('Deactivate this member? They will not be able to sign in.')) {
@@ -109,7 +128,7 @@ export default function AdminMembersListPage() {
             Congregation
           </h1>
           <p className="mt-1 text-sm text-neutral-600">
-          {churchName} members: ID, contact, church and conference, councils, membership, and role.
+          {churchName} members: ID, contact, councils, membership, and role.
         </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -135,6 +154,60 @@ export default function AdminMembersListPage() {
         </p>
       ) : null}
 
+      <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-sky-700">Filters</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Council</label>
+            <select
+              value={councilId}
+              onChange={(e) => setCouncilId(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20"
+            >
+              <option value="">All councils</option>
+              {councils.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Status</label>
+            <select
+              value={isActiveFilter}
+              onChange={(e) => setIsActiveFilter(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20"
+            >
+              <option value="">All statuses</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div
+          className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
+            councilId || isActiveFilter ? 'border-sky-200 bg-sky-50' : 'border-neutral-200 bg-neutral-50'
+          }`}
+        >
+          <p className={`text-xs ${councilId || isActiveFilter ? 'text-sky-900' : 'text-neutral-700'}`}>
+            {councilId || isActiveFilter ? 'Filters applied.' : 'No filters active.'}
+          </p>
+          {(councilId || isActiveFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCouncilId('');
+                setIsActiveFilter('');
+              }}
+              className="text-xs font-medium text-sky-700 hover:text-sky-900"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1040px] text-left text-sm">
@@ -143,7 +216,7 @@ export default function AdminMembersListPage() {
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Member ID</th>
-                <th className="px-4 py-3 font-medium">Conference</th>
+
                 <th className="px-4 py-3 font-medium">Councils</th>
                 <th className="px-4 py-3 font-medium">Membership</th>
                 <th className="px-4 py-3 font-medium">Member Role</th>
@@ -157,9 +230,7 @@ export default function AdminMembersListPage() {
                   <td className="px-4 py-3">{m.email}</td>
                   <td className="px-4 py-3">{m.name || m.fullName || '—'}</td>
                   <td className="px-4 py-3 font-mono text-xs text-neutral-700">{m.memberId || '—'}</td>
-                  <td className="max-w-[10rem] truncate px-4 py-3 text-xs" title={m.conference && typeof m.conference === 'object' ? m.conference.name : ''}>
-                    {m.conference && typeof m.conference === 'object' && m.conference.name ? m.conference.name : '—'}
-                  </td>
+
                   <td className="max-w-[10rem] px-4 py-3 text-xs" title={(m.councils || []).map((c) => c.name).join(', ')}>
                     {(m.councils || []).length ? (m.councils || []).map((c) => c.name).join(', ') : '—'}
                   </td>

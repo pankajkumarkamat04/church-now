@@ -120,12 +120,26 @@ async function updateMyChurch(req, res) {
 async function listMembers(req, res) {
   try {
     const currentChurchId = churchId(req);
-    const members = await User.find({
+    const councilId = req.query.councilId;
+    const isActiveQuery = req.query.isActive;
+
+    const filter = {
       $or: [
         { church: currentChurchId, role: 'MEMBER' },
         { role: 'ADMIN', $or: [{ church: currentChurchId }, { adminChurches: currentChurchId }] },
       ],
-    })
+    };
+
+    if (councilId) {
+      filter.councilIds = councilId;
+    }
+    if (isActiveQuery === 'true') {
+      filter.isActive = true;
+    } else if (isActiveQuery === 'false') {
+      filter.isActive = false;
+    }
+
+    const members = await User.find(filter)
       .sort({ role: 1, email: 1 })
       .select('-password')
       .populate('church', CHURCH_POPULATE)

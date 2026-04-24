@@ -359,6 +359,17 @@ async function listUsers(req, res) {
     const roleQ = roleRaw ? String(roleRaw).toUpperCase() : null;
     const churchId = req.query.churchId;
     const conferenceId = req.query.conferenceId;
+    const councilId = req.query.councilId;
+    const isActiveStr = req.query.isActive;
+
+    if (councilId) {
+      filter.councilIds = councilId;
+    }
+    if (isActiveStr === 'true') {
+      filter.isActive = true;
+    } else if (isActiveStr === 'false') {
+      filter.isActive = false;
+    }
 
     if (conferenceId && churchId) {
       const inConf = await Church.findOne({ _id: churchId, conference: conferenceId }).select('_id').lean();
