@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
 
-const CATEGORIES = ['UTILITIES', 'SUPPLIES', 'SALARY', 'BUILDING', 'OUTREACH', 'OTHER'];
+const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 
 type ExpenseRow = {
   _id: string;
@@ -21,6 +21,11 @@ type ExpenseRow = {
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   approvedBy?: { fullName?: string; email?: string } | null;
   approvedAt?: string | null;
+  approvalStage?: 'PENDING_VERIFICATION' | 'PENDING_NOTICE_APPROVALS' | 'POSTED';
+  noticeApprovals?: { viceSecretary?: boolean; secretary?: boolean; viceDeacon?: boolean; deacon?: boolean };
+  canCurrentUserInitiate?: boolean;
+  canCurrentUserVerify?: boolean;
+  canCurrentUserNoticeApprove?: boolean;
 };
 
 const field = 'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
@@ -38,6 +43,8 @@ export default function AdminFinanceExpensesPage() {
   const [description, setDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
+
+  const canInitiate = rows.some((r) => r.canCurrentUserInitiate);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -97,6 +104,32 @@ export default function AdminFinanceExpensesPage() {
     await load();
   }
 
+  async function verifyPayment(id: string) {
+    if (!token) return;
+    try {
+      await apiFetch(`/api/admin/expenses/${id}/verify`, {
+        method: 'POST',
+        token,
+      });
+      await load();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'Failed to verify payment');
+    }
+  }
+
+  async function approveNotice(id: string) {
+    if (!token) return;
+    try {
+      await apiFetch(`/api/admin/expenses/${id}/notice-approval`, {
+        method: 'POST',
+        token,
+      });
+      await load();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'Failed to approve notice');
+    }
+  }
+
   function startEdit(row: ExpenseRow) {
     setEditing(row);
     setTitle(row.title);
@@ -115,53 +148,59 @@ export default function AdminFinanceExpensesPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Expenses</h1>
-        <p className="mt-1 text-sm text-neutral-600">Record spending for your church.</p>
+        <p className="mt-1 text-sm text-neutral-600">Vice treasurer initiates, treasurer verifies, then notice approvers post payment.</p>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
 
-      <form className="mb-8 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-3" onSubmit={onSubmit}>
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Title</label>
-          <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} required />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Amount</label>
-          <input className={field} type="number" min="0" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Currency</label>
-          <input className={field} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Category</label>
-          <select className={field} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Date</label>
-          <input className={field} type="date" required value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} />
-        </div>
-        <div className="md:col-span-2 lg:col-span-3">
-          <label className="mb-1 block text-xs font-medium text-neutral-600">Description</label>
-          <input className={field} value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="flex flex-wrap gap-2 md:col-span-2 lg:col-span-3">
-          <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60">
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-            {editing ? 'Update expense' : 'Add expense'}
-          </button>
-          {editing ? (
-            <button type="button" onClick={resetForm} className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-              Cancel
+      {canInitiate ? (
+        <form className="mb-8 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-3" onSubmit={onSubmit}>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Title</label>
+            <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} required />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Amount</label>
+            <input className={field} type="number" min="0" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Currency</label>
+            <input className={field} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Category</label>
+            <select className={field} value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Date</label>
+            <input className={field} type="date" required value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} />
+          </div>
+          <div className="md:col-span-2 lg:col-span-3">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Description</label>
+            <input className={field} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-2 md:col-span-2 lg:col-span-3">
+            <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60">
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              {editing ? 'Update initiated payment' : 'Initiate payment'}
             </button>
-          ) : null}
+            {editing ? (
+              <button type="button" onClick={resetForm} className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                Cancel
+              </button>
+            ) : null}
+          </div>
+        </form>
+      ) : (
+        <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Only the vice treasurer can initiate an expense payment form. You can still review and process approvals based on your role.
         </div>
-      </form>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
@@ -170,7 +209,7 @@ export default function AdminFinanceExpensesPage() {
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Title</th>
               <th className="px-4 py-2 font-medium">Category</th>
-              <th className="px-4 py-2 font-medium">Approval</th>
+              <th className="px-4 py-2 font-medium">Workflow stage</th>
               <th className="px-4 py-2 font-medium">Amount</th>
               <th className="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
@@ -184,20 +223,40 @@ export default function AdminFinanceExpensesPage() {
                 <td className="px-4 py-2">
                   <span
                     className={
-                      r.approvalStatus === 'APPROVED'
+                      r.approvalStage === 'POSTED'
                         ? 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
-                        : r.approvalStatus === 'REJECTED'
-                          ? 'rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800'
+                        : r.approvalStage === 'PENDING_NOTICE_APPROVALS'
+                          ? 'rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800'
                           : 'rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800'
                     }
                   >
-                    {r.approvalStatus || 'PENDING'}
+                    {r.approvalStage || 'PENDING_VERIFICATION'}
                   </span>
                 </td>
                 <td className="px-4 py-2">
                   {r.currency} {r.amount.toFixed(2)}
                 </td>
                 <td className="px-4 py-2 text-right">
+                  {r.canCurrentUserVerify && r.approvalStage === 'PENDING_VERIFICATION' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void verifyPayment(r._id)}
+                        className="mr-2 inline-flex items-center text-sky-700 hover:underline"
+                      >
+                        Verify
+                      </button>
+                    </>
+                  ) : null}
+                  {r.canCurrentUserNoticeApprove && r.approvalStage === 'PENDING_NOTICE_APPROVALS' ? (
+                    <button
+                      type="button"
+                      onClick={() => void approveNotice(r._id)}
+                      className="mr-2 inline-flex items-center text-emerald-700 hover:underline"
+                    >
+                      Approve notice
+                    </button>
+                  ) : null}
                   <button type="button" onClick={() => startEdit(r)} className="mr-2 inline-flex items-center text-sky-700 hover:underline">
                     <Pencil className="mr-1 size-3.5" /> Edit
                   </button>

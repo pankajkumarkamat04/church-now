@@ -39,21 +39,6 @@ export default function SuperadminExpenseApprovalsPage() {
     if (user?.role === 'SUPERADMIN' && token) load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
   }, [user, token, load]);
 
-  async function decideApproval(id: string, approvalStatus: 'APPROVED' | 'REJECTED') {
-    if (!token) return;
-    setErr(null);
-    try {
-      await apiFetch(`/api/superadmin/expenses/${id}/approval`, {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ approvalStatus }),
-      });
-      await load();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed to update approval');
-    }
-  }
-
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
@@ -61,7 +46,9 @@ export default function SuperadminExpenseApprovalsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Pending expense approvals</h1>
-          <p className="mt-1 text-sm text-neutral-600">Review church admin expenses awaiting superadmin decision.</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            Church treasurer or vice treasurer now approves these expenses from the church admin panel.
+          </p>
         </div>
         <Link href="/dashboard/superadmin/finance/expenses" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
           Back to expenses
@@ -80,7 +67,7 @@ export default function SuperadminExpenseApprovalsPage() {
               <th className="px-4 py-2 font-medium">Title</th>
               <th className="px-4 py-2 font-medium">Amount</th>
               <th className="px-4 py-2 font-medium">Created by</th>
-              <th className="px-4 py-2 text-right font-medium">Actions</th>
+              <th className="px-4 py-2 font-medium">Approval route</th>
             </tr>
           </thead>
           <tbody>
@@ -92,13 +79,8 @@ export default function SuperadminExpenseApprovalsPage() {
                 <td className="px-4 py-2">{r.title}</td>
                 <td className="px-4 py-2">{r.currency} {r.amount.toFixed(2)}</td>
                 <td className="px-4 py-2">{r.createdBy?.fullName || r.createdBy?.email || '—'}</td>
-                <td className="px-4 py-2 text-right">
-                  <button type="button" onClick={() => void decideApproval(r._id, 'APPROVED')} className="mr-2 inline-flex items-center text-emerald-700 hover:underline">
-                    Approve
-                  </button>
-                  <button type="button" onClick={() => void decideApproval(r._id, 'REJECTED')} className="inline-flex items-center text-amber-700 hover:underline">
-                    Reject
-                  </button>
+                <td className="px-4 py-2 text-neutral-600">
+                  Church admin treasurer / vice treasurer
                 </td>
               </tr>
             ))}

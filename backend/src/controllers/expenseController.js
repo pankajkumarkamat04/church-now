@@ -7,6 +7,41 @@ function churchId(req) {
   return req.user?.church;
 }
 
+async function loadChurchLeadership(churchIdValue) {
+  if (!churchIdValue) return null;
+  return Church.findById(churchIdValue).select(
+    'localLeadership.treasurer localLeadership.viceTreasurer localLeadership.viceSecretary localLeadership.secretary localLeadership.viceDeacon localLeadership.deacon'
+  );
+}
+
+function toLeadershipRoleSet(church, userId) {
+  const uid = String(userId || '');
+  if (!church || !uid) return new Set();
+  const roleSet = new Set();
+  const leadership = church.localLeadership || {};
+  if (String(leadership.viceTreasurer || '') === uid) roleSet.add('VICE_TREASURER');
+  if (String(leadership.treasurer || '') === uid) roleSet.add('TREASURER');
+  if (String(leadership.viceSecretary || '') === uid) roleSet.add('VICE_SECRETARY');
+  if (String(leadership.secretary || '') === uid) roleSet.add('SECRETARY');
+  if (String(leadership.viceDeacon || '') === uid) roleSet.add('VICE_DEACON');
+  if (String(leadership.deacon || '') === uid) roleSet.add('DEACON');
+  return roleSet;
+}
+
+function applyNoticeApproval(expense, roleSet) {
+  const notice = expense.noticeApprovals || {};
+  if (roleSet.has('VICE_SECRETARY')) notice.viceSecretary = true;
+  if (roleSet.has('SECRETARY')) notice.secretary = true;
+  if (roleSet.has('VICE_DEACON')) notice.viceDeacon = true;
+  if (roleSet.has('DEACON')) notice.deacon = true;
+  expense.noticeApprovals = notice;
+}
+
+function areAllNoticeApprovalsDone(expense) {
+  const notice = expense.noticeApprovals || {};
+  return Boolean(notice.viceSecretary && notice.secretary && notice.viceDeacon && notice.deacon);
+}
+
 function parseBody(body) {
   const amount = Number(body?.amount);
   if (!Number.isFinite(amount) || amount < 0) {
@@ -29,17 +64,32 @@ function parseBody(body) {
 async function listAdminExpenses(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const church = await loadChurchLeadership(cid);
+  const roleSet = toLeadershipRoleSet(church, req.user?._id);
   const rows = await Expense.find({ church: cid })
     .populate('conference', 'name conferenceId')
     .populate('createdBy', 'email fullName')
     .populate('approvedBy', 'email fullName')
     .sort({ expenseDate: -1, createdAt: -1 });
-  return res.json(rows);
+  return res.json(
+    rows.map((row) => ({
+      ...(row.toObject ? row.toObject() : row),
+      canCurrentUserInitiate: roleSet.has('VICE_TREASURER'),
+      canCurrentUserVerify: roleSet.has('TREASURER'),
+      canCurrentUserNoticeApprove:
+        roleSet.has('VICE_SECRETARY') || roleSet.has('SECRETARY') || roleSet.has('VICE_DEACON') || roleSet.has('DEACON'),
+    }))
+  );
 }
 
 async function createAdminExpense(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const church = await loadChurchLeadership(cid);
+  const roleSet = toLeadershipRoleSet(church, req.user?._id);
+  if (!roleSet.has('VICE_TREASURER')) {
+    return res.status(403).json({ message: 'Only vice treasurer can initiate a payment' });
+  }
   const data = parseBody(req.body);
   if (!data.title) return res.status(400).json({ message: 'title is required' });
   const row = await Expense.create({
@@ -47,9 +97,20 @@ async function createAdminExpense(req, res) {
     church: cid,
     conference: req.user?.conferences?.[0] || null,
     createdBy: req.user._id,
+    initiatedBy: req.user._id,
     approvalStatus: 'PENDING',
     approvedBy: null,
     approvedAt: null,
+    approvalStage: 'PENDING_VERIFICATION',
+    verifiedBy: null,
+    verifiedAt: null,
+    paymentNoticeCreatedAt: null,
+    noticeApprovals: {
+      viceSecretary: false,
+      secretary: false,
+      viceDeacon: false,
+      deacon: false,
+    },
   });
   const populated = await Expense.findById(row._id)
     .populate('conference', 'name conferenceId')
@@ -61,8 +122,16 @@ async function createAdminExpense(req, res) {
 async function updateAdminExpense(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const church = await loadChurchLeadership(cid);
+  const roleSet = toLeadershipRoleSet(church, req.user?._id);
+  if (!roleSet.has('VICE_TREASURER')) {
+    return res.status(403).json({ message: 'Only vice treasurer can edit initiated payments' });
+  }
   const row = await Expense.findOne({ _id: req.params.expenseId, church: cid });
   if (!row) return res.status(404).json({ message: 'Expense not found' });
+  if (row.approvalStage === 'POSTED') {
+    return res.status(400).json({ message: 'Posted expenses cannot be edited' });
+  }
   if (req.body.title !== undefined) row.title = String(req.body.title).trim();
   if (req.body.amount !== undefined) row.amount = Number(req.body.amount);
   if (req.body.currency !== undefined) row.currency = String(req.body.currency).toUpperCase();
@@ -72,10 +141,80 @@ async function updateAdminExpense(req, res) {
   row.approvalStatus = 'PENDING';
   row.approvedBy = null;
   row.approvedAt = null;
+  row.approvalStage = 'PENDING_VERIFICATION';
+  row.verifiedBy = null;
+  row.verifiedAt = null;
+  row.paymentNoticeCreatedAt = null;
+  row.noticeApprovals = {
+    viceSecretary: false,
+    secretary: false,
+    viceDeacon: false,
+    deacon: false,
+  };
   if (!row.title) return res.status(400).json({ message: 'title is required' });
   if (!Number.isFinite(row.amount) || row.amount < 0) return res.status(400).json({ message: 'Valid amount is required' });
   await row.save();
   const populated = await Expense.findById(row._id)
+    .populate('conference', 'name conferenceId')
+    .populate('createdBy', 'email fullName')
+    .populate('approvedBy', 'email fullName');
+  return res.json(populated);
+}
+
+async function verifyAdminExpense(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const church = await loadChurchLeadership(cid);
+  const roleSet = toLeadershipRoleSet(church, req.user?._id);
+  if (!roleSet.has('TREASURER')) {
+    return res.status(403).json({ message: 'Only treasurer can verify a payment' });
+  }
+  const row = await Expense.findOne({ _id: req.params.expenseId, church: cid });
+  if (!row) return res.status(404).json({ message: 'Expense not found' });
+  if (row.approvalStage !== 'PENDING_VERIFICATION') {
+    return res.status(400).json({ message: 'Payment must be in pending verification stage' });
+  }
+  row.approvalStatus = 'PENDING';
+  row.approvalStage = 'PENDING_NOTICE_APPROVALS';
+  row.verifiedBy = req.user._id;
+  row.verifiedAt = new Date();
+  row.paymentNoticeCreatedAt = new Date();
+  await row.save();
+  const populated = await Expense.findById(row._id)
+    .populate('church', 'name')
+    .populate('conference', 'name conferenceId')
+    .populate('createdBy', 'email fullName')
+    .populate('approvedBy', 'email fullName');
+  return res.json(populated);
+}
+
+async function approveAdminExpenseNotice(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const church = await loadChurchLeadership(cid);
+  const roleSet = toLeadershipRoleSet(church, req.user?._id);
+  const canNoticeApprove =
+    roleSet.has('VICE_SECRETARY') || roleSet.has('SECRETARY') || roleSet.has('VICE_DEACON') || roleSet.has('DEACON');
+  if (!canNoticeApprove) {
+    return res.status(403).json({ message: 'Only vice secretary, secretary, vice deacon or deacon can approve payment notice' });
+  }
+  const row = await Expense.findOne({ _id: req.params.expenseId, church: cid });
+  if (!row) return res.status(404).json({ message: 'Expense not found' });
+  if (row.approvalStage !== 'PENDING_NOTICE_APPROVALS') {
+    return res.status(400).json({ message: 'Payment notice approval is not available for this expense' });
+  }
+  applyNoticeApproval(row, roleSet);
+  if (areAllNoticeApprovalsDone(row)) {
+    row.approvalStage = 'POSTED';
+    row.approvalStatus = 'APPROVED';
+    row.approvedBy = req.user._id;
+    row.approvedAt = new Date();
+  } else {
+    row.approvalStatus = 'PENDING';
+  }
+  await row.save();
+  const populated = await Expense.findById(row._id)
+    .populate('church', 'name')
     .populate('conference', 'name conferenceId')
     .populate('createdBy', 'email fullName')
     .populate('approvedBy', 'email fullName');
@@ -150,6 +289,7 @@ async function createSuperadminExpense(req, res) {
     conference: conference ? conference._id : church?.conference || null,
     createdBy: req.user._id,
     approvalStatus: 'APPROVED',
+    approvalStage: 'POSTED',
     approvedBy: req.user._id,
     approvedAt: new Date(),
   });
@@ -203,9 +343,11 @@ async function updateSuperadminExpense(req, res) {
     }
     row.approvalStatus = status;
     if (status === 'APPROVED') {
+      row.approvalStage = 'POSTED';
       row.approvedBy = req.user._id;
       row.approvedAt = new Date();
     } else {
+      row.approvalStage = 'PENDING_VERIFICATION';
       row.approvedBy = null;
       row.approvedAt = null;
     }
@@ -222,29 +364,9 @@ async function updateSuperadminExpense(req, res) {
 }
 
 async function decideSuperadminExpenseApproval(req, res) {
-  const row = await Expense.findById(req.params.expenseId);
-  if (!row) return res.status(404).json({ message: 'Expense not found' });
-  const status = String(req.body?.approvalStatus || '')
-    .trim()
-    .toUpperCase();
-  if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return res.status(400).json({ message: 'approvalStatus must be APPROVED or REJECTED' });
-  }
-  row.approvalStatus = status;
-  if (status === 'APPROVED') {
-    row.approvedBy = req.user._id;
-    row.approvedAt = new Date();
-  } else {
-    row.approvedBy = null;
-    row.approvedAt = null;
-  }
-  await row.save();
-  const populated = await Expense.findById(row._id)
-    .populate('church', 'name')
-    .populate('conference', 'name conferenceId')
-    .populate('createdBy', 'email fullName')
-    .populate('approvedBy', 'email fullName');
-  return res.json(populated);
+  return res.status(403).json({
+    message: 'Expense approval is now restricted to church treasurer or vice treasurer',
+  });
 }
 
 async function removeSuperadminExpense(req, res) {
@@ -257,6 +379,8 @@ module.exports = {
   listAdminExpenses,
   createAdminExpense,
   updateAdminExpense,
+  verifyAdminExpense,
+  approveAdminExpenseNotice,
   removeAdminExpense,
   listSuperadminExpenses,
   getSuperadminExpense,

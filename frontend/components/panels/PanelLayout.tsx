@@ -14,6 +14,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   Shield,
   UserCog,
@@ -186,6 +187,12 @@ function superadminNavGroups(): AdminNavGroup[] {
       ],
     },
     {
+      id: 'communication',
+      label: 'Communication',
+      icon: <Megaphone className="size-4 shrink-0 opacity-80" aria-hidden />,
+      children: [{ href: '/dashboard/superadmin/announcements', label: 'Announcements', icon: <Megaphone className="size-3.5 opacity-70" /> }],
+    },
+    {
       id: 'finance',
       label: 'Finance',
       icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
@@ -230,6 +237,9 @@ function superadminPathInGroup(
       pathname.startsWith('/dashboard/superadmin/events') ||
       pathname.startsWith('/dashboard/superadmin/media')
     );
+  }
+  if (groupId === 'communication') {
+    return pathname.startsWith('/dashboard/superadmin/announcements');
   }
   if (groupId === 'finance') {
     return (
@@ -283,6 +293,11 @@ const ADMIN_MIDDLE_LINKS: NavItem[] = [
     href: '/dashboard/admin/pastor-terms',
     label: 'Leader terms',
     icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
+  },
+  {
+    href: '/dashboard/admin/announcements',
+    label: 'Announcements',
+    icon: <Megaphone className="size-4 shrink-0 opacity-80" aria-hidden />,
   },
   {
     href: '/dashboard/admin/councils',

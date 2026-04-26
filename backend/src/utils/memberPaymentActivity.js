@@ -7,6 +7,12 @@ function recentThresholdDate() {
   return d;
 }
 
+function newMemberGraceThresholdDate() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d;
+}
+
 async function hasRecentTithePayment(userId, churchId, threshold) {
   const row = await TithePayment.findOne({
     user: userId,
@@ -31,6 +37,15 @@ async function hasRecentSubscriptionPayment(userId, churchId, threshold) {
 
 async function syncMemberActiveStatusByPayments(userDoc) {
   if (!userDoc || userDoc.role !== 'MEMBER' || !userDoc.church) return userDoc;
+  const oneMonthAgo = newMemberGraceThresholdDate();
+  const joinedAt = userDoc.membershipDate || userDoc.createdAt;
+  if (joinedAt && new Date(joinedAt) >= oneMonthAgo) {
+    if (!userDoc.isActive) {
+      userDoc.isActive = true;
+      await userDoc.save();
+    }
+    return userDoc;
+  }
   const threshold = recentThresholdDate();
   const [hasRecentTithe, hasRecentSubscription] = await Promise.all([
     hasRecentTithePayment(userDoc._id, userDoc.church, threshold),

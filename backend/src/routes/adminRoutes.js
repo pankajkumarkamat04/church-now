@@ -12,6 +12,7 @@ const financeController = require('../controllers/financeController');
 const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
 const mediaController = require('../controllers/mediaController');
+const announcementController = require('../controllers/announcementController');
 
 const router = express.Router();
 
@@ -47,12 +48,16 @@ router.put('/events/:id', asyncHandler(eventController.update));
 router.delete('/events/:id', asyncHandler(eventController.remove));
 
 router.get('/subscriptions', asyncHandler(subscriptionController.listChurchSubscriptions));
+router.get('/announcements', asyncHandler(announcementController.listAdminAnnouncements));
+router.post('/announcements', asyncHandler(announcementController.createAdminAnnouncement));
 router.get('/tithes', asyncHandler(titheController.listAdminTithes));
 router.get('/donations', asyncHandler(donationController.listAdminDonations));
 router.get('/finance/summary', asyncHandler(financeController.getAdminFinanceSummary));
 router.get('/expenses', asyncHandler(expenseController.listAdminExpenses));
 router.post('/expenses', asyncHandler(expenseController.createAdminExpense));
 router.put('/expenses/:expenseId', asyncHandler(expenseController.updateAdminExpense));
+router.post('/expenses/:expenseId/verify', asyncHandler(expenseController.verifyAdminExpense));
+router.post('/expenses/:expenseId/notice-approval', asyncHandler(expenseController.approveAdminExpenseNotice));
 router.delete('/expenses/:expenseId', asyncHandler(expenseController.removeAdminExpense));
 router.post('/tithes', asyncHandler(titheController.createAdminTithe));
 router.put('/tithes/:titheId', asyncHandler(titheController.updateAdminTithe));

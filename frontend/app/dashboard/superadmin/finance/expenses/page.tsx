@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
 
-const CATEGORIES = ['UTILITIES', 'SUPPLIES', 'SALARY', 'BUILDING', 'OUTREACH', 'OTHER'];
+const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 
 type ExpenseRow = {
   _id: string;
@@ -89,21 +89,6 @@ export default function SuperadminFinanceExpensesPage() {
     if (!token || !window.confirm('Delete this expense?')) return;
     await apiFetch(`/api/superadmin/expenses/${id}`, { method: 'DELETE', token });
     await load();
-  }
-
-  async function decideApproval(id: string, approvalStatus: 'APPROVED' | 'REJECTED') {
-    if (!token) return;
-    setErr(null);
-    try {
-      await apiFetch(`/api/superadmin/expenses/${id}/approval`, {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ approvalStatus }),
-      });
-      await load();
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : 'Failed to update approval');
-    }
   }
 
   if (!user || user.role !== 'SUPERADMIN') return null;
@@ -215,24 +200,6 @@ export default function SuperadminFinanceExpensesPage() {
                   {r.currency} {r.amount.toFixed(2)}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  {r.approvalStatus !== 'APPROVED' ? (
-                    <button
-                      type="button"
-                      onClick={() => void decideApproval(r._id, 'APPROVED')}
-                      className="mr-2 inline-flex items-center text-emerald-700 hover:underline"
-                    >
-                      Approve
-                    </button>
-                  ) : null}
-                  {r.approvalStatus !== 'REJECTED' ? (
-                    <button
-                      type="button"
-                      onClick={() => void decideApproval(r._id, 'REJECTED')}
-                      className="mr-2 inline-flex items-center text-amber-700 hover:underline"
-                    >
-                      Reject
-                    </button>
-                  ) : null}
                   <Link href={`/dashboard/superadmin/finance/expenses/${r._id}/edit`} className="mr-2 inline-flex items-center text-violet-700 hover:underline">
                     Edit
                   </Link>

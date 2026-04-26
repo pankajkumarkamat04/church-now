@@ -12,6 +12,7 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   Wallet,
   X,
@@ -57,6 +58,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const accountActive = pathname === '/dashboard/member/account';
   const financeRecordsActive = pathname === '/dashboard/member/finance';
   const councilsActive = pathname === '/dashboard/member/councils';
+  const announcementsActive = pathname === '/dashboard/member/announcements';
 
   const itemClass = (active: boolean) =>
     `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
@@ -132,6 +134,10 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                 <Link href="/dashboard/member/councils" className={itemClass(councilsActive)}>
                   <Layers className="size-4" />
                   Councils
+                </Link>
+                <Link href="/dashboard/member/announcements" className={itemClass(announcementsActive)}>
+                  <Megaphone className="size-4" />
+                  Announcements
                 </Link>
                 <Link href="/dashboard/member/tithes" className={itemClass(tithesActive)}>
                   <HandCoins className="size-4" />

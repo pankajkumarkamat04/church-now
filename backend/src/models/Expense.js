@@ -29,6 +29,22 @@ const expenseSchema = new mongoose.Schema(
     },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },
+    approvalStage: {
+      type: String,
+      enum: ['PENDING_VERIFICATION', 'PENDING_NOTICE_APPROVALS', 'POSTED'],
+      default: 'PENDING_VERIFICATION',
+      index: true,
+    },
+    initiatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    verifiedAt: { type: Date, default: null },
+    paymentNoticeCreatedAt: { type: Date, default: null },
+    noticeApprovals: {
+      viceSecretary: { type: Boolean, default: false },
+      secretary: { type: Boolean, default: false },
+      viceDeacon: { type: Boolean, default: false },
+      deacon: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

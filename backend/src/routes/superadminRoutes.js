@@ -36,6 +36,7 @@ const subChurchController = require('../controllers/subChurchController');
 const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
 const serviceCouncilController = require('../controllers/serviceCouncilController');
+const announcementController = require('../controllers/announcementController');
 
 const router = express.Router();
 
@@ -73,6 +74,8 @@ router.get('/media', asyncHandler(mediaController.list));
 router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadOne));
 router.delete('/media/:fileName', asyncHandler(mediaController.remove));
 router.get('/subscriptions', asyncHandler(subscriptionController.listSuperadminSubscriptions));
+router.get('/announcements', asyncHandler(announcementController.listSuperadminAnnouncements));
+router.post('/announcements', asyncHandler(announcementController.createSuperadminAnnouncement));
 router.get('/tithes', asyncHandler(titheController.listSuperadminTithes));
 router.get('/donations', asyncHandler(donationController.listSuperadminDonations));
 router.get('/finance/summary', asyncHandler(financeController.getSuperadminFinanceSummary));

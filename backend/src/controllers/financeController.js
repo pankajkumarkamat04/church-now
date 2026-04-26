@@ -4,6 +4,7 @@ const UserSubscription = require('../models/UserSubscription');
 const Expense = require('../models/Expense');
 
 const MAX_TRANSACTION_ROWS = 3500;
+const postedExpenseFilter = { $or: [{ approvalStage: 'POSTED' }, { approvalStatus: 'APPROVED' }] };
 
 function mapTitheRow(t, churchLabel) {
   const uid = t.user && (t.user._id || t.user);
@@ -96,7 +97,7 @@ async function buildTransactionRowsForChurch(churchId, fromStr, toStr, kindsPara
   const titheQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
   const donQ = { church: churchId, ...buildDateRange('donatedAt', fromStr, toStr) };
   const subQ = { church: churchId, ...buildDateRange('startDate', fromStr, toStr) };
-  const expQ = { church: churchId, approvalStatus: 'APPROVED', ...buildDateRange('expenseDate', fromStr, toStr) };
+  const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
   const [tithes, donations, subs, exps] = await Promise.all([
     TithePayment.find(titheQ)
@@ -137,7 +138,7 @@ async function buildTransactionRowsAllChurches(fromStr, toStr, kindsParam) {
   const titheQ = { ...buildDateRange('paidAt', fromStr, toStr) };
   const donQ = { ...buildDateRange('donatedAt', fromStr, toStr) };
   const subQ = { ...buildDateRange('startDate', fromStr, toStr) };
-  const expQ = { approvalStatus: 'APPROVED', ...buildDateRange('expenseDate', fromStr, toStr) };
+  const expQ = { ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
   const [tithes, donations, subs, exps] = await Promise.all([
     TithePayment.find(titheQ)
@@ -236,7 +237,7 @@ async function aggregateForChurch(churchId, fromStr, toStr) {
   const titheQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
   const donQ = { church: churchId, ...buildDateRange('donatedAt', fromStr, toStr) };
   const subQ = { church: churchId, ...buildDateRange('startDate', fromStr, toStr) };
-  const expQ = { church: churchId, approvalStatus: 'APPROVED', ...buildDateRange('expenseDate', fromStr, toStr) };
+  const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
   const [tithes, donations, subs, exps, titheC, donC, subC, expC] = await Promise.all([
     TithePayment.find(titheQ).select('amount currency'),
@@ -315,7 +316,7 @@ async function getSuperadminFinanceSummary(req, res) {
   const titheQ = { ...buildDateRange('paidAt', from, to) };
   const donQ = { ...buildDateRange('donatedAt', from, to) };
   const subQ = { ...buildDateRange('startDate', from, to) };
-  const expQ = { approvalStatus: 'APPROVED', ...buildDateRange('expenseDate', from, to) };
+  const expQ = { ...postedExpenseFilter, ...buildDateRange('expenseDate', from, to) };
 
   const [
     tithes,

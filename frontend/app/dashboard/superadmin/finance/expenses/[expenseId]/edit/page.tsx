@@ -8,7 +8,7 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 
-const CATEGORIES = ['UTILITIES', 'SUPPLIES', 'SALARY', 'BUILDING', 'OUTREACH', 'OTHER'];
+const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 type ConferenceRow = { _id: string; name: string; conferenceId?: string };
 type ExpenseRow = {
   _id: string;
