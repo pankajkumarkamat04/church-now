@@ -35,6 +35,7 @@ const mainChurchController = require('../controllers/mainChurchController');
 const subChurchController = require('../controllers/subChurchController');
 const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
+const serviceCouncilController = require('../controllers/serviceCouncilController');
 
 const router = express.Router();
 
@@ -47,6 +48,16 @@ router.post('/main-churches', asyncHandler(mainChurchController.createMainChurch
 router.get('/main-churches/:id', asyncHandler(mainChurchController.getMainChurch));
 router.put('/main-churches/:id', asyncHandler(mainChurchController.updateMainChurch));
 router.delete('/main-churches/:id', asyncHandler(mainChurchController.deleteMainChurch));
+router.get('/main-churches/:churchId/service-councils', asyncHandler(serviceCouncilController.listForMainChurch));
+router.post('/main-churches/:churchId/service-councils', asyncHandler(serviceCouncilController.createForMainChurch));
+router.put(
+  '/main-churches/:churchId/service-councils/:serviceCouncilId',
+  asyncHandler(serviceCouncilController.updateForMainChurch)
+);
+router.delete(
+  '/main-churches/:churchId/service-councils/:serviceCouncilId',
+  asyncHandler(serviceCouncilController.removeForMainChurch)
+);
 router.get('/sub-churches', asyncHandler(subChurchController.listSubChurches));
 router.post('/sub-churches', asyncHandler(subChurchController.createSubChurch));
 router.get('/sub-churches/:id', asyncHandler(subChurchController.getSubChurch));
@@ -66,8 +77,10 @@ router.get('/tithes', asyncHandler(titheController.listSuperadminTithes));
 router.get('/donations', asyncHandler(donationController.listSuperadminDonations));
 router.get('/finance/summary', asyncHandler(financeController.getSuperadminFinanceSummary));
 router.get('/expenses', asyncHandler(expenseController.listSuperadminExpenses));
+router.get('/expenses/:expenseId', asyncHandler(expenseController.getSuperadminExpense));
 router.post('/expenses', asyncHandler(expenseController.createSuperadminExpense));
 router.put('/expenses/:expenseId', asyncHandler(expenseController.updateSuperadminExpense));
+router.post('/expenses/:expenseId/approval', asyncHandler(expenseController.decideSuperadminExpenseApproval));
 router.delete('/expenses/:expenseId', asyncHandler(expenseController.removeSuperadminExpense));
 router.post('/tithes', asyncHandler(titheController.createSuperadminTithe));
 router.put('/tithes/:titheId', asyncHandler(titheController.updateSuperadminTithe));

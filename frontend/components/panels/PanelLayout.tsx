@@ -145,6 +145,11 @@ function superadminNavGroups(): AdminNavGroup[] {
         { href: '/dashboard/superadmin/churches', label: 'Churches', icon: <Building2 className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/conferences', label: 'Conferences', icon: <Building2 className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/councils', label: 'Councils', icon: <Users className="size-3.5 opacity-70" /> },
+        {
+          href: '/dashboard/superadmin/churches/service-councils',
+          label: 'Service Councils',
+          icon: <Users className="size-3.5 opacity-70" />,
+        },
       ],
     },
     {

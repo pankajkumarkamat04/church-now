@@ -103,13 +103,22 @@ export default function SuperadminChurchesListPage() {
             Manage main churches and sub churches linked to conferences.
           </p>
         </div>
-        <Link
-          href="/dashboard/superadmin/churches/create"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
-        >
-          <Plus className="size-4" aria-hidden />
-          Add church
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/dashboard/superadmin/churches/service-councils"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+          >
+            <Layers className="size-4" aria-hidden />
+            Service councils
+          </Link>
+          <Link
+            href="/dashboard/superadmin/churches/create"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
+          >
+            <Plus className="size-4" aria-hidden />
+            Add church
+          </Link>
+        </div>
       </div>
 
       {err ? (

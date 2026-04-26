@@ -5,7 +5,13 @@ const expenseSchema = new mongoose.Schema(
     church: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Church',
-      required: true,
+      default: null,
+      index: true,
+    },
+    conference: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Conference',
+      default: null,
       index: true,
     },
     title: { type: String, required: true, trim: true, maxlength: 200 },
@@ -15,6 +21,14 @@ const expenseSchema = new mongoose.Schema(
     description: { type: String, trim: true, default: '', maxlength: 2000 },
     expenseDate: { type: Date, required: true, default: Date.now },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    approvalStatus: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+      index: true,
+    },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    approvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

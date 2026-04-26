@@ -18,6 +18,9 @@ type ExpenseRow = {
   description?: string;
   expenseDate?: string;
   createdBy?: { fullName?: string; email?: string };
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedBy?: { fullName?: string; email?: string } | null;
+  approvedAt?: string | null;
 };
 
 const field = 'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
@@ -167,6 +170,7 @@ export default function AdminFinanceExpensesPage() {
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Title</th>
               <th className="px-4 py-2 font-medium">Category</th>
+              <th className="px-4 py-2 font-medium">Approval</th>
               <th className="px-4 py-2 font-medium">Amount</th>
               <th className="px-4 py-2 text-right font-medium">Actions</th>
             </tr>
@@ -177,6 +181,19 @@ export default function AdminFinanceExpensesPage() {
                 <td className="px-4 py-2">{r.expenseDate ? new Date(r.expenseDate).toLocaleDateString() : '—'}</td>
                 <td className="px-4 py-2">{r.title}</td>
                 <td className="px-4 py-2">{r.category}</td>
+                <td className="px-4 py-2">
+                  <span
+                    className={
+                      r.approvalStatus === 'APPROVED'
+                        ? 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
+                        : r.approvalStatus === 'REJECTED'
+                          ? 'rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800'
+                          : 'rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800'
+                    }
+                  >
+                    {r.approvalStatus || 'PENDING'}
+                  </span>
+                </td>
                 <td className="px-4 py-2">
                   {r.currency} {r.amount.toFixed(2)}
                 </td>

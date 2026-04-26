@@ -40,6 +40,15 @@ const churchCouncilSchema = new mongoose.Schema(
   { timestamps: false }
 );
 
+const serviceCouncilSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true, default: '' },
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
 const churchSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -48,6 +57,7 @@ const churchSchema = new mongoose.Schema(
     mainChurch: { type: mongoose.Schema.Types.ObjectId, ref: 'Church', default: null, index: true },
     localLeadership: { type: localLeadershipSchema, default: () => ({}) },
     councils: { type: [churchCouncilSchema], default: [] },
+    serviceCouncils: { type: [serviceCouncilSchema], default: [] },
     address: { type: String, trim: true, default: '' },
     city: { type: String, trim: true, default: '' },
     stateOrProvince: { type: String, trim: true, default: '' },

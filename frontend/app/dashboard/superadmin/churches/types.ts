@@ -38,12 +38,20 @@ export type ChurchCouncil = {
   roles: ChurchCouncilRole[];
 };
 
+export type ServiceCouncil = {
+  _id: string;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+};
+
 export type ChurchRecord = {
   _id: string;
   name: string;
   churchType?: 'MAIN' | 'SUB';
   localLeadership?: LocalLeadership;
   councils?: ChurchCouncil[];
+  serviceCouncils?: ServiceCouncil[];
   conference?:
     | string
     | {
