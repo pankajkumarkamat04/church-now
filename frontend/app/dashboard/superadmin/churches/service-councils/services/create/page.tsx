@@ -15,6 +15,12 @@ type ChurchOption = {
   conference?: string | { _id: string } | null;
 };
 
+type UserListItem = {
+  id: string;
+  fullName?: string;
+  email?: string;
+};
+
 export default function CreateServicePage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
@@ -83,8 +89,16 @@ export default function CreateServicePage() {
       setMembers([]);
       return;
     }
-    apiFetch<ChurchMemberRef[]>(`/api/superadmin/churches/${churchId}/members`, { token })
-      .then(setMembers)
+    apiFetch<UserListItem[]>(`/api/superadmin/users?churchId=${churchId}&role=MEMBER`, { token })
+      .then((rows) =>
+        setMembers(
+          rows.map((u) => ({
+            _id: u.id,
+            fullName: u.fullName,
+            email: u.email,
+          }))
+        )
+      )
       .catch(() => setMembers([]));
   }, [token, churchId]);
 

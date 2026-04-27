@@ -9,6 +9,7 @@ import type { ChurchMemberRef, ChurchRecord, ServiceCouncil } from '../../../../
 
 type Conference = { _id: string; name?: string; conferenceId?: string };
 type ChurchOption = { _id: string; name: string; conference?: string | { _id: string } | null };
+type UserListItem = { id: string; fullName?: string; email?: string };
 
 export default function EditServicePage() {
   const { user, token, loading } = useAuth();
@@ -104,8 +105,16 @@ export default function EditServicePage() {
       setMembers([]);
       return;
     }
-    apiFetch<ChurchMemberRef[]>(`/api/superadmin/churches/${churchId}/members`, { token })
-      .then(setMembers)
+    apiFetch<UserListItem[]>(`/api/superadmin/users?churchId=${churchId}&role=MEMBER`, { token })
+      .then((rows) =>
+        setMembers(
+          rows.map((u) => ({
+            _id: u.id,
+            fullName: u.fullName,
+            email: u.email,
+          }))
+        )
+      )
       .catch(() => setMembers([]));
   }, [token, churchId]);
 
