@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const me = await apiFetch<AuthUser>('/api/auth/me', {
       token: stored.token,
+      timeoutMs: 5000,
     });
     setUser(me);
     setToken(stored.token);

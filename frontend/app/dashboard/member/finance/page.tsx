@@ -7,38 +7,20 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
-type TitheRow = {
+type PaymentRow = {
   _id: string;
-  monthKey: string;
+  paymentOption: string;
+  source: string;
   amount: number;
   currency: string;
   note?: string;
   paidAt?: string;
-};
-
-type DonationRow = {
-  _id: string;
-  amount: number;
-  currency: string;
-  note?: string;
-  donatedAt?: string;
   createdAt?: string;
-};
-
-type SubRow = {
-  _id: string;
-  status: string;
-  monthlyPrice: number;
-  currency: string;
-  startDate?: string;
-  renewalDate?: string;
-  createdAt?: string;
-  cancelledAt?: string;
 };
 
 type ActivityRow = {
   id: string;
-  kind: 'Tithe' | 'Donation' | 'Subscription';
+  kind: 'Payment';
   sortTime: number;
   amount: number;
   currency: string;
@@ -52,33 +34,20 @@ function parseTime(d?: string | null): number {
   return Number.isFinite(t) ? t : 0;
 }
 
-function monthKeyStart(monthKey: string): number {
-  if (!/^\d{4}-\d{2}$/.test(monthKey)) return 0;
-  return new Date(`${monthKey}-01T12:00:00.000Z`).getTime();
-}
-
 export default function MemberFinanceRecordsPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [tithes, setTithes] = useState<TitheRow[]>([]);
-  const [donations, setDonations] = useState<DonationRow[]>([]);
-  const [subscriptions, setSubscriptions] = useState<SubRow[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
     setBusy(true);
     try {
-      const [t, d, s] = await Promise.all([
-        apiFetch<TitheRow[]>('/api/member/tithes', { token }),
-        apiFetch<DonationRow[]>('/api/member/donations', { token }),
-        apiFetch<SubRow[]>('/api/member/subscriptions/history', { token }),
-      ]);
-      setTithes(t);
-      setDonations(d);
-      setSubscriptions(s);
+      const p = await apiFetch<PaymentRow[]>('/api/member/payments', { token });
+      setPayments(p);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load records');
     } finally {
@@ -105,52 +74,21 @@ export default function MemberFinanceRecordsPage() {
 
   const activity = useMemo(() => {
     const rows: ActivityRow[] = [];
-    for (const r of tithes) {
-      const t = r.paidAt ? parseTime(r.paidAt) : monthKeyStart(r.monthKey);
+    for (const r of payments) {
+      const t = parseTime(r.paidAt) || parseTime(r.createdAt);
       rows.push({
-        id: `t-${r._id}`,
-        kind: 'Tithe',
+        id: `p-${r._id}`,
+        kind: 'Payment',
         sortTime: t,
         amount: r.amount,
         currency: r.currency,
-        summary: r.note ? `Tithe · ${r.monthKey} · ${r.note}` : `Tithe · ${r.monthKey}`,
-        dateLabel: r.paidAt
-          ? new Date(r.paidAt).toLocaleString()
-          : r.monthKey,
-      });
-    }
-    for (const r of donations) {
-      const t = parseTime(r.donatedAt);
-      rows.push({
-        id: `d-${r._id}`,
-        kind: 'Donation',
-        sortTime: t || parseTime(r.createdAt),
-        amount: r.amount,
-        currency: r.currency,
-        summary: r.note ? `Donation · ${r.note}` : 'Donation',
-        dateLabel: r.donatedAt ? new Date(r.donatedAt).toLocaleString() : '—',
-      });
-    }
-    for (const r of subscriptions) {
-      const t = parseTime(r.startDate) || parseTime(r.createdAt);
-      const status = String(r.status || '').toUpperCase();
-      rows.push({
-        id: `s-${r._id}`,
-        kind: 'Subscription',
-        sortTime: t,
-        amount: r.monthlyPrice,
-        currency: r.currency || 'USD',
-        summary: `Subscription · ${status}${r.cancelledAt ? ' · ended' : ''}`,
-        dateLabel: r.startDate
-          ? new Date(r.startDate).toLocaleDateString()
-          : r.createdAt
-            ? new Date(r.createdAt).toLocaleDateString()
-            : '—',
+        summary: r.note ? `${r.paymentOption} · ${r.note}` : `${r.paymentOption} · ${r.source}`,
+        dateLabel: r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '—',
       });
     }
     rows.sort((a, b) => b.sortTime - a.sortTime);
     return rows;
-  }, [tithes, donations, subscriptions]);
+  }, [payments]);
 
   if (!user || !canAccessMemberPortal(user)) return null;
 
@@ -158,27 +96,15 @@ export default function MemberFinanceRecordsPage() {
     <div className="w-full min-w-0 max-w-5xl">
       <h1 className="text-2xl font-semibold text-neutral-900">My finance records</h1>
       <p className="mt-1 text-sm text-neutral-600">
-        All tithes, donations, and subscription payments for your account at your church, newest first. Only you can
+        All payments for your account at your church, newest first. Only you can
         see these entries.
       </p>
       <div className="mt-4 flex flex-wrap gap-3 text-sm">
         <Link
-          href="/dashboard/member/tithes"
+          href="/dashboard/member/payments"
           className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-neutral-700 shadow-sm hover:bg-neutral-50"
         >
-          Pay tithe
-        </Link>
-        <Link
-          href="/dashboard/member/donations"
-          className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-neutral-700 shadow-sm hover:bg-neutral-50"
-        >
-          Donate
-        </Link>
-        <Link
-          href="/dashboard/member/subscriptions"
-          className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-neutral-700 shadow-sm hover:bg-neutral-50"
-        >
-          Subscriptions
+          Make payment
         </Link>
       </div>
       {err ? (

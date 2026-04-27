@@ -43,6 +43,15 @@ export type ServiceCouncil = {
   name: string;
   description?: string;
   isActive?: boolean;
+  services?: Array<{
+    _id: string;
+    name: string;
+    head?: ChurchMemberRef | string | null;
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    isActive?: boolean;
+  }>;
 };
 
 export type ChurchRecord = {

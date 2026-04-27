@@ -11,9 +11,9 @@ import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
 type Summary = {
   byCurrency: Record<
     string,
-    { tithes: number; donations: number; subscriptions: number; expenses: number; incomeTotal: number; net: number }
+    { payments: number; expenses: number; incomeTotal: number; net: number }
   >;
-  counts: { tithes: number; donations: number; subscriptions: number; expenses: number };
+  counts: { payments: number; expenses: number };
 };
 
 export default function AdminFinanceOverviewPage() {
@@ -49,7 +49,7 @@ export default function AdminFinanceOverviewPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Overview</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Tithes, subscription payments, donations, and expenses for your church.
+          Unified payments and expenses for your church.
         </p>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
@@ -81,8 +81,7 @@ export default function AdminFinanceOverviewPage() {
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium text-neutral-500">Records</p>
               <p className="mt-1 text-sm text-neutral-700">
-                Tithes {summary.counts.tithes} · Subs {summary.counts.subscriptions} · Donations {summary.counts.donations} ·
-                Expenses {summary.counts.expenses}
+                Payments {summary.counts.payments} · Expenses {summary.counts.expenses}
               </p>
             </div>
           </div>
@@ -111,31 +110,11 @@ export default function AdminFinanceOverviewPage() {
           </span>
         </Link>
         <Link
-          href="/dashboard/admin/subscriptions"
+          href="/dashboard/admin/payments"
           className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-sky-300"
         >
-          <span className="text-sm font-semibold text-neutral-900">Subscriptions</span>
-          <span className="mt-1 text-sm text-neutral-600">Member subscription payments</span>
-          <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700">
-            Open <ArrowRight className="size-3.5" />
-          </span>
-        </Link>
-        <Link
-          href="/dashboard/admin/tithes"
-          className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-sky-300"
-        >
-          <span className="text-sm font-semibold text-neutral-900">Tithes</span>
-          <span className="mt-1 text-sm text-neutral-600">Tithe payment records</span>
-          <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700">
-            Open <ArrowRight className="size-3.5" />
-          </span>
-        </Link>
-        <Link
-          href="/dashboard/admin/donations"
-          className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-sky-300"
-        >
-          <span className="text-sm font-semibold text-neutral-900">Donations</span>
-          <span className="mt-1 text-sm text-neutral-600">All donations to your church</span>
+          <span className="text-sm font-semibold text-neutral-900">Payments</span>
+          <span className="mt-1 text-sm text-neutral-600">All member payment options in one list</span>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700">
             Open <ArrowRight className="size-3.5" />
           </span>

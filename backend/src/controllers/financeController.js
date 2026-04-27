@@ -1,65 +1,35 @@
-const TithePayment = require('../models/TithePayment');
-const Donation = require('../models/Donation');
-const UserSubscription = require('../models/UserSubscription');
+const { Payment } = require('../models/Payment');
 const Expense = require('../models/Expense');
 
 const MAX_TRANSACTION_ROWS = 3500;
 const postedExpenseFilter = { $or: [{ approvalStage: 'POSTED' }, { approvalStatus: 'APPROVED' }] };
 
-function mapTitheRow(t, churchLabel) {
-  const uid = t.user && (t.user._id || t.user);
-  const payWay =
-    t.createdBy && String(t.createdBy) !== String(uid) ? 'Office / admin entry' : 'Member portal';
+function mapPaymentRow(p, churchLabel) {
+  const breakdown = Array.isArray(p.paymentLines)
+    ? p.paymentLines
+        .map((line) => [line.paymentType, line.amount])
+        .filter(([, v]) => Number(v) > 0)
+    : [];
+  const option = breakdown.length === 1 ? String(breakdown[0][0] || 'PAYMENT').toUpperCase() : 'PAYMENT';
+  const type = breakdown.length > 1 ? 'Combined payment' : option.charAt(0) + option.slice(1).toLowerCase();
+  const breakdownText =
+    breakdown.length > 0
+      ? breakdown.map(([k, v]) => `${k}:${Number(v).toFixed(2)}`).join(', ')
+      : '';
   return {
-    id: `tithe-${t._id}`,
-    kind: 'TITHE',
-    paymentType: 'Tithe',
-    paymentWay: payWay,
-    amount: Number(t.amount || 0),
-    currency: String(t.currency || 'USD').toUpperCase(),
-    date: t.paidAt ? new Date(t.paidAt).toISOString() : null,
-    party: (t.user && t.user.fullName) || (t.user && t.user.email) || '—',
-    description: (t.note && String(t.note).trim()) || `Tithe — ${t.monthKey}`,
-    status: '—',
-    reference: String(t._id),
-    churchId: t.church ? String(t.church) : null,
-    churchName: churchLabel || null,
-  };
-}
-
-function mapDonationRow(d, churchLabel) {
-  return {
-    id: `donation-${d._id}`,
-    kind: 'DONATION',
-    paymentType: 'Donation',
-    paymentWay: d.source === 'MEMBER' ? 'Member portal' : 'Public / guest',
-    amount: Number(d.amount || 0),
-    currency: String(d.currency || 'USD').toUpperCase(),
-    date: d.donatedAt ? new Date(d.donatedAt).toISOString() : null,
-    party: (d.user && d.user.fullName) || (d.user && d.user.email) || d.donorName || d.donorEmail || '—',
-    description: (d.note && String(d.note).trim()) || (d.source ? `Source: ${d.source}` : 'Donation'),
-    status: d.source || '—',
-    reference: String(d._id),
-    churchId: d.church ? String(d.church) : null,
-    churchName: churchLabel || (d.church && d.church.name) || null,
-  };
-}
-
-function mapSubscriptionRow(s, churchLabel) {
-  return {
-    id: `subscription-${s._id}`,
-    kind: 'SUBSCRIPTION',
-    paymentType: 'Subscription',
-    paymentWay: 'Recurring (member plan)',
-    amount: Number(s.monthlyPrice || 0),
-    currency: String(s.currency || 'USD').toUpperCase(),
-    date: s.startDate ? new Date(s.startDate).toISOString() : null,
-    party: (s.user && s.user.fullName) || (s.user && s.user.email) || '—',
-    description: `Subscription${s.status ? ` — ${s.status}` : ''}`,
-    status: s.status || '—',
-    reference: String(s._id),
-    churchId: s.church ? String(s.church) : null,
-    churchName: churchLabel || (s.church && s.church.name) || null,
+    id: `payment-${p._id}`,
+    kind: 'PAYMENT',
+    paymentType: type,
+    paymentWay: p.source || '—',
+    amount: Number(p.amount || 0),
+    currency: String(p.currency || 'USD').toUpperCase(),
+    date: p.paidAt ? new Date(p.paidAt).toISOString() : null,
+    party: (p.user && p.user.fullName) || (p.user && p.user.email) || p.donorName || p.donorEmail || '—',
+    description: (p.note && String(p.note).trim()) || breakdownText || `${type} payment`,
+    status: breakdown.length > 1 ? 'COMBINED' : option,
+    reference: String(p._id),
+    churchId: p.church ? String(p.church) : null,
+    churchName: churchLabel || (p.church && p.church.name) || null,
   };
 }
 
@@ -94,31 +64,16 @@ function filterKinds(rows, kindsParam) {
 }
 
 async function buildTransactionRowsForChurch(churchId, fromStr, toStr, kindsParam) {
-  const titheQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
-  const donQ = { church: churchId, ...buildDateRange('donatedAt', fromStr, toStr) };
-  const subQ = { church: churchId, ...buildDateRange('startDate', fromStr, toStr) };
+  const payQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
   const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
-  const [tithes, donations, subs, exps] = await Promise.all([
-    TithePayment.find(titheQ)
-      .populate('user', 'fullName email')
-      .select('amount currency paidAt monthKey note user church createdBy')
-      .lean(),
-    Donation.find(donQ)
-      .populate('user', 'fullName email')
-      .select('amount currency donatedAt note user church donorName donorEmail source')
-      .lean(),
-    UserSubscription.find(subQ)
-      .populate('user', 'fullName email')
-      .select('monthlyPrice currency startDate status user church')
-      .lean(),
+  const [payments, exps] = await Promise.all([
+    Payment.find(payQ).populate('user', 'fullName email').select('amount currency paidAt paymentLines note user church source donorName donorEmail').lean(),
     Expense.find(expQ).select('title amount currency expenseDate category description church').lean(),
   ]);
 
   const rows = [];
-  for (const t of tithes) rows.push(mapTitheRow(t, null));
-  for (const d of donations) rows.push(mapDonationRow(d, null));
-  for (const s of subs) rows.push(mapSubscriptionRow(s, null));
+  for (const p of payments) rows.push(mapPaymentRow(p, null));
   for (const e of exps) rows.push(mapExpenseRow(e, null));
 
   rows.sort((a, b) => {
@@ -135,42 +90,22 @@ async function buildTransactionRowsForChurch(churchId, fromStr, toStr, kindsPara
 }
 
 async function buildTransactionRowsAllChurches(fromStr, toStr, kindsParam) {
-  const titheQ = { ...buildDateRange('paidAt', fromStr, toStr) };
-  const donQ = { ...buildDateRange('donatedAt', fromStr, toStr) };
-  const subQ = { ...buildDateRange('startDate', fromStr, toStr) };
+  const payQ = { ...buildDateRange('paidAt', fromStr, toStr) };
   const expQ = { ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
-  const [tithes, donations, subs, exps] = await Promise.all([
-    TithePayment.find(titheQ)
+  const [payments, exps] = await Promise.all([
+    Payment.find(payQ)
       .populate('user', 'fullName email')
       .populate('church', 'name')
-      .select('amount currency paidAt monthKey note user church createdBy')
-      .lean(),
-    Donation.find(donQ)
-      .populate('user', 'fullName email')
-      .populate('church', 'name')
-      .select('amount currency donatedAt note user church donorName donorEmail source')
-      .lean(),
-    UserSubscription.find(subQ)
-      .populate('user', 'fullName email')
-      .populate('church', 'name')
-      .select('monthlyPrice currency startDate status user church')
+      .select('amount currency paidAt paymentLines note user church source donorName donorEmail')
       .lean(),
     Expense.find(expQ).populate('church', 'name').select('title amount currency expenseDate category description church').lean(),
   ]);
 
   const rows = [];
-  for (const t of tithes) {
-    const name = t.church && t.church.name;
-    rows.push(mapTitheRow(t, name));
-  }
-  for (const d of donations) {
-    const name = d.church && d.church.name;
-    rows.push(mapDonationRow(d, name));
-  }
-  for (const s of subs) {
-    const name = s.church && s.church.name;
-    rows.push(mapSubscriptionRow(s, name));
+  for (const p of payments) {
+    const name = p.church && p.church.name;
+    rows.push(mapPaymentRow(p, name));
   }
   for (const e of exps) {
     const name = e.church && e.church.name;
@@ -210,9 +145,7 @@ function ensureCurrency(buckets, currency) {
   const c = (currency || 'USD').toUpperCase();
   if (!buckets[c]) {
     buckets[c] = {
-      tithes: 0,
-      donations: 0,
-      subscriptions: 0,
+      payments: 0,
       expenses: 0,
     };
   }
@@ -222,7 +155,7 @@ function ensureCurrency(buckets, currency) {
 function addTotals(buckets) {
   const byCurrency = {};
   for (const [cur, v] of Object.entries(buckets)) {
-    const income = v.tithes + v.donations + v.subscriptions;
+    const income = v.payments;
     const net = income - v.expenses;
     byCurrency[cur] = {
       ...v,
@@ -234,34 +167,20 @@ function addTotals(buckets) {
 }
 
 async function aggregateForChurch(churchId, fromStr, toStr) {
-  const titheQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
-  const donQ = { church: churchId, ...buildDateRange('donatedAt', fromStr, toStr) };
-  const subQ = { church: churchId, ...buildDateRange('startDate', fromStr, toStr) };
+  const payQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
   const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
-  const [tithes, donations, subs, exps, titheC, donC, subC, expC] = await Promise.all([
-    TithePayment.find(titheQ).select('amount currency'),
-    Donation.find(donQ).select('amount currency'),
-    UserSubscription.find(subQ).select('monthlyPrice currency'),
+  const [payments, exps, payC, expC] = await Promise.all([
+    Payment.find(payQ).select('amount currency'),
     Expense.find(expQ).select('amount currency'),
-    TithePayment.countDocuments(titheQ),
-    Donation.countDocuments(donQ),
-    UserSubscription.countDocuments(subQ),
+    Payment.countDocuments(payQ),
     Expense.countDocuments(expQ),
   ]);
 
   const buckets = {};
-  for (const t of tithes) {
-    const c = ensureCurrency(buckets, t.currency);
-    buckets[c].tithes += Number(t.amount || 0);
-  }
-  for (const d of donations) {
-    const c = ensureCurrency(buckets, d.currency);
-    buckets[c].donations += Number(d.amount || 0);
-  }
-  for (const s of subs) {
-    const c = ensureCurrency(buckets, s.currency);
-    buckets[c].subscriptions += Number(s.monthlyPrice || 0);
+  for (const p of payments) {
+    const c = ensureCurrency(buckets, p.currency);
+    buckets[c].payments += Number(p.amount || 0);
   }
   for (const e of exps) {
     const c = ensureCurrency(buckets, e.currency);
@@ -271,9 +190,7 @@ async function aggregateForChurch(churchId, fromStr, toStr) {
   return {
     byCurrency: addTotals(buckets),
     counts: {
-      tithes: titheC,
-      donations: donC,
-      subscriptions: subC,
+      payments: payC,
       expenses: expC,
     },
   };
@@ -313,45 +230,27 @@ async function getSuperadminFinanceSummary(req, res) {
     });
   }
 
-  const titheQ = { ...buildDateRange('paidAt', from, to) };
-  const donQ = { ...buildDateRange('donatedAt', from, to) };
-  const subQ = { ...buildDateRange('startDate', from, to) };
+  const payQ = { ...buildDateRange('paidAt', from, to) };
   const expQ = { ...postedExpenseFilter, ...buildDateRange('expenseDate', from, to) };
 
   const [
-    tithes,
-    donations,
-    subs,
+    payments,
     exps,
-    titheC,
-    donC,
-    subC,
+    payC,
     expC,
     tx,
   ] = await Promise.all([
-    TithePayment.find(titheQ).select('amount currency'),
-    Donation.find(donQ).select('amount currency'),
-    UserSubscription.find(subQ).select('monthlyPrice currency'),
+    Payment.find(payQ).select('amount currency'),
     Expense.find(expQ).select('amount currency'),
-    TithePayment.countDocuments(titheQ),
-    Donation.countDocuments(donQ),
-    UserSubscription.countDocuments(subQ),
+    Payment.countDocuments(payQ),
     Expense.countDocuments(expQ),
     buildTransactionRowsAllChurches(from, to, kinds),
   ]);
 
   const buckets = {};
-  for (const t of tithes) {
-    const c = ensureCurrency(buckets, t.currency);
-    buckets[c].tithes += Number(t.amount || 0);
-  }
-  for (const d of donations) {
-    const c = ensureCurrency(buckets, d.currency);
-    buckets[c].donations += Number(d.amount || 0);
-  }
-  for (const s of subs) {
-    const c = ensureCurrency(buckets, s.currency);
-    buckets[c].subscriptions += Number(s.monthlyPrice || 0);
+  for (const p of payments) {
+    const c = ensureCurrency(buckets, p.currency);
+    buckets[c].payments += Number(p.amount || 0);
   }
   for (const e of exps) {
     const c = ensureCurrency(buckets, e.currency);
@@ -364,9 +263,7 @@ async function getSuperadminFinanceSummary(req, res) {
     to: to || null,
     byCurrency: addTotals(buckets),
     counts: {
-      tithes: titheC,
-      donations: donC,
-      subscriptions: subC,
+      payments: payC,
       expenses: expC,
     },
     ...tx,

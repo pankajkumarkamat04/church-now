@@ -6,18 +6,14 @@ import { usePathname } from 'next/navigation';
 const adminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/admin/finance', label: 'Overview' },
   { href: '/dashboard/admin/finance/reports', label: 'Reports' },
-  { href: '/dashboard/admin/subscriptions', label: 'Subscriptions' },
-  { href: '/dashboard/admin/tithes', label: 'Tithes' },
-  { href: '/dashboard/admin/donations', label: 'Donations' },
+  { href: '/dashboard/admin/payments', label: 'Payments' },
   { href: '/dashboard/admin/finance/expenses', label: 'Expenses' },
 ];
 
 const superadminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/superadmin/finance', label: 'Overview' },
   { href: '/dashboard/superadmin/finance/reports', label: 'Reports' },
-  { href: '/dashboard/superadmin/subscriptions', label: 'Subscriptions' },
-  { href: '/dashboard/superadmin/tithes', label: 'Tithes' },
-  { href: '/dashboard/superadmin/donations', label: 'Donations' },
+  { href: '/dashboard/superadmin/payments', label: 'Payments' },
   { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses' },
 ];
 

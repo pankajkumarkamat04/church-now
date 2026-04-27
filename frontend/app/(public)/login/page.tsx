@@ -95,10 +95,10 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          disabled={busy || loading}
+          disabled={busy}
           className="flex w-full items-center justify-center gap-2 rounded-md bg-neutral-900 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy || loading ? (
+          {busy ? (
             <>
               <Loader2 className="size-4 animate-spin" />
               Signing in…

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
@@ -125,19 +126,21 @@ export default function SuperadminServiceCouncilsPage() {
             Main church: {mainChurch?.name || 'Not created yet'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (!mainChurchId) return;
-            setErr(null);
-            setCreateOpen(true);
-          }}
-          disabled={!mainChurchId}
-          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
-        >
-          <Plus className="size-4" />
-          Add service council
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (!mainChurchId) return;
+              setErr(null);
+              setCreateOpen(true);
+            }}
+            disabled={!mainChurchId}
+            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+          >
+            <Plus className="size-4" />
+            Add service council
+          </button>
+        </div>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
       {!mainChurchId ? (
@@ -151,6 +154,7 @@ export default function SuperadminServiceCouncilsPage() {
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Service council</th>
                 <th className="px-4 py-3 font-medium">Description</th>
+                <th className="px-4 py-3 font-medium">Services</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -159,8 +163,15 @@ export default function SuperadminServiceCouncilsPage() {
                 <tr key={row._id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{row.name}</td>
                   <td className="px-4 py-3 text-neutral-600">{row.description || '—'}</td>
+                  <td className="px-4 py-3 text-neutral-600">{row.services?.length || 0}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/dashboard/superadmin/churches/service-councils/services?councilId=${row._id}`}
+                        className={btn}
+                      >
+                        Manage services
+                      </Link>
                       <button type="button" onClick={() => void renameServiceCouncil(row)} className={btn}>
                         Rename
                       </button>

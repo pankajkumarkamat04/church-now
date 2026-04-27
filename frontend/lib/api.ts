@@ -121,9 +121,9 @@ export function clearAuth(): void {
 
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit & { token?: string | null } = {}
+  options: RequestInit & { token?: string | null; timeoutMs?: number } = {}
 ): Promise<T> {
-  const { token, ...init } = options;
+  const { token, timeoutMs, ...init } = options;
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(init.headers || {}),
@@ -132,7 +132,16 @@ export async function apiFetch<T>(
   if (t) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${t}`;
   }
-  const res = await fetch(`${getApiBase()}${path}`, { ...init, headers });
+  const controller = new AbortController();
+  const timeout =
+    typeof timeoutMs === 'number' && timeoutMs > 0
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+  const res = await fetch(`${getApiBase()}${path}`, { ...init, headers, signal: controller.signal }).finally(
+    () => {
+      if (timeout) clearTimeout(timeout);
+    }
+  );
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;

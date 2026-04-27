@@ -8,9 +8,7 @@ import {
   Building2,
   Calendar,
   ChevronDown,
-  CreditCard,
   FolderOpen,
-  HandCoins,
   Home,
   LayoutDashboard,
   LogOut,
@@ -98,9 +96,7 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (
       href === '/dashboard/admin/finance/reports' ||
       href === '/dashboard/admin/finance/expenses' ||
-      href === '/dashboard/admin/subscriptions' ||
-      href === '/dashboard/admin/tithes' ||
-      href === '/dashboard/admin/donations'
+      href === '/dashboard/admin/payments'
     ) {
       return pathname === href || pathname.startsWith(`${href}/`);
     }
@@ -116,9 +112,7 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (
       href === '/dashboard/superadmin/finance/reports' ||
       href === '/dashboard/superadmin/finance/expenses' ||
-      href === '/dashboard/superadmin/subscriptions' ||
-      href === '/dashboard/superadmin/tithes' ||
-      href === '/dashboard/superadmin/donations'
+      href === '/dashboard/superadmin/payments'
     ) {
       return pathname === href || pathname.startsWith(`${href}/`);
     }
@@ -198,9 +192,7 @@ function superadminNavGroups(): AdminNavGroup[] {
       icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
       children: [
         { href: '/dashboard/superadmin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/subscriptions', label: 'Subscriptions', icon: <CreditCard className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/tithes', label: 'Tithes', icon: <HandCoins className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/donations', label: 'Donations', icon: <HandCoins className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
       ],
@@ -245,9 +237,7 @@ function superadminPathInGroup(
     return (
       pathname === '/dashboard/superadmin/finance' ||
       pathname.startsWith('/dashboard/superadmin/finance/') ||
-      pathname.startsWith('/dashboard/superadmin/subscriptions') ||
-      pathname.startsWith('/dashboard/superadmin/tithes') ||
-      pathname.startsWith('/dashboard/superadmin/donations')
+      pathname.startsWith('/dashboard/superadmin/payments')
     );
   }
   return false;
@@ -261,9 +251,7 @@ function adminNavGroups(): AdminNavGroup[] {
       icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
       children: [
         { href: '/dashboard/admin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/subscriptions', label: 'Subscriptions', icon: <CreditCard className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/tithes', label: 'Tithes', icon: <HandCoins className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/donations', label: 'Donations', icon: <HandCoins className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/admin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/admin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
       ],
@@ -344,9 +332,7 @@ export function PanelLayout({
   const adminPathFinance =
     pathname === '/dashboard/admin/finance' ||
     pathname.startsWith('/dashboard/admin/finance/') ||
-    pathname.startsWith('/dashboard/admin/subscriptions') ||
-    pathname.startsWith('/dashboard/admin/tithes') ||
-    pathname.startsWith('/dashboard/admin/donations');
+    pathname.startsWith('/dashboard/admin/payments');
 
   useEffect(() => {
     if (loading) return;

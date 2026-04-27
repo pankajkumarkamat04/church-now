@@ -42,17 +42,15 @@ type Summary = {
   to: string | null;
   byCurrency: Record<
     string,
-    { tithes: number; donations: number; subscriptions: number; expenses: number; incomeTotal: number; net: number }
+    { payments: number; expenses: number; incomeTotal: number; net: number }
   >;
-  counts: { tithes: number; donations: number; subscriptions: number; expenses: number };
+  counts: { payments: number; expenses: number };
   transactions: FinanceTx[];
   transactionMeta: { total: number; returned: number; truncated: boolean };
 };
 
 const KINDS = [
-  { id: 'TITHE', label: 'Tithe' },
-  { id: 'DONATION', label: 'Donation' },
-  { id: 'SUBSCRIPTION', label: 'Subscription' },
+  { id: 'PAYMENT', label: 'Payment' },
   { id: 'EXPENSE', label: 'Expense' },
 ] as const;
 
@@ -74,9 +72,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [kindToggles, setKindToggles] = useState<Record<string, boolean>>({
-    TITHE: true,
-    DONATION: true,
-    SUBSCRIPTION: true,
+    PAYMENT: true,
     EXPENSE: true,
   });
   const [search, setSearch] = useState('');
@@ -165,7 +161,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   }, [summary, kindToggles, search]);
 
   const amountBarData = useMemo(() => {
-    const m: Record<string, number> = { TITHE: 0, DONATION: 0, SUBSCRIPTION: 0, EXPENSE: 0 };
+    const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 };
     for (const r of filteredRows) {
       if (r.currency !== chartCurrency) continue;
       m[r.kind] = (m[r.kind] || 0) + r.amount;
@@ -178,7 +174,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   }, [filteredRows, chartCurrency, kindToggles]);
 
   const countPieData = useMemo(() => {
-    const m: Record<string, number> = { TITHE: 0, DONATION: 0, SUBSCRIPTION: 0, EXPENSE: 0 };
+    const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 };
     for (const r of filteredRows) {
       m[r.kind] = (m[r.kind] || 0) + 1;
     }
@@ -373,7 +369,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                 <thead className="text-neutral-600">
                   <tr>
                     <th className="px-4 py-2 font-medium">Currency</th>
-                    <th className="px-4 py-2 font-medium">Tithe + donation + sub (income)</th>
+                    <th className="px-4 py-2 font-medium">Payments (income)</th>
                     <th className="px-4 py-2 font-medium">Expenses</th>
                     <th className="px-4 py-2 font-medium">Net</th>
                   </tr>

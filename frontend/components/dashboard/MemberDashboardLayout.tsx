@@ -7,7 +7,6 @@ import {
   Briefcase,
   CircleUserRound,
   CreditCard,
-  HandCoins,
   Home,
   Layers,
   LayoutDashboard,
@@ -52,9 +51,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   }
 
   const overviewActive = pathname === '/dashboard/member';
-  const subscriptionsActive = pathname === '/dashboard/member/subscriptions';
-  const tithesActive = pathname === '/dashboard/member/tithes';
-  const donationsActive = pathname === '/dashboard/member/donations';
+  const paymentsActive = pathname === '/dashboard/member/payments';
   const accountActive = pathname === '/dashboard/member/account';
   const financeRecordsActive = pathname === '/dashboard/member/finance';
   const councilsActive = pathname === '/dashboard/member/councils';
@@ -127,9 +124,9 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                   <Wallet className="size-4" />
                   My records
                 </Link>
-                <Link href="/dashboard/member/subscriptions" className={itemClass(subscriptionsActive)}>
+                <Link href="/dashboard/member/payments" className={itemClass(paymentsActive)}>
                   <CreditCard className="size-4" />
-                  Subscription
+                  Payments
                 </Link>
                 <Link href="/dashboard/member/councils" className={itemClass(councilsActive)}>
                   <Layers className="size-4" />
@@ -138,14 +135,6 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                 <Link href="/dashboard/member/announcements" className={itemClass(announcementsActive)}>
                   <Megaphone className="size-4" />
                   Announcements
-                </Link>
-                <Link href="/dashboard/member/tithes" className={itemClass(tithesActive)}>
-                  <HandCoins className="size-4" />
-                  Tithes
-                </Link>
-                <Link href="/dashboard/member/donations" className={itemClass(donationsActive)}>
-                  <HandCoins className="size-4" />
-                  Donations
                 </Link>
                 {user.role === 'ADMIN' ? (
                   <Link

@@ -42,6 +42,22 @@ const churchCouncilSchema = new mongoose.Schema(
 
 const serviceCouncilSchema = new mongoose.Schema(
   {
+    services: {
+      type: [
+        new mongoose.Schema(
+          {
+            name: { type: String, required: true, trim: true },
+            head: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+            contactName: { type: String, trim: true, default: '' },
+            contactPhone: { type: String, trim: true, default: '' },
+            contactEmail: { type: String, trim: true, default: '' },
+            isActive: { type: Boolean, default: true },
+          },
+          { timestamps: true }
+        ),
+      ],
+      default: [],
+    },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true, default: '' },
     isActive: { type: Boolean, default: true },

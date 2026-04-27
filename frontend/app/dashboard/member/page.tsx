@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, CreditCard, HandCoins, Layers, MapPin, UserRound } from 'lucide-react';
+import { ArrowRight, CreditCard, Layers, MapPin, UserRound } from 'lucide-react';
 import { apiFetch, type MemberAddress } from '@/lib/api';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
@@ -116,18 +116,18 @@ export default function MemberDashboardPage() {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Link
-          href="/dashboard/member/subscriptions"
+          href="/dashboard/member/payments"
           className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
         >
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-neutral-700">Subscription</p>
+            <p className="text-sm font-medium text-neutral-700">Payments</p>
             <CreditCard className="size-4 text-neutral-500" />
           </div>
           <p className="mt-2 text-lg font-semibold text-neutral-900">
-            {profile?.fullName ? 'Manage plan' : 'Open'}
+            {profile?.fullName ? 'Add payment' : 'Open'}
           </p>
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
-            View plans and billing cycle
+            Fill all options and submit once
             <ArrowRight className="size-3.5" />
           </p>
         </Link>
@@ -173,20 +173,14 @@ export default function MemberDashboardPage() {
             <ArrowRight className="size-3.5" />
           </p>
         </Link>
-        <Link
-          href="/dashboard/member/donations"
-          className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:border-neutral-300"
-        >
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-neutral-700">Donations</p>
-            <HandCoins className="size-4 text-neutral-500" />
+            <p className="text-sm font-medium text-neutral-700">Payment summary</p>
+            <CreditCard className="size-4 text-neutral-500" />
           </div>
-          <p className="mt-2 text-lg font-semibold text-neutral-900">Give support</p>
-          <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-500">
-            Donate any amount to your church
-            <ArrowRight className="size-3.5" />
-          </p>
-        </Link>
+          <p className="mt-2 text-lg font-semibold text-neutral-900">Unified finance</p>
+          <p className="mt-1 text-xs text-neutral-500">Tithe, building, roof, gazaland, UTC, thanks, music, xmas, harvest.</p>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
