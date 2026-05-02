@@ -56,6 +56,8 @@ export type AuthUser = {
   /** Global councils linked via councilIds (names from API) */
   councils?: Array<{ _id: string; name: string }>;
   memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR';
+  /** Badged vs non-badged congregation classification */
+  memberBadgeType?: 'BADGED' | 'NON_BADGED';
   /** Labels from church localLeadership / councils (backend-computed). */
   memberRolesFromChurch?: string[];
   /** Preferred label for lists: congregation offices or memberCategory fallback. */

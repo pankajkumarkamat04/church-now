@@ -6,6 +6,7 @@ const PastorTerm = require('../models/PastorTerm');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const {
   toProfileResponse,
+  normalizeMemberBadgeType,
   applyMemberProfilePatch,
   attachCouncilNamesToProfile,
   attachCouncilNamesToProfiles,
@@ -122,22 +123,38 @@ async function listMembers(req, res) {
     const currentChurchId = churchId(req);
     const councilId = req.query.councilId;
     const isActiveQuery = req.query.isActive;
+    const badgeFilter = String(req.query.memberBadgeType || '')
+      .trim()
+      .toUpperCase();
 
-    const filter = {
+    const scope = {
       $or: [
         { church: currentChurchId, role: 'MEMBER' },
         { role: 'ADMIN', $or: [{ church: currentChurchId }, { adminChurches: currentChurchId }] },
       ],
     };
-
+    const parts = [scope];
     if (councilId) {
-      filter.councilIds = councilId;
+      parts.push({ councilIds: councilId });
     }
     if (isActiveQuery === 'true') {
-      filter.isActive = true;
+      parts.push({ isActive: true });
     } else if (isActiveQuery === 'false') {
-      filter.isActive = false;
+      parts.push({ isActive: false });
     }
+    if (badgeFilter === 'BADGED') {
+      parts.push({ memberBadgeType: 'BADGED' });
+    } else if (badgeFilter === 'NON_BADGED') {
+      parts.push({
+        $or: [
+          { memberBadgeType: 'NON_BADGED' },
+          { memberBadgeType: { $exists: false } },
+          { memberBadgeType: null },
+        ],
+      });
+    }
+
+    const filter = parts.length === 1 ? parts[0] : { $and: parts };
 
     const members = await User.find(filter)
       .sort({ role: 1, email: 1 })
@@ -220,6 +237,7 @@ async function createMember(req, res) {
       membership_date,
       baptismDate,
       baptism_date,
+      memberBadgeType,
     } = req.body;
     if (!email || !password || !firstName || !surname || !idNumber || !contactPhone) {
       return res.status(400).json({
@@ -270,6 +288,7 @@ async function createMember(req, res) {
     if (patchResult.error) {
       return res.status(400).json({ message: patchResult.error });
     }
+    member.memberBadgeType = normalizeMemberBadgeType(memberBadgeType);
     if (member.membershipDate == null) {
       member.membershipDate = new Date();
     }
@@ -298,10 +317,13 @@ async function createMember(req, res) {
 async function getMember(req, res) {
   try {
     const currentChurchId = churchId(req);
+    /** Same congregation scope as listMembers (members + church-linked admins). */
     const member = await User.findOne({
       _id: req.params.memberId,
-      church: currentChurchId,
-      role: 'MEMBER',
+      $or: [
+        { church: currentChurchId, role: 'MEMBER' },
+        { role: 'ADMIN', $or: [{ church: currentChurchId }, { adminChurches: currentChurchId }] },
+      ],
     })
       .select('-password')
       .populate('church', CHURCH_POPULATE)

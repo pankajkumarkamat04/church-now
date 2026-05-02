@@ -14,11 +14,16 @@ const memberBalanceDepositSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    /** Stored in USD (treasurer wallet credit). */
     amount: {
       type: Number,
       required: true,
       min: 0.01,
     },
+    currency: { type: String, trim: true, uppercase: true, default: 'USD', maxlength: 8 },
+    displayCurrency: { type: String, trim: true, uppercase: true, default: 'USD', maxlength: 8 },
+    fxUsdPerUnit: { type: Number, default: 1, min: 0 },
+    amountDisplay: { type: Number, default: null },
     depositedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

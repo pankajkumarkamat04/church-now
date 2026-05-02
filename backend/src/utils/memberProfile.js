@@ -1,4 +1,14 @@
-const { GENDERS, MEMBER_CATEGORIES } = require('../models/User');
+const { GENDERS, MEMBER_CATEGORIES, MEMBER_BADGE_TYPES } = require('../models/User');
+
+function normalizeMemberBadgeType(raw) {
+  const v = String(raw ?? 'NON_BADGED')
+    .trim()
+    .toUpperCase()
+    .replace(/-/g, '_');
+  if (v === 'BADGED') return 'BADGED';
+  if (v === 'NON_BADGED' || v === 'NONBADGED') return 'NON_BADGED';
+  return 'NON_BADGED';
+}
 const GlobalCouncil = require('../models/GlobalCouncil');
 const { collectCongregationRoleLabelsForUser } = require('./churchMemberRoles');
 
@@ -74,6 +84,7 @@ function toProfileResponse(userDoc) {
     /** Resolved global councils (name per council id) — set by `attachCouncilNamesToProfiles` */
     councils: [],
     memberCategory: u.memberCategory || 'MEMBER',
+    memberBadgeType: u.memberBadgeType || 'NON_BADGED',
     memberRolesFromChurch,
     memberRoleDisplay,
     /** Congregation-unique member number (not the system user id) */
@@ -152,6 +163,13 @@ function applyMemberProfilePatch(user, body, options = {}) {
       return { error: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` };
     }
     user.memberCategory = v;
+  }
+  if (body.memberBadgeType !== undefined && allowAdminFields) {
+    const b = normalizeMemberBadgeType(body.memberBadgeType);
+    if (!MEMBER_BADGE_TYPES.includes(b)) {
+      return { error: `memberBadgeType must be one of: ${MEMBER_BADGE_TYPES.join(', ')}` };
+    }
+    user.memberBadgeType = b;
   }
   if (body.conferenceIds !== undefined) {
     user.conferences = Array.isArray(body.conferenceIds) ? body.conferenceIds : [];
@@ -251,6 +269,7 @@ async function attachCouncilNamesToProfiles(profiles) {
 
 module.exports = {
   toProfileResponse,
+  normalizeMemberBadgeType,
   applyMemberProfilePatch,
   parseDateOfBirth,
   parseChurchRecordDate,

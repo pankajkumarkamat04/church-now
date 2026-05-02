@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Pencil, Plus, UserX } from 'lucide-react';
+import { CheckCircle2, Eye, Pencil, Plus, UserX } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -37,6 +37,9 @@ export default function AdminMembersListPage() {
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilId, setCouncilId] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState('');
+  const [badgeFilter, setBadgeFilter] = useState<''
+    | 'BADGED'
+    | 'NON_BADGED'>('');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -46,13 +49,14 @@ export default function AdminMembersListPage() {
     const query = new URLSearchParams();
     if (councilId) query.set('councilId', councilId);
     if (isActiveFilter) query.set('isActive', isActiveFilter);
+    if (badgeFilter) query.set('memberBadgeType', badgeFilter);
     const [m, c] = await Promise.all([
       apiFetch<MemberRow[]>(`/api/admin/members?${query.toString()}`, { token }),
       apiFetch<{ name?: string }>('/api/admin/church', { token }),
     ]);
     setMembers(m);
     setChurchName(c?.name || 'My church');
-  }, [token, councilId, isActiveFilter]);
+  }, [token, councilId, isActiveFilter, badgeFilter]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -156,7 +160,7 @@ export default function AdminMembersListPage() {
 
       <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-sky-700">Filters</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Council</label>
             <select
@@ -184,21 +188,34 @@ export default function AdminMembersListPage() {
               <option value="false">Inactive</option>
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Badge</label>
+            <select
+              value={badgeFilter}
+              onChange={(e) => setBadgeFilter(e.target.value as '' | 'BADGED' | 'NON_BADGED')}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20"
+            >
+              <option value="">All members</option>
+              <option value="BADGED">Badged</option>
+              <option value="NON_BADGED">Non-badged</option>
+            </select>
+          </div>
         </div>
         <div
           className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
-            councilId || isActiveFilter ? 'border-sky-200 bg-sky-50' : 'border-neutral-200 bg-neutral-50'
+            councilId || isActiveFilter || badgeFilter ? 'border-sky-200 bg-sky-50' : 'border-neutral-200 bg-neutral-50'
           }`}
         >
-          <p className={`text-xs ${councilId || isActiveFilter ? 'text-sky-900' : 'text-neutral-700'}`}>
-            {councilId || isActiveFilter ? 'Filters applied.' : 'No filters active.'}
+          <p className={`text-xs ${councilId || isActiveFilter || badgeFilter ? 'text-sky-900' : 'text-neutral-700'}`}>
+            {councilId || isActiveFilter || badgeFilter ? 'Filters applied.' : 'No filters active.'}
           </p>
-          {(councilId || isActiveFilter) && (
+          {(councilId || isActiveFilter || badgeFilter) && (
             <button
               type="button"
               onClick={() => {
                 setCouncilId('');
                 setIsActiveFilter('');
+                setBadgeFilter('');
               }}
               className="text-xs font-medium text-sky-700 hover:text-sky-900"
             >
@@ -219,6 +236,7 @@ export default function AdminMembersListPage() {
 
                 <th className="px-4 py-3 font-medium">Councils</th>
                 <th className="px-4 py-3 font-medium">Membership</th>
+                <th className="px-4 py-3 font-medium">Badge</th>
                 <th className="px-4 py-3 font-medium">Member Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -236,6 +254,17 @@ export default function AdminMembersListPage() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-xs text-neutral-700">
                     {formatShortDate(m.membershipDate || m.membership_date || null)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        m.memberBadgeType === 'BADGED'
+                          ? 'rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-900'
+                          : 'rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700'
+                      }
+                    >
+                      {m.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     {normalizeMemberRoleLabel(m.memberRoleDisplay || m.memberCategory || 'MEMBER')}
@@ -259,6 +288,10 @@ export default function AdminMembersListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-2">
+                      <Link href={`/dashboard/admin/members/${m.id}`} className={inputBtn}>
+                        <Eye className="mr-1 size-3.5" aria-hidden />
+                        View
+                      </Link>
                       {m.role === 'MEMBER' ? (
                         <Link
                           href={`/dashboard/admin/members/${m.id}/edit`}

@@ -11,6 +11,8 @@ type ExpenseRow = {
   title: string;
   amount: number;
   currency: string;
+  displayCurrency?: string;
+  amountDisplayTotal?: number | null;
   category: string;
   expenseDate?: string;
   church?: { name?: string };
@@ -77,7 +79,14 @@ export default function SuperadminExpenseApprovalsPage() {
                 <td className="px-4 py-2">{r.church?.name || '—'}</td>
                 <td className="px-4 py-2">{r.expenseDate ? new Date(r.expenseDate).toLocaleDateString() : '—'}</td>
                 <td className="px-4 py-2">{r.title}</td>
-                <td className="px-4 py-2">{r.currency} {r.amount.toFixed(2)}</td>
+                <td className="px-4 py-2">
+                  <span className="font-medium">USD {r.amount.toFixed(2)}</span>
+                  {r.displayCurrency && String(r.displayCurrency).toUpperCase() !== 'USD' && r.amountDisplayTotal != null ? (
+                    <span className="ml-1 block text-xs text-neutral-500">
+                      entered {String(r.displayCurrency).toUpperCase()} {Number(r.amountDisplayTotal).toFixed(2)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="px-4 py-2">{r.createdBy?.fullName || r.createdBy?.email || '—'}</td>
                 <td className="px-4 py-2 text-neutral-600">
                   Church admin treasurer / vice treasurer

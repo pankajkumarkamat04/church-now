@@ -16,7 +16,11 @@ const expenseSchema = new mongoose.Schema(
     },
     title: { type: String, required: true, trim: true, maxlength: 200 },
     amount: { type: Number, required: true, min: 0 },
+    /** Canonical; amounts are always USD. */
     currency: { type: String, trim: true, uppercase: true, default: 'USD', maxlength: 8 },
+    displayCurrency: { type: String, trim: true, uppercase: true, default: 'USD', maxlength: 8 },
+    fxUsdPerUnit: { type: Number, default: 1, min: 0 },
+    amountDisplayTotal: { type: Number, default: null },
     category: { type: String, trim: true, default: 'OTHER', maxlength: 64 },
     description: { type: String, trim: true, default: '', maxlength: 2000 },
     expenseDate: { type: Date, required: true, default: Date.now },

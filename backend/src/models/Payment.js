@@ -51,6 +51,7 @@ const paymentSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    /** Canonical amounts are always stored in USD. */
     currency: {
       type: String,
       trim: true,
@@ -58,6 +59,18 @@ const paymentSchema = new mongoose.Schema(
       default: 'USD',
       maxlength: 8,
     },
+    /** Currency used when entering amounts (USD, ZAR, ZWG); display-only context. */
+    displayCurrency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: 'USD',
+      maxlength: 8,
+    },
+    /** USD value of one unit of displayCurrency at transaction time (1 for USD). */
+    fxUsdPerUnit: { type: Number, default: 1, min: 0 },
+    /** Total amount as entered in displayCurrency (optional audit snapshot). */
+    amountDisplayTotal: { type: Number, default: null },
     note: {
       type: String,
       trim: true,

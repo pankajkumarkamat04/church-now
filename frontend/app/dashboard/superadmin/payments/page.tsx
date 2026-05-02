@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeDisplayCurrencyInput } from '@/lib/currency';
 
 type PaymentRow = {
   _id: string;
   paymentLines?: Array<{ paymentType: string; amount: number }>;
   amount: number;
   currency: string;
+  displayCurrency?: string;
+  amountDisplayTotal?: number | null;
   paidAt?: string;
   source: string;
   church?: { name?: string };
@@ -65,7 +68,14 @@ export default function SuperadminPaymentsPage() {
                     ? r.paymentLines.map((line) => `${line.paymentType} ${line.amount.toFixed(2)}`).join(', ')
                     : '—'}
                 </td>
-                <td className="px-4 py-2">{r.currency} {r.amount.toFixed(2)}</td>
+                <td className="px-4 py-2">
+                  <span className="font-medium">USD {r.amount.toFixed(2)}</span>
+                  {r.displayCurrency && normalizeDisplayCurrencyInput(r.displayCurrency) !== 'USD' && r.amountDisplayTotal != null ? (
+                    <span className="ml-1 block text-xs text-neutral-500">
+                      entered {normalizeDisplayCurrencyInput(r.displayCurrency)} {Number(r.amountDisplayTotal).toFixed(2)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="px-4 py-2">{r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '—'}</td>
                 <td className="px-4 py-2">{r.source}</td>
               </tr>

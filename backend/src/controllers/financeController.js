@@ -22,7 +22,10 @@ function mapPaymentRow(p, churchLabel) {
     paymentType: type,
     paymentWay: p.source || '—',
     amount: Number(p.amount || 0),
-    currency: String(p.currency || 'USD').toUpperCase(),
+    currency: 'USD',
+    displayCurrency: String(p.displayCurrency || 'USD').toUpperCase(),
+    fxUsdPerUnit: p.fxUsdPerUnit != null ? Number(p.fxUsdPerUnit) : null,
+    amountDisplayTotal: p.amountDisplayTotal != null ? Number(p.amountDisplayTotal) : null,
     date: p.paidAt ? new Date(p.paidAt).toISOString() : null,
     party: (p.user && p.user.fullName) || (p.user && p.user.email) || p.donorName || p.donorEmail || '—',
     description: (p.note && String(p.note).trim()) || breakdownText || `${type} payment`,
@@ -40,7 +43,10 @@ function mapExpenseRow(e, churchLabel) {
     paymentType: 'Expense',
     paymentWay: e.category ? String(e.category) : 'General',
     amount: Number(e.amount || 0),
-    currency: String(e.currency || 'USD').toUpperCase(),
+    currency: 'USD',
+    displayCurrency: String(e.displayCurrency || 'USD').toUpperCase(),
+    fxUsdPerUnit: e.fxUsdPerUnit != null ? Number(e.fxUsdPerUnit) : null,
+    amountDisplayTotal: e.amountDisplayTotal != null ? Number(e.amountDisplayTotal) : null,
     date: e.expenseDate ? new Date(e.expenseDate).toISOString() : null,
     party: e.title || 'Church',
     description: e.description ? String(e.description).slice(0, 200) : e.title,
@@ -68,8 +74,17 @@ async function buildTransactionRowsForChurch(churchId, fromStr, toStr, kindsPara
   const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
   const [payments, exps] = await Promise.all([
-    Payment.find(payQ).populate('user', 'fullName email').select('amount currency paidAt paymentLines note user church source donorName donorEmail').lean(),
-    Expense.find(expQ).select('title amount currency expenseDate category description church').lean(),
+    Payment.find(payQ)
+      .populate('user', 'fullName email')
+      .select(
+        'amount currency displayCurrency fxUsdPerUnit amountDisplayTotal paidAt paymentLines note user church source donorName donorEmail'
+      )
+      .lean(),
+    Expense.find(expQ)
+      .select(
+        'title amount currency displayCurrency fxUsdPerUnit amountDisplayTotal expenseDate category description church'
+      )
+      .lean(),
   ]);
 
   const rows = [];
@@ -97,9 +112,16 @@ async function buildTransactionRowsAllChurches(fromStr, toStr, kindsParam) {
     Payment.find(payQ)
       .populate('user', 'fullName email')
       .populate('church', 'name')
-      .select('amount currency paidAt paymentLines note user church source donorName donorEmail')
+      .select(
+        'amount currency displayCurrency fxUsdPerUnit amountDisplayTotal paidAt paymentLines note user church source donorName donorEmail'
+      )
       .lean(),
-    Expense.find(expQ).populate('church', 'name').select('title amount currency expenseDate category description church').lean(),
+    Expense.find(expQ)
+      .populate('church', 'name')
+      .select(
+        'title amount currency displayCurrency fxUsdPerUnit amountDisplayTotal expenseDate category description church'
+      )
+      .lean(),
   ]);
 
   const rows = [];
@@ -141,15 +163,13 @@ function buildDateRange(field, fromStr, toStr) {
   return Object.keys(range).length ? { [field]: range } : {};
 }
 
-function ensureCurrency(buckets, currency) {
-  const c = (currency || 'USD').toUpperCase();
-  if (!buckets[c]) {
-    buckets[c] = {
+function ensureUsdBucket(buckets) {
+  if (!buckets.USD) {
+    buckets.USD = {
       payments: 0,
       expenses: 0,
     };
   }
-  return c;
 }
 
 function addTotals(buckets) {
@@ -171,20 +191,20 @@ async function aggregateForChurch(churchId, fromStr, toStr) {
   const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
 
   const [payments, exps, payC, expC] = await Promise.all([
-    Payment.find(payQ).select('amount currency'),
-    Expense.find(expQ).select('amount currency'),
+    Payment.find(payQ).select('amount'),
+    Expense.find(expQ).select('amount'),
     Payment.countDocuments(payQ),
     Expense.countDocuments(expQ),
   ]);
 
   const buckets = {};
   for (const p of payments) {
-    const c = ensureCurrency(buckets, p.currency);
-    buckets[c].payments += Number(p.amount || 0);
+    ensureUsdBucket(buckets);
+    buckets.USD.payments += Number(p.amount || 0);
   }
   for (const e of exps) {
-    const c = ensureCurrency(buckets, e.currency);
-    buckets[c].expenses += Number(e.amount || 0);
+    ensureUsdBucket(buckets);
+    buckets.USD.expenses += Number(e.amount || 0);
   }
 
   return {
@@ -240,8 +260,8 @@ async function getSuperadminFinanceSummary(req, res) {
     expC,
     tx,
   ] = await Promise.all([
-    Payment.find(payQ).select('amount currency'),
-    Expense.find(expQ).select('amount currency'),
+    Payment.find(payQ).select('amount'),
+    Expense.find(expQ).select('amount'),
     Payment.countDocuments(payQ),
     Expense.countDocuments(expQ),
     buildTransactionRowsAllChurches(from, to, kinds),
@@ -249,12 +269,12 @@ async function getSuperadminFinanceSummary(req, res) {
 
   const buckets = {};
   for (const p of payments) {
-    const c = ensureCurrency(buckets, p.currency);
-    buckets[c].payments += Number(p.amount || 0);
+    ensureUsdBucket(buckets);
+    buckets.USD.payments += Number(p.amount || 0);
   }
   for (const e of exps) {
-    const c = ensureCurrency(buckets, e.currency);
-    buckets[c].expenses += Number(e.amount || 0);
+    ensureUsdBucket(buckets);
+    buckets.USD.expenses += Number(e.amount || 0);
   }
 
   return res.json({

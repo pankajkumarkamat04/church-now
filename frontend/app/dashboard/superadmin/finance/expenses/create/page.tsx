@@ -7,6 +7,11 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
+import {
+  DISPLAY_CURRENCY_OPTIONS,
+  type DisplayCurrency,
+  normalizeDisplayCurrencyInput,
+} from '@/lib/currency';
 
 const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 const field =
@@ -19,7 +24,7 @@ export default function SuperadminCreateExpensePage() {
   const [churchId, setChurchId] = useState('');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [category, setCategory] = useState('OTHER');
   const [description, setDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
@@ -51,7 +56,8 @@ export default function SuperadminCreateExpensePage() {
           churchId,
           title: title.trim(),
           amount: Number(amount),
-          currency,
+          displayCurrency,
+          currency: displayCurrency,
           category,
           description,
           expenseDate: new Date(expenseDate).toISOString(),
@@ -97,7 +103,17 @@ export default function SuperadminCreateExpensePage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Currency</label>
-            <input className={field} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+            <select
+              className={field}
+              value={displayCurrency}
+              onChange={(e) => setDisplayCurrency(normalizeDisplayCurrencyInput(e.target.value))}
+            >
+              {DISPLAY_CURRENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Category</label>

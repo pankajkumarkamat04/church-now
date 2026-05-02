@@ -33,6 +33,7 @@ export default function AdminMemberCreatePage() {
   const [country, setCountry] = useState('');
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilIds, setCouncilIds] = useState<string[]>([]);
+  const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -92,6 +93,7 @@ export default function AdminMemberCreatePage() {
           address: { line1, line2, city, stateOrProvince, postalCode, country },
           membershipDate: membershipDate || undefined,
           baptismDate: baptismDate || undefined,
+          memberBadgeType,
         }),
       });
       router.replace('/dashboard/admin/members');
@@ -214,6 +216,18 @@ export default function AdminMemberCreatePage() {
                 <option value="OTHER">Other</option>
                 <option value="PREFER_NOT_SAY">Prefer not to say</option>
               </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Badge category</label>
+              <select
+                value={memberBadgeType}
+                onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
+                className={field}
+              >
+                <option value="NON_BADGED">Non-badged</option>
+                <option value="BADGED">Badged</option>
+              </select>
+              <p className="mt-0.5 text-xs text-neutral-500">Stored on the member record for congregation reporting.</p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>

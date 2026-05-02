@@ -6,6 +6,11 @@ import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import {
+  DISPLAY_CURRENCY_OPTIONS,
+  type DisplayCurrency,
+  normalizeDisplayCurrencyInput,
+} from '@/lib/currency';
 
 const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 
@@ -14,6 +19,8 @@ type ExpenseRow = {
   title: string;
   amount: number;
   currency: string;
+  displayCurrency?: string;
+  amountDisplayTotal?: number | null;
   category: string;
   description?: string;
   expenseDate?: string;
@@ -38,7 +45,7 @@ export default function AdminFinanceExpensesPage() {
   const [editing, setEditing] = useState<ExpenseRow | null>(null);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [category, setCategory] = useState('OTHER');
   const [description, setDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
@@ -64,7 +71,7 @@ export default function AdminFinanceExpensesPage() {
     setEditing(null);
     setTitle('');
     setAmount('');
-    setCurrency('USD');
+    setDisplayCurrency('USD');
     setCategory('OTHER');
     setDescription('');
     setExpenseDate(new Date().toISOString().slice(0, 10));
@@ -79,7 +86,8 @@ export default function AdminFinanceExpensesPage() {
       const body = {
         title: title.trim(),
         amount: Number(amount),
-        currency,
+        displayCurrency,
+        currency: displayCurrency,
         category,
         description,
         expenseDate: new Date(expenseDate).toISOString(),
@@ -133,8 +141,11 @@ export default function AdminFinanceExpensesPage() {
   function startEdit(row: ExpenseRow) {
     setEditing(row);
     setTitle(row.title);
-    setAmount(String(row.amount));
-    setCurrency(row.currency || 'USD');
+    const dc = normalizeDisplayCurrencyInput(row.displayCurrency || row.currency || 'USD');
+    setDisplayCurrency(dc);
+    setAmount(
+      String(row.amountDisplayTotal != null && row.amountDisplayTotal !== undefined ? row.amountDisplayTotal : row.amount)
+    );
     setCategory(row.category || 'OTHER');
     setDescription(row.description || '');
     setExpenseDate(row.expenseDate ? new Date(row.expenseDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
@@ -164,7 +175,17 @@ export default function AdminFinanceExpensesPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Currency</label>
-            <input className={field} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+            <select
+              className={field}
+              value={displayCurrency}
+              onChange={(e) => setDisplayCurrency(normalizeDisplayCurrencyInput(e.target.value))}
+            >
+              {DISPLAY_CURRENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Category</label>
@@ -234,7 +255,12 @@ export default function AdminFinanceExpensesPage() {
                   </span>
                 </td>
                 <td className="px-4 py-2">
-                  {r.currency} {r.amount.toFixed(2)}
+                  <span className="font-medium">USD {r.amount.toFixed(2)}</span>
+                  {r.displayCurrency && normalizeDisplayCurrencyInput(r.displayCurrency) !== 'USD' && r.amountDisplayTotal != null ? (
+                    <span className="ml-1 block text-xs text-neutral-500">
+                      entered {normalizeDisplayCurrencyInput(r.displayCurrency)} {Number(r.amountDisplayTotal).toFixed(2)}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-2 text-right">
                   {r.canCurrentUserVerify && r.approvalStage === 'PENDING_VERIFICATION' ? (

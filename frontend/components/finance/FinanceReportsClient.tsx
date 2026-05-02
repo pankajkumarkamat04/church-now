@@ -19,6 +19,14 @@ import {
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import {
+  DISPLAY_CURRENCY_OPTIONS,
+  type DisplayCurrency,
+  fetchPublicCurrencyRates,
+  normalizeDisplayCurrencyInput,
+  type PublicCurrencyRates,
+  usdToDisplayAmount,
+} from '@/lib/currency';
 
 export type FinanceTx = {
   id: string;
@@ -27,6 +35,9 @@ export type FinanceTx = {
   paymentWay: string;
   amount: number;
   currency: string;
+  displayCurrency?: string;
+  fxUsdPerUnit?: number | null;
+  amountDisplayTotal?: number | null;
   date: string | null;
   party: string;
   description: string;
@@ -76,7 +87,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     EXPENSE: true,
   });
   const [search, setSearch] = useState('');
-  const [chartCurrency, setChartCurrency] = useState('USD');
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
+  const [rates, setRates] = useState<PublicCurrencyRates | null>(null);
 
   const btnClass =
     variant === 'admin'
@@ -98,21 +110,18 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
       const path = variant === 'admin' ? '/api/admin/finance/summary' : '/api/superadmin/finance/summary';
       const s = await apiFetch<Summary>(`${path}${qs ? `?${qs}` : ''}`, { token });
       setSummary(s);
-      const currs = new Set<string>();
-      for (const t of s.transactions || []) {
-        if (t.currency) currs.add(t.currency);
-      }
-      for (const c of Object.keys(s.byCurrency || {})) {
-        if (c) currs.add(c);
-      }
-      const list = Array.from(currs).sort();
-      if (list.length) setChartCurrency((prev) => (list.includes(prev) ? prev : list[0]!));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       setBusy(false);
     }
   }, [token, from, to, churchId, variant]);
+
+  useEffect(() => {
+    fetchPublicCurrencyRates()
+      .then(setRates)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (variant === 'admin' && (!user || user.role !== 'ADMIN')) {
@@ -131,17 +140,6 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     // Only load on auth readiness; use Apply to refetch with new dates / church.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, token, variant]);
-
-  const allCurrencies = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of summary?.transactions || []) {
-      if (t.currency) set.add(t.currency);
-    }
-    for (const c of Object.keys(summary?.byCurrency || {})) {
-      if (c) set.add(c);
-    }
-    return Array.from(set).sort();
-  }, [summary]);
 
   const filteredRows = useMemo(() => {
     const rows = summary?.transactions || [];
@@ -163,15 +161,38 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const amountBarData = useMemo(() => {
     const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 };
     for (const r of filteredRows) {
-      if (r.currency !== chartCurrency) continue;
-      m[r.kind] = (m[r.kind] || 0) + r.amount;
+      const amt =
+        rates && displayCurrency !== 'USD'
+          ? usdToDisplayAmount(r.amount, displayCurrency, rates.foreignPerUsd)
+          : r.amount;
+      m[r.kind] = (m[r.kind] || 0) + amt;
     }
     return KINDS.map((k) => ({
       name: k.label,
       amount: m[k.id] ?? 0,
       kind: k.id,
     })).filter((d) => kindToggles[d.kind]);
-  }, [filteredRows, chartCurrency, kindToggles]);
+  }, [filteredRows, displayCurrency, kindToggles, rates]);
+
+  const summaryForDisplay = useMemo(() => {
+    const usd = summary?.byCurrency?.USD;
+    if (!usd) return summary?.byCurrency || {};
+    if (!rates || displayCurrency === 'USD') {
+      return { USD: usd };
+    }
+    const mul = rates.foreignPerUsd[displayCurrency];
+    if (!mul || !Number.isFinite(mul)) {
+      return { USD: usd };
+    }
+    return {
+      [displayCurrency]: {
+        payments: usd.payments * mul,
+        expenses: usd.expenses * mul,
+        incomeTotal: usd.incomeTotal * mul,
+        net: usd.net * mul,
+      },
+    };
+  }, [summary, displayCurrency, rates]);
 
   const countPieData = useMemo(() => {
     const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 };
@@ -269,21 +290,17 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Chart amount currency</label>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Display currency (stored USD)</label>
               <select
-                value={chartCurrency}
-                onChange={(e) => setChartCurrency(e.target.value)}
+                value={displayCurrency}
+                onChange={(e) => setDisplayCurrency(normalizeDisplayCurrencyInput(e.target.value))}
                 className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               >
-                {allCurrencies.length ? (
-                  allCurrencies.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))
-                ) : (
-                  <option value="USD">USD</option>
-                )}
+                {DISPLAY_CURRENCY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -315,8 +332,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
 
           <div className="mb-6 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-neutral-900">Amount by payment type ({chartCurrency})</h2>
-              <p className="mt-0.5 text-xs text-neutral-500">Only rows in the selected chart currency in the filtered set.</p>
+              <h2 className="text-sm font-semibold text-neutral-900">Amount by payment type ({displayCurrency})</h2>
+              <p className="mt-0.5 text-xs text-neutral-500">Converted from USD totals using current rates (dashboard display).</p>
               <div className="mt-2 h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={amountBarData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
@@ -326,7 +343,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                     <Tooltip formatter={(v) => (typeof v === 'number' ? v.toFixed(2) : v)} />
                     <Bar
                       dataKey="amount"
-                      name={`Amount (${chartCurrency})`}
+                      name={`Amount (${displayCurrency})`}
                       fill={variant === 'admin' ? '#0ea5e9' : '#7c3aed'}
                       radius={[4, 4, 0, 0]}
                     />
@@ -363,7 +380,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
 
           <div className="mb-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
-              <h2 className="text-sm font-semibold text-neutral-900">Totals by currency (summary)</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">Totals (amounts stored in USD)</h2>
+              <p className="text-xs text-neutral-500">Figures below use the selected display currency when not USD.</p>
             </div>
             <table className="w-full min-w-[600px] text-left text-sm">
                 <thead className="text-neutral-600">
@@ -375,7 +393,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(summary.byCurrency).map(([cur, v]) => (
+                  {Object.entries(summaryForDisplay).map(([cur, v]) => (
                     <tr key={cur} className="border-t border-neutral-100">
                       <td className="px-4 py-2 font-medium">{cur}</td>
                       <td className="px-4 py-2 text-emerald-800">{v.incomeTotal.toFixed(2)}</td>
@@ -387,7 +405,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                   ))}
                 </tbody>
               </table>
-            {Object.keys(summary.byCurrency).length === 0 ? (
+            {Object.keys(summaryForDisplay).length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-neutral-500">No summary totals in this range.</p>
             ) : null}
           </div>
@@ -447,9 +465,12 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                         }`}
                       >
                         {r.kind === 'EXPENSE' ? '−' : ''}
-                        {r.amount.toFixed(2)}
+                        {(rates && displayCurrency !== 'USD'
+                          ? usdToDisplayAmount(r.amount, displayCurrency, rates.foreignPerUsd)
+                          : r.amount
+                        ).toFixed(2)}
                       </td>
-                      <td className="px-3 py-2">{r.currency}</td>
+                      <td className="px-3 py-2">{displayCurrency}</td>
                       <td className="px-3 py-2 font-mono text-xs text-neutral-500">{r.reference.slice(0, 12)}</td>
                     </tr>
                   ))}

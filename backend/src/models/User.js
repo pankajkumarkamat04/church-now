@@ -7,6 +7,8 @@ const REGISTRATION_SOURCES = ['SYSTEM', 'SELF_SIGNUP'];
 
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_SAY'];
 const MEMBER_CATEGORIES = ['MEMBER', 'PRESIDENT', 'MODERATOR', 'PASTOR'];
+/** Congregation badge classification (distinct from memberCategory office roles). */
+const MEMBER_BADGE_TYPES = ['BADGED', 'NON_BADGED'];
 
 const addressSchema = new mongoose.Schema(
   {
@@ -67,6 +69,12 @@ const userSchema = new mongoose.Schema(
       enum: MEMBER_CATEGORIES,
       default: 'MEMBER',
     },
+    memberBadgeType: {
+      type: String,
+      enum: MEMBER_BADGE_TYPES,
+      default: 'NON_BADGED',
+      index: true,
+    },
     memberRoleDisplay: { type: String, trim: true, default: 'MEMBER' },
     /** Congregation-unique member number (assigned to MEMBER; kept when promoted to ADMIN). */
     memberId: { type: String, trim: true, default: '' },
@@ -126,6 +134,7 @@ module.exports = mongoose.model('User', userSchema);
 module.exports.ROLES = ROLES;
 module.exports.GENDERS = GENDERS;
 module.exports.MEMBER_CATEGORIES = MEMBER_CATEGORIES;
+module.exports.MEMBER_BADGE_TYPES = MEMBER_BADGE_TYPES;
 module.exports.APPROVAL_STATUSES = APPROVAL_STATUSES;
 module.exports.REGISTRATION_SOURCES = REGISTRATION_SOURCES;
 

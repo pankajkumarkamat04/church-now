@@ -80,6 +80,7 @@ export default function SuperadminChurchMembersPage() {
                   <th className="px-4 py-3 font-medium">Account</th>
                   <th className="px-4 py-3 font-medium">Member role</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,6 +96,14 @@ export default function SuperadminChurchMembersPage() {
                       {member.memberRoleDisplay || member.memberCategory || (member.role === 'ADMIN' ? '—' : 'MEMBER')}
                     </td>
                     <td className="px-4 py-3">{member.isActive === false ? 'Inactive' : 'Active'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/dashboard/superadmin/users/${member.id}/edit`}
+                        className="text-xs font-medium text-violet-700 hover:text-violet-900 hover:underline"
+                      >
+                        View
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

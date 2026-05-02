@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { apiFetch } from '@/lib/api';
+import {
+  DISPLAY_CURRENCY_OPTIONS,
+  type DisplayCurrency,
+  normalizeDisplayCurrencyInput,
+} from '@/lib/currency';
 
 type ChurchOption = { _id: string; name: string };
 
@@ -15,7 +20,7 @@ export default function PublicDonatePage() {
   const [donorEmail, setDonorEmail] = useState('');
   const [donorPhone, setDonorPhone] = useState('');
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -44,7 +49,8 @@ export default function PublicDonatePage() {
           donorEmail,
           donorPhone,
           amount: Number(amount),
-          currency,
+          displayCurrency,
+          currency: displayCurrency,
           note,
         }),
       });
@@ -92,7 +98,18 @@ export default function PublicDonatePage() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Currency</label>
-          <input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900" />
+          <select
+            value={displayCurrency}
+            onChange={(e) => setDisplayCurrency(normalizeDisplayCurrencyInput(e.target.value))}
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+          >
+            {DISPLAY_CURRENCY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-neutral-500">Values are converted and stored in USD when the donation API is available.</p>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Note</label>

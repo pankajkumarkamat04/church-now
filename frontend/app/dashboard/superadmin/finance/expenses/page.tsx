@@ -16,6 +16,8 @@ type ExpenseRow = {
   title: string;
   amount: number;
   currency: string;
+  displayCurrency?: string;
+  amountDisplayTotal?: number | null;
   category: string;
   description?: string;
   expenseDate?: string;
@@ -197,7 +199,12 @@ export default function SuperadminFinanceExpensesPage() {
                   </span>
                 </td>
                 <td className="px-4 py-2">
-                  {r.currency} {r.amount.toFixed(2)}
+                  <span className="font-medium">USD {r.amount.toFixed(2)}</span>
+                  {r.displayCurrency && String(r.displayCurrency).toUpperCase() !== 'USD' && r.amountDisplayTotal != null ? (
+                    <span className="ml-1 block text-xs text-neutral-500">
+                      entered {String(r.displayCurrency).toUpperCase()} {Number(r.amountDisplayTotal).toFixed(2)}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-2 text-right">
                   <Link href={`/dashboard/superadmin/finance/expenses/${r._id}/edit`} className="mr-2 inline-flex items-center text-violet-700 hover:underline">

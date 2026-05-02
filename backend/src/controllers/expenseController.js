@@ -1,5 +1,6 @@
 const Expense = require('../models/Expense');
 const Church = require('../models/Church');
+const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
 
 function churchId(req) {
   return req.user?.church;
@@ -40,19 +41,25 @@ function areAllNoticeApprovalsDone(expense) {
   return Boolean(notice.viceSecretary && notice.secretary && notice.viceDeacon && notice.deacon);
 }
 
-function parseBody(body) {
-  const amount = Number(body?.amount);
-  if (!Number.isFinite(amount) || amount < 0) {
-    const e = new Error('Valid amount is required');
-    e.statusCode = 400;
-    throw e;
+async function buildExpensePayload(body) {
+  const title = String(body?.title || '').trim();
+  const display = normalizeDisplayCurrency(body?.displayCurrency ?? body?.currency);
+  const amountInput = Number(body?.amount);
+  let conv;
+  try {
+    conv = await convertDisplayAmountToUsd(display, amountInput);
+  } catch (e) {
+    const err = new Error(e.message || 'Valid amount is required');
+    err.statusCode = e.statusCode || 400;
+    throw err;
   }
   return {
-    title: String(body?.title || '').trim(),
-    amount,
-    currency: String(body?.currency || 'USD')
-      .trim()
-      .toUpperCase() || 'USD',
+    title,
+    amount: conv.amountUsd,
+    currency: 'USD',
+    displayCurrency: conv.displayCurrency,
+    fxUsdPerUnit: conv.fxUsdPerUnit,
+    amountDisplayTotal: conv.amountDisplay,
     category: String(body?.category || 'OTHER').trim() || 'OTHER',
     description: String(body?.description || '').trim(),
     expenseDate: body?.expenseDate ? new Date(body.expenseDate) : new Date(),
@@ -88,7 +95,13 @@ async function createAdminExpense(req, res) {
   if (!roleSet.has('VICE_TREASURER')) {
     return res.status(403).json({ message: 'Only vice treasurer can initiate a payment' });
   }
-  const data = parseBody(req.body);
+  let data;
+  try {
+    data = await buildExpensePayload(req.body);
+  } catch (e) {
+    const code = e.statusCode || 400;
+    return res.status(code).json({ message: e.message || 'Invalid payload' });
+  }
   if (!data.title) return res.status(400).json({ message: 'title is required' });
   const row = await Expense.create({
     ...data,
@@ -131,8 +144,24 @@ async function updateAdminExpense(req, res) {
     return res.status(400).json({ message: 'Posted expenses cannot be edited' });
   }
   if (req.body.title !== undefined) row.title = String(req.body.title).trim();
-  if (req.body.amount !== undefined) row.amount = Number(req.body.amount);
-  if (req.body.currency !== undefined) row.currency = String(req.body.currency).toUpperCase();
+  if (req.body.amount !== undefined || req.body.displayCurrency !== undefined || req.body.currency !== undefined) {
+    const display = normalizeDisplayCurrency(
+      req.body.displayCurrency ?? req.body.currency ?? row.displayCurrency ?? 'USD'
+    );
+    const rawAmt =
+      req.body.amount !== undefined ? Number(req.body.amount) : row.amountDisplayTotal ?? row.amount;
+    let conv;
+    try {
+      conv = await convertDisplayAmountToUsd(display, rawAmt);
+    } catch (e) {
+      return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid amount' });
+    }
+    row.amount = conv.amountUsd;
+    row.currency = 'USD';
+    row.displayCurrency = conv.displayCurrency;
+    row.fxUsdPerUnit = conv.fxUsdPerUnit;
+    row.amountDisplayTotal = conv.amountDisplay;
+  }
   if (req.body.category !== undefined) row.category = String(req.body.category).trim();
   if (req.body.description !== undefined) row.description = String(req.body.description).trim();
   if (req.body.expenseDate !== undefined) row.expenseDate = new Date(req.body.expenseDate);
@@ -265,7 +294,13 @@ async function createSuperadminExpense(req, res) {
   if (!cid) return res.status(400).json({ message: 'Main church is required' });
   const church = await Church.findOne({ _id: cid, isActive: true, churchType: 'MAIN' }).select('_id conference');
   if (!church) return res.status(400).json({ message: 'Superadmin can add expenses only for main church' });
-  const data = parseBody(req.body);
+  let data;
+  try {
+    data = await buildExpensePayload(req.body);
+  } catch (e) {
+    const code = e.statusCode || 400;
+    return res.status(code).json({ message: e.message || 'Invalid payload' });
+  }
   if (!data.title) return res.status(400).json({ message: 'title is required' });
   const row = await Expense.create({
     ...data,
@@ -309,8 +344,24 @@ async function updateSuperadminExpense(req, res) {
     row.conference = church.conference || null;
   }
   if (req.body.title !== undefined) row.title = String(req.body.title).trim();
-  if (req.body.amount !== undefined) row.amount = Number(req.body.amount);
-  if (req.body.currency !== undefined) row.currency = String(req.body.currency).toUpperCase();
+  if (req.body.amount !== undefined || req.body.displayCurrency !== undefined || req.body.currency !== undefined) {
+    const display = normalizeDisplayCurrency(
+      req.body.displayCurrency ?? req.body.currency ?? row.displayCurrency ?? 'USD'
+    );
+    const rawAmt =
+      req.body.amount !== undefined ? Number(req.body.amount) : row.amountDisplayTotal ?? row.amount;
+    let conv;
+    try {
+      conv = await convertDisplayAmountToUsd(display, rawAmt);
+    } catch (e) {
+      return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid amount' });
+    }
+    row.amount = conv.amountUsd;
+    row.currency = 'USD';
+    row.displayCurrency = conv.displayCurrency;
+    row.fxUsdPerUnit = conv.fxUsdPerUnit;
+    row.amountDisplayTotal = conv.amountDisplay;
+  }
   if (req.body.category !== undefined) row.category = String(req.body.category).trim();
   if (req.body.description !== undefined) row.description = String(req.body.description).trim();
   if (req.body.expenseDate !== undefined) row.expenseDate = new Date(req.body.expenseDate);

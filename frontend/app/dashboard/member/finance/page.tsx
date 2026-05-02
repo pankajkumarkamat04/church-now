@@ -131,9 +131,7 @@ export default function MemberFinanceRecordsPage() {
                 <tr key={r.id} className="border-t border-neutral-100">
                   <td className="px-4 py-2 font-medium text-neutral-800">{r.kind}</td>
                   <td className="px-4 py-2 text-neutral-700">{r.summary}</td>
-                  <td className="px-4 py-2">
-                    {r.currency} {r.amount.toFixed(2)}
-                  </td>
+                  <td className="px-4 py-2 tabular-nums">USD {r.amount.toFixed(2)}</td>
                   <td className="px-4 py-2 text-neutral-600">{r.dateLabel}</td>
                 </tr>
               ))}

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Eye, Loader2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -32,6 +32,7 @@ export default function AdminMemberEditPage() {
   const [baptismDate, setBaptismDate] = useState('');
   const [address, setAddress] = useState<MemberAddress>(emptyAddress);
   const [isActive, setIsActive] = useState(true);
+  const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export default function AdminMemberEditPage() {
     setBaptismDate(p.baptismDate || p.baptism_date || '');
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
     setIsActive(p.isActive !== false);
+    setMemberBadgeType(p.memberBadgeType === 'BADGED' ? 'BADGED' : 'NON_BADGED');
     setCouncilIds(Array.isArray(p.councilIds) ? p.councilIds : []);
   }, [token, memberId]);
 
@@ -92,6 +94,7 @@ export default function AdminMemberEditPage() {
           address,
           isActive,
           councilIds,
+          memberBadgeType,
         }),
       });
       router.replace('/dashboard/admin/members');
@@ -129,12 +132,18 @@ export default function AdminMemberEditPage() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-4xl">
-      <Link
-        href="/dashboard/admin/members"
-        className="text-sm font-medium text-sky-700 hover:text-sky-900"
-      >
-        ← Back to members
-      </Link>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href="/dashboard/admin/members" className="text-sm font-medium text-sky-700 hover:text-sky-900">
+          ← Back to members
+        </Link>
+        <Link
+          href={`/dashboard/admin/members/${memberId}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-700 hover:text-neutral-900"
+        >
+          <Eye className="size-4" aria-hidden />
+          View detail &amp; statement
+        </Link>
+      </div>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Edit member</h1>
         <p className="mt-1 text-sm text-neutral-600">{profile.email}</p>
@@ -183,6 +192,17 @@ export default function AdminMemberEditPage() {
               onChange={(e) => setBaptismDate(e.target.value)}
               className={field}
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Badge category</label>
+            <select
+              value={memberBadgeType}
+              onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
+              className={field}
+            >
+              <option value="NON_BADGED">Non-badged</option>
+              <option value="BADGED">Badged</option>
+            </select>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>

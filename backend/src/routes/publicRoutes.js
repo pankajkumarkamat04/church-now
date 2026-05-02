@@ -3,9 +3,11 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const frontendController = require('../controllers/frontendController');
 const eventController = require('../controllers/eventController');
 const conferenceController = require('../controllers/conferenceController');
+const currencyController = require('../controllers/currencyController');
 
 const router = express.Router();
 
+router.get('/currency/rates', asyncHandler(currencyController.getPublicRates));
 router.get('/churches', asyncHandler(frontendController.listPublicChurches));
 router.get('/conferences', asyncHandler(conferenceController.listPublicConferences));
 router.get('/events', asyncHandler(eventController.listPublicGlobal));

@@ -7,6 +7,11 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
+import {
+  DISPLAY_CURRENCY_OPTIONS,
+  type DisplayCurrency,
+  normalizeDisplayCurrencyInput,
+} from '@/lib/currency';
 
 const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 type ExpenseRow = {
@@ -14,6 +19,8 @@ type ExpenseRow = {
   title: string;
   amount: number;
   currency: string;
+  displayCurrency?: string;
+  amountDisplayTotal?: number | null;
   category: string;
   description?: string;
   expenseDate?: string;
@@ -32,7 +39,7 @@ export default function SuperadminEditExpensePage() {
   const [churchId, setChurchId] = useState('');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [category, setCategory] = useState('OTHER');
   const [description, setDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
@@ -48,8 +55,13 @@ export default function SuperadminEditExpensePage() {
     apiFetch<ExpenseRow>(`/api/superadmin/expenses/${expenseId}`, { token })
       .then((row) => {
         setTitle(row.title || '');
-        setAmount(String(row.amount || ''));
-        setCurrency(row.currency || 'USD');
+        const dc = normalizeDisplayCurrencyInput(row.displayCurrency || row.currency || 'USD');
+        setDisplayCurrency(dc);
+        setAmount(
+          String(
+            row.amountDisplayTotal != null && row.amountDisplayTotal !== undefined ? row.amountDisplayTotal : row.amount
+          )
+        );
         setCategory(row.category || 'OTHER');
         setDescription(row.description || '');
         setExpenseDate(
@@ -82,7 +94,8 @@ export default function SuperadminEditExpensePage() {
           churchId,
           title: title.trim(),
           amount: Number(amount),
-          currency,
+          displayCurrency,
+          currency: displayCurrency,
           category,
           description,
           expenseDate: new Date(expenseDate).toISOString(),
@@ -127,7 +140,17 @@ export default function SuperadminEditExpensePage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Currency</label>
-            <input className={field} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+            <select
+              className={field}
+              value={displayCurrency}
+              onChange={(e) => setDisplayCurrency(normalizeDisplayCurrencyInput(e.target.value))}
+            >
+              {DISPLAY_CURRENCY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Category</label>
