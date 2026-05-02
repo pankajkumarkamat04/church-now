@@ -10,6 +10,7 @@ const router = express.Router();
 router.get('/currency/rates', asyncHandler(currencyController.getPublicRates));
 router.get('/churches', asyncHandler(frontendController.listPublicChurches));
 router.get('/conferences', asyncHandler(conferenceController.listPublicConferences));
+router.get('/councils', asyncHandler(frontendController.listPublicCouncils));
 router.get('/events', asyncHandler(eventController.listPublicGlobal));
 
 module.exports = router;

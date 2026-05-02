@@ -4,9 +4,16 @@ const Church = require('../models/Church');
 const Conference = require('../models/Conference');
 const { MEMBER_CATEGORIES } = require('../models/User');
 const { signToken } = require('../utils/token');
-const { toProfileResponse, attachCouncilNamesToProfile } = require('../utils/memberProfile');
+const {
+  toProfileResponse,
+  attachCouncilNamesToProfile,
+  normalizeMemberBadgeType,
+  parseDateOfBirth,
+  parseChurchRecordDate,
+} = require('../utils/memberProfile');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
+const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 
 const CHURCH_FIELDS =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
@@ -36,18 +43,55 @@ async function register(req, res) {
       gender,
       contactPhone,
       address,
+      membershipDate,
+      membership_date,
+      baptismDate,
+      baptism_date,
+      memberBadgeType,
     } = req.body;
     const incomingConferenceIds = Array.isArray(conferenceIds)
       ? conferenceIds
       : req.body.conferenceId
         ? [req.body.conferenceId]
         : [];
-    if (!email || !password || !churchId || !firstName || !surname || !contactPhone) {
+    if (
+      !email ||
+      !password ||
+      !churchId ||
+      !firstName ||
+      !surname ||
+      !contactPhone ||
+      !String(idNumber || '').trim()
+    ) {
       return res.status(400).json({
-        message: 'Email, password, church selection, first name, surname and contact phone are required',
+        message:
+          'Email, password, church selection, first name, surname, ID number, and contact phone are required',
       });
     }
+    if (!dateOfBirth || String(dateOfBirth).trim() === '') {
+      return res.status(400).json({ message: 'Date of birth is required' });
+    }
+    const dobVal = parseDateOfBirth(dateOfBirth);
+    if (dobVal === undefined) {
+      return res.status(400).json({
+        message: 'Invalid date of birth (use ISO date, not in the future)',
+      });
+    }
+    const addrIn = address && typeof address === 'object' ? address : {};
+    const addrRequired = ['line1', 'city', 'stateOrProvince', 'postalCode', 'country'];
+    for (const k of addrRequired) {
+      if (!String(addrIn[k] || '').trim()) {
+        return res.status(400).json({
+          message: 'Complete residential address is required (line 1, city, state/province, postal code, country)',
+        });
+      }
+    }
     const church = await Church.findOne({ _id: churchId, isActive: true });
+    if (!church) {
+      return res.status(400).json({
+        message: 'Selected church was not found or is inactive.',
+      });
+    }
     const selectedConferenceIds = Array.from(
       new Set(
         (incomingConferenceIds.length > 0
@@ -63,17 +107,33 @@ async function register(req, res) {
     if (selectedConferenceIds.length !== 1) {
       return res.status(400).json({ message: 'Select exactly one conference' });
     }
-    if (!church) {
-      return res.status(400).json({
-        message: 'Selected church was not found or is inactive.',
-      });
-    }
     const conferences = await Conference.find({ _id: { $in: selectedConferenceIds }, isActive: true }).select('_id');
     if (conferences.length !== selectedConferenceIds.length) {
       return res.status(400).json({ message: 'One or more selected conferences are invalid' });
     }
     if (!church.conference || String(church.conference) !== selectedConferenceIds[0]) {
       return res.status(400).json({ message: 'Selected church does not belong to the selected conference' });
+    }
+    const councilResult = await normalizeAndValidateGlobalCouncilIds(req.body.councilIds);
+    if (councilResult.error) {
+      return res.status(400).json({ message: councilResult.error });
+    }
+    const mshipRaw = membershipDate !== undefined ? membershipDate : membership_date;
+    let membershipDateVal = new Date();
+    if (mshipRaw !== undefined && mshipRaw !== null && mshipRaw !== '') {
+      const parsed = parseChurchRecordDate(mshipRaw);
+      if (!parsed) {
+        return res.status(400).json({ message: 'Invalid membership date' });
+      }
+      membershipDateVal = parsed;
+    }
+    const bapRaw = baptismDate !== undefined ? baptismDate : baptism_date;
+    let baptismDateVal = null;
+    if (bapRaw !== undefined && bapRaw !== null && bapRaw !== '') {
+      baptismDateVal = parseChurchRecordDate(bapRaw);
+      if (!baptismDateVal) {
+        return res.status(400).json({ message: 'Invalid baptism date' });
+      }
     }
     const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
     if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
@@ -99,24 +159,24 @@ async function register(req, res) {
       idNumber: String(idNumber || '').trim(),
       contactPhone: String(contactPhone).trim(),
       gender: gender || undefined,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-      address:
-        address && typeof address === 'object'
-          ? {
-              line1: String(address.line1 || '').trim(),
-              line2: String(address.line2 || '').trim(),
-              city: String(address.city || '').trim(),
-              stateOrProvince: String(address.stateOrProvince || '').trim(),
-              postalCode: String(address.postalCode || '').trim(),
-              country: String(address.country || '').trim(),
-            }
-          : {},
+      dateOfBirth: dobVal,
+      address: {
+        line1: String(addrIn.line1 || '').trim(),
+        line2: String(addrIn.line2 || '').trim(),
+        city: String(addrIn.city || '').trim(),
+        stateOrProvince: String(addrIn.stateOrProvince || '').trim(),
+        postalCode: String(addrIn.postalCode || '').trim(),
+        country: String(addrIn.country || '').trim(),
+      },
       role: 'MEMBER',
       church: church._id,
       conferences: [selectedConferenceIds[0]],
+      councilIds: councilResult.ids,
       memberCategory: normalizedCategory,
       memberId,
-      membershipDate: new Date(),
+      membershipDate: membershipDateVal,
+      baptismDate: baptismDateVal,
+      memberBadgeType: normalizeMemberBadgeType(memberBadgeType),
       approvalStatus: 'PENDING',
       registrationSource: 'SELF_SIGNUP',
     });

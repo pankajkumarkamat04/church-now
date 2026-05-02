@@ -14,24 +14,11 @@ const {
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { validateChurchLeadershipPayload } = require('../utils/churchLeadershipValidation');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
+const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 
 const CHURCH_POPULATE =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
 const ACTIVE_PASTOR_TERM_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
-
-async function normalizeAndValidateGlobalCouncilIds(inputCouncilIds) {
-  const normalized = Array.isArray(inputCouncilIds)
-    ? Array.from(new Set(inputCouncilIds.map((id) => String(id)).filter(Boolean)))
-    : [];
-  if (normalized.length === 0) {
-    return { error: 'Select at least one council' };
-  }
-  const validRows = await GlobalCouncil.find({ _id: { $in: normalized }, isActive: true }).select('_id').lean();
-  if (validRows.length !== normalized.length) {
-    return { error: 'One or more selected councils are invalid or inactive' };
-  }
-  return { ids: normalized };
-}
 
 function mergeSpiritualLeaderLabel(profile, hasActivePastorTerm) {
   if (!hasActivePastorTerm) return profile;
@@ -454,6 +441,17 @@ async function listPublicChurches(_req, res) {
   }
 }
 
+/** Public list of active global councils (same data as admin global councils; no auth). */
+async function listPublicCouncils(_req, res) {
+  try {
+    const rows = await GlobalCouncil.find({ isActive: true }).sort({ name: 1 }).lean();
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load councils' });
+  }
+}
+
 module.exports = {
   getMyChurch,
   updateMyChurch,
@@ -466,4 +464,5 @@ module.exports = {
   deactivateMember,
   approveMember,
   listPublicChurches,
+  listPublicCouncils,
 };

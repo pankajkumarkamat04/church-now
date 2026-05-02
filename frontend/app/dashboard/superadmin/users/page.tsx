@@ -34,6 +34,7 @@ export default function SuperadminUsersListPage() {
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilId, setCouncilId] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState('');
+  const [badgeFilter, setBadgeFilter] = useState<'' | 'BADGED' | 'NON_BADGED'>('');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const roleLabel =
@@ -52,9 +53,10 @@ export default function SuperadminUsersListPage() {
     if (churchId) query.set('churchId', churchId);
     if (councilId) query.set('councilId', councilId);
     if (isActiveFilter) query.set('isActive', isActiveFilter);
+    if (badgeFilter) query.set('memberBadgeType', badgeFilter);
     const u = await apiFetch<UserRow[]>(`/api/superadmin/users?${query.toString()}`, { token });
     setUsers(u);
-  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter]);
+  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter, badgeFilter]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -155,7 +157,7 @@ export default function SuperadminUsersListPage() {
 
       <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-700">Filters</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-600">Role</label>
           <select
@@ -236,6 +238,18 @@ export default function SuperadminUsersListPage() {
             <option value="false">Inactive</option>
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Badge</label>
+          <select
+            value={badgeFilter}
+            onChange={(e) => setBadgeFilter(e.target.value as '' | 'BADGED' | 'NON_BADGED')}
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+          >
+            <option value="">All</option>
+            <option value="BADGED">Badged</option>
+            <option value="NON_BADGED">Non-badged</option>
+          </select>
+        </div>
         </div>
         <div
           className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
@@ -253,6 +267,7 @@ export default function SuperadminUsersListPage() {
               setChurchId('');
               setCouncilId('');
               setIsActiveFilter('');
+              setBadgeFilter('');
             }}
             className="text-xs font-medium text-violet-700 hover:text-violet-900"
           >
@@ -263,12 +278,13 @@ export default function SuperadminUsersListPage() {
 
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Member ID</th>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Badge</th>
                 <th className="px-4 py-3 font-medium">Church role</th>
                 <th className="px-4 py-3 font-medium">Church</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -281,6 +297,17 @@ export default function SuperadminUsersListPage() {
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3 font-mono text-xs text-neutral-700">{u.memberId || '—'}</td>
                   <td className="px-4 py-3">{u.fullName || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        u.memberBadgeType === 'BADGED'
+                          ? 'rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900'
+                          : 'rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800'
+                      }
+                    >
+                      {u.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-neutral-700">
                     {normalizeMemberRoleLabel(
                       u.memberRoleDisplay ||

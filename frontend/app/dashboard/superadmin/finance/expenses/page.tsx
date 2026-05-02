@@ -3,13 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
-
-const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
 
 type ExpenseRow = {
   _id: string;
@@ -30,8 +27,6 @@ type ExpenseRow = {
 };
 
 type ConferenceRow = { _id: string; name: string; conferenceId?: string };
-
-const field = 'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
 
 export default function SuperadminFinanceExpensesPage() {
   const { user, token, loading } = useAuth();
@@ -87,12 +82,6 @@ export default function SuperadminFinanceExpensesPage() {
     if (user?.role === 'SUPERADMIN' && token) load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
   }, [user, token, load]);
 
-  async function remove(id: string) {
-    if (!token || !window.confirm('Delete this expense?')) return;
-    await apiFetch(`/api/superadmin/expenses/${id}`, { method: 'DELETE', token });
-    await load();
-  }
-
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
@@ -101,13 +90,16 @@ export default function SuperadminFinanceExpensesPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Expenses</h1>
-        <p className="mt-1 text-sm text-neutral-600">Review expenses across churches. New superadmin expenses are created for main church and follow full approval flow.</p>
+        <p className="mt-1 text-sm text-neutral-600">
+          Read-only list of expenses from every congregation. Recording and approvals happen in each church&apos;s admin
+          dashboard (same process for main and local churches).
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/dashboard/superadmin/finance/expenses/create" className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500">
-            Add expense
-          </Link>
-          <Link href="/dashboard/superadmin/finance/expenses/approvals" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-            Pending approvals
+          <Link
+            href="/dashboard/superadmin/finance/expenses/approvals"
+            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            Pending approvals (view)
           </Link>
         </div>
       </div>
@@ -174,7 +166,7 @@ export default function SuperadminFinanceExpensesPage() {
               <th className="px-4 py-2 font-medium">Category</th>
               <th className="px-4 py-2 font-medium">Approval</th>
               <th className="px-4 py-2 font-medium">Amount</th>
-              <th className="px-4 py-2 text-right font-medium">Actions</th>
+              <th className="px-4 py-2 text-right font-medium">Detail</th>
             </tr>
           </thead>
           <tbody>
@@ -207,12 +199,12 @@ export default function SuperadminFinanceExpensesPage() {
                   ) : null}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  <Link href={`/dashboard/superadmin/finance/expenses/${r._id}/edit`} className="mr-2 inline-flex items-center text-violet-700 hover:underline">
-                    Edit
+                  <Link
+                    href={`/dashboard/superadmin/finance/expenses/${r._id}/edit`}
+                    className="text-sm font-medium text-violet-700 hover:underline"
+                  >
+                    View
                   </Link>
-                  <button type="button" onClick={() => remove(r._id)} className="inline-flex items-center text-red-700 hover:underline">
-                    <Trash2 className="mr-1 size-3.5" /> Delete
-                  </button>
                 </td>
               </tr>
             ))}

@@ -332,8 +332,21 @@ async function listAdminDepositHistory(req, res) {
 async function listSuperadminPayments(_req, res) {
   const rows = await Payment.find({})
     .populate('church', 'name')
-    .populate('user', 'fullName email')
-    .sort({ paidAt: -1, createdAt: -1 });
+    .populate('user', 'fullName email memberId memberRoleDisplay memberCategory role')
+    .populate('createdBy', 'fullName email')
+    .sort({ paidAt: -1, createdAt: -1 })
+    .limit(1000);
+  return res.json(rows);
+}
+
+/** Platform-wide treasurer deposits (all congregations). */
+async function listSuperadminDepositHistory(_req, res) {
+  const rows = await MemberBalanceDeposit.find({})
+    .populate('church', 'name')
+    .populate('member', 'fullName email memberId memberRoleDisplay memberCategory role')
+    .populate('depositedBy', 'fullName email')
+    .sort({ depositedAt: -1, createdAt: -1 })
+    .limit(500);
   return res.json(rows);
 }
 
@@ -349,4 +362,5 @@ module.exports = {
   listAdminDepositHistory,
   listMemberStatementForAdmin,
   listSuperadminPayments,
+  listSuperadminDepositHistory,
 };

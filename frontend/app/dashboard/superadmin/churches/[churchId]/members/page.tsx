@@ -14,6 +14,7 @@ type MemberRow = {
   memberId?: string;
   memberCategory?: string;
   memberRoleDisplay?: string;
+  memberBadgeType?: 'BADGED' | 'NON_BADGED';
   role?: string;
   isActive?: boolean;
 };
@@ -71,12 +72,13 @@ export default function SuperadminChurchMembersPage() {
       ) : (
         <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-sm">
+            <table className="w-full min-w-[780px] text-left text-sm">
               <thead className="bg-neutral-50 text-neutral-600">
                 <tr>
                   <th className="px-4 py-3 font-medium">Member ID</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Badge</th>
                   <th className="px-4 py-3 font-medium">Account</th>
                   <th className="px-4 py-3 font-medium">Member role</th>
                   <th className="px-4 py-3 font-medium">Status</th>
@@ -89,6 +91,17 @@ export default function SuperadminChurchMembersPage() {
                     <td className="px-4 py-3 font-mono text-xs text-neutral-700">{member.memberId || '—'}</td>
                     <td className="px-4 py-3">{member.email}</td>
                     <td className="px-4 py-3">{member.fullName || '—'}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          member.memberBadgeType === 'BADGED'
+                            ? 'rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900'
+                            : 'rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800'
+                        }
+                      >
+                        {member.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-neutral-700">
                       {member.role === 'ADMIN' ? 'Church admin' : 'Member'}
                     </td>

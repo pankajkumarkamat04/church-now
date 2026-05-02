@@ -4,12 +4,21 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
+
+const emptyAddress: MemberAddress = {
+  line1: '',
+  line2: '',
+  city: '',
+  stateOrProvince: '',
+  postalCode: '',
+  country: '',
+};
 
 type UserDetail = AuthUser & { id: string };
 
@@ -27,7 +36,17 @@ export default function SuperadminUserEditPage() {
   const [churchId, setChurchId] = useState('');
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR'>('MEMBER');
+  const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
   const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [surname, setSurname] = useState('');
+  const [idNumber, setIdNumber] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [membershipDate, setMembershipDate] = useState('');
+  const [baptismDate, setBaptismDate] = useState('');
+  const [address, setAddress] = useState<MemberAddress>(emptyAddress);
   const [isActive, setIsActive] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,6 +84,16 @@ export default function SuperadminUserEditPage() {
       setChurchId(cId || '');
       setCouncilIds(Array.isArray(u.councilIds) ? u.councilIds : []);
       setMemberCategory((u.memberCategory as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR') || 'MEMBER');
+      setMemberBadgeType(u.memberBadgeType === 'BADGED' ? 'BADGED' : 'NON_BADGED');
+      setFirstName(u.firstName || '');
+      setSurname(u.surname || '');
+      setIdNumber(u.idNumber || '');
+      setContactPhone(u.contactPhone || '');
+      setGender(((u.gender as Gender) || '') as Gender | '');
+      setDateOfBirth(u.dateOfBirth || '');
+      setMembershipDate(u.membershipDate || '');
+      setBaptismDate(u.baptismDate || '');
+      setAddress(u.address ? { ...emptyAddress, ...u.address } : emptyAddress);
       const [allConferences, allSubChurches, allCouncils] = await Promise.all([
         apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
           token,
@@ -103,10 +132,27 @@ export default function SuperadminUserEditPage() {
         method: 'PUT',
         token,
         body: JSON.stringify({
-          fullName,
+          ...(!isMemberForm ? { fullName } : {}),
           isActive,
           ...(isLegacyChurchAdmin ? { churchIds } : {}),
-          ...(isMemberForm ? { conferenceId, churchId, memberCategory, councilIds } : {}),
+          ...(isMemberForm
+            ? {
+                conferenceId,
+                churchId,
+                memberCategory,
+                councilIds,
+                memberBadgeType,
+                firstName,
+                surname,
+                idNumber,
+                contactPhone,
+                gender: gender || null,
+                dateOfBirth: dateOfBirth || null,
+                membershipDate: membershipDate || null,
+                baptismDate: baptismDate || null,
+                address,
+              }
+            : {}),
         }),
       });
       router.replace(
@@ -137,7 +183,11 @@ export default function SuperadminUserEditPage() {
       await apiFetch<UserDetail>(`/api/superadmin/users/${userId}`, {
         method: 'PUT',
         token,
-        body: JSON.stringify({ fullName, isActive, removeAdmin: true }),
+        body: JSON.stringify({
+          fullName: `${firstName} ${surname}`.trim() || fullName,
+          isActive,
+          removeAdmin: true,
+        }),
       });
       router.replace('/dashboard/superadmin/users');
     } catch (e) {
@@ -201,10 +251,72 @@ export default function SuperadminUserEditPage() {
         ) : null}
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
-            </div>
+            {!isMemberForm ? (
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
+                  <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Surname</label>
+                  <input value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">ID number</label>
+                  <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={field} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>
+                  <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as Gender | '')}
+                    className={field}
+                  >
+                    <option value="">—</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                    <option value="PREFER_NOT_SAY">Prefer not to say</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
+                  <input
+                    type="date"
+                    value={membershipDate}
+                    onChange={(e) => setMembershipDate(e.target.value)}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
+                  <input
+                    type="date"
+                    value={baptismDate}
+                    onChange={(e) => setBaptismDate(e.target.value)}
+                    className={field}
+                  />
+                </div>
+              </>
+            )}
           {isPromotedChurchAdmin ? (
             <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-3 text-sm text-neutral-800">
               <p className="font-medium text-neutral-900">Congregation admin (promoted from member)</p>
@@ -310,6 +422,66 @@ export default function SuperadminUserEditPage() {
                   <option value="MODERATOR">Moderator</option>
                   <option value="PASTOR">Pastor</option>
                 </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Congregation badge</label>
+                <select
+                  value={memberBadgeType}
+                  onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
+                  className={field}
+                >
+                  <option value="NON_BADGED">Non-badged</option>
+                  <option value="BADGED">Badged</option>
+                </select>
+                <p className="mt-1 text-xs text-neutral-500">Same classification as church admin member forms.</p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
+                <input
+                  value={address.line1}
+                  onChange={(e) => setAddress({ ...address, line1: e.target.value })}
+                  className={field}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
+                <input
+                  value={address.line2}
+                  onChange={(e) => setAddress({ ...address, line2: e.target.value })}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
+                <input
+                  value={address.city}
+                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
+                <input
+                  value={address.stateOrProvince}
+                  onChange={(e) => setAddress({ ...address, stateOrProvince: e.target.value })}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
+                <input
+                  value={address.postalCode}
+                  onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
+                <input
+                  value={address.country}
+                  onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                  className={field}
+                />
               </div>
             </>
           ) : null}

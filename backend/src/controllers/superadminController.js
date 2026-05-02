@@ -1,6 +1,23 @@
 const Church = require('../models/Church');
 const User = require('../models/User');
 const { MEMBER_CATEGORIES } = User;
+const {
+  normalizeMemberBadgeType,
+  applyMemberProfilePatch,
+  parseChurchRecordDate,
+  parseDateOfBirth,
+} = require('../utils/memberProfile');
+
+function optionalDateInputForClient(v) {
+  if (v == null || v === '') return '';
+  try {
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
+}
 const GlobalCouncil = require('../models/GlobalCouncil');
 const Event = require('../models/Event');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
@@ -8,20 +25,7 @@ const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 const { enrichChurchRowsForLocalMinisterList } = require('../utils/churchListLocalMinister');
-
-async function normalizeAndValidateGlobalCouncilIds(inputCouncilIds) {
-  const normalized = Array.isArray(inputCouncilIds)
-    ? Array.from(new Set(inputCouncilIds.map((id) => String(id)).filter(Boolean)))
-    : [];
-  if (normalized.length === 0) {
-    return { error: 'Select at least one council' };
-  }
-  const validRows = await GlobalCouncil.find({ _id: { $in: normalized }, isActive: true }).select('_id').lean();
-  if (validRows.length !== normalized.length) {
-    return { error: 'One or more selected councils are invalid or inactive' };
-  }
-  return { ids: normalized };
-}
+const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 
 async function listChurches(_req, res) {
   try {
@@ -285,6 +289,33 @@ function toUserListItem(u, churchLeanForRoles = null) {
     memberRoleDisplay,
     memberRolesFromChurch: fromChurch,
     memberId: u.memberId || '',
+    memberBadgeType: u.memberBadgeType === 'BADGED' ? 'BADGED' : 'NON_BADGED',
+    firstName: u.firstName || '',
+    surname: u.surname || '',
+    idNumber: u.idNumber || '',
+    contactPhone: u.contactPhone || '',
+    gender: u.gender ?? '',
+    dateOfBirth: optionalDateInputForClient(u.dateOfBirth),
+    membershipDate: optionalDateInputForClient(u.membershipDate),
+    baptismDate: optionalDateInputForClient(u.baptismDate),
+    address:
+      u.address && typeof u.address === 'object'
+        ? {
+            line1: u.address.line1 || '',
+            line2: u.address.line2 || '',
+            city: u.address.city || '',
+            stateOrProvince: u.address.stateOrProvince || '',
+            postalCode: u.address.postalCode || '',
+            country: u.address.country || '',
+          }
+        : {
+            line1: '',
+            line2: '',
+            city: '',
+            stateOrProvince: '',
+            postalCode: '',
+            country: '',
+          },
     adminChurches: u.adminChurches || [],
     isActive: u.isActive,
   };
@@ -411,6 +442,33 @@ async function listUsers(req, res) {
         filter.role = { $in: ['MEMBER', 'ADMIN'] };
       } else {
         filter.role = roleQ;
+      }
+    }
+
+    const badgeFilter = String(req.query.memberBadgeType || '').trim().toUpperCase();
+    if (badgeFilter === 'BADGED') {
+      const badgePart = { memberBadgeType: 'BADGED' };
+      if (Object.keys(filter).length === 0) {
+        Object.assign(filter, badgePart);
+      } else {
+        const prev = { ...filter };
+        Object.keys(filter).forEach((k) => delete filter[k]);
+        Object.assign(filter, { $and: [prev, badgePart] });
+      }
+    } else if (badgeFilter === 'NON_BADGED') {
+      const badgePart = {
+        $or: [
+          { memberBadgeType: 'NON_BADGED' },
+          { memberBadgeType: { $exists: false } },
+          { memberBadgeType: null },
+        ],
+      };
+      if (Object.keys(filter).length === 0) {
+        Object.assign(filter, badgePart);
+      } else {
+        const prev = { ...filter };
+        Object.keys(filter).forEach((k) => delete filter[k]);
+        Object.assign(filter, { $and: [prev, badgePart] });
       }
     }
 
@@ -554,6 +612,30 @@ async function updateUser(req, res) {
           return res.status(400).json({ message: councilResult.error });
         }
         user.councilIds = councilResult.ids;
+      }
+      const profileKeys = [
+        'gender',
+        'dateOfBirth',
+        'membershipDate',
+        'membership_date',
+        'baptismDate',
+        'baptism_date',
+        'address',
+        'firstName',
+        'surname',
+        'idNumber',
+        'contactPhone',
+        'memberBadgeType',
+      ];
+      const profilePatch = {};
+      for (const k of profileKeys) {
+        if (req.body[k] !== undefined) profilePatch[k] = req.body[k];
+      }
+      if (Object.keys(profilePatch).length > 0) {
+        const patchResult = applyMemberProfilePatch(user, profilePatch, { allowAdminFields: true });
+        if (patchResult.error) {
+          return res.status(400).json({ message: patchResult.error });
+        }
       }
     }
 
@@ -719,9 +801,14 @@ async function createMemberUser(req, res) {
       churchId,
       memberCategory,
       councilIds,
+      memberBadgeType,
       gender,
       dateOfBirth,
       address,
+      membershipDate,
+      membership_date,
+      baptismDate,
+      baptism_date,
     } = req.body;
     if (!email || !password || !conferenceId || !churchId) {
       return res.status(400).json({ message: 'email, password, conferenceId and churchId are required' });
@@ -746,8 +833,33 @@ async function createMemberUser(req, res) {
     } catch (e) {
       return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid member ID' });
     }
+    let dobVal = null;
+    if (dateOfBirth !== undefined && dateOfBirth !== null && dateOfBirth !== '') {
+      const d = parseDateOfBirth(dateOfBirth);
+      if (d === undefined) {
+        return res.status(400).json({ message: 'Invalid date of birth (use ISO date, not in the future)' });
+      }
+      dobVal = d;
+    }
     const normalizedFirstName = String(firstName || '').trim();
     const normalizedSurname = String(surname || '').trim();
+    const mshipRaw = membershipDate !== undefined ? membershipDate : membership_date;
+    let membershipDateVal = new Date();
+    if (mshipRaw !== undefined && mshipRaw !== null && mshipRaw !== '') {
+      const parsed = parseChurchRecordDate(mshipRaw);
+      if (!parsed) {
+        return res.status(400).json({ message: 'Invalid membership date' });
+      }
+      membershipDateVal = parsed;
+    }
+    const bapRaw = baptismDate !== undefined ? baptismDate : baptism_date;
+    let baptismDateVal = null;
+    if (bapRaw !== undefined && bapRaw !== null && bapRaw !== '') {
+      baptismDateVal = parseChurchRecordDate(bapRaw);
+      if (!baptismDateVal) {
+        return res.status(400).json({ message: 'Invalid baptism date' });
+      }
+    }
     const user = await User.create({
       email: email.toLowerCase().trim(),
       password,
@@ -763,9 +875,11 @@ async function createMemberUser(req, res) {
       memberCategory: String(memberCategory || 'MEMBER').toUpperCase(),
       memberId: assignedMemberId,
       gender: gender || undefined,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      dateOfBirth: dobVal,
       address: address || {},
-      membershipDate: new Date(),
+      membershipDate: membershipDateVal,
+      baptismDate: baptismDateVal,
+      memberBadgeType: normalizeMemberBadgeType(memberBadgeType),
     });
     const safe = await User.findById(user._id).populate('church', 'name conference').select('-password');
     const lean = await churchLeanForUserRoles(church._id);

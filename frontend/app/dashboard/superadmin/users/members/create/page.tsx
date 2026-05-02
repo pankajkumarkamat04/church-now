@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Gender } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -31,6 +31,18 @@ export default function SuperadminMemberCreatePage() {
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [councilIds, setCouncilIds] = useState<string[]>([]);
+  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR'>('MEMBER');
+  const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
+  const [gender, setGender] = useState<Gender>('MALE');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [membershipDate, setMembershipDate] = useState('');
+  const [baptismDate, setBaptismDate] = useState('');
+  const [line1, setLine1] = useState('');
+  const [line2, setLine2] = useState('');
+  const [city, setCity] = useState('');
+  const [stateOrProvince, setStateOrProvince] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [country, setCountry] = useState('');
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [churches, setChurches] = useState<Church[]>([]);
   const [councils, setCouncils] = useState<Council[]>([]);
@@ -108,6 +120,13 @@ export default function SuperadminMemberCreatePage() {
           conferenceId,
           churchId,
           councilIds,
+          memberCategory,
+          memberBadgeType,
+          gender,
+          dateOfBirth: dateOfBirth || undefined,
+          membershipDate: membershipDate || undefined,
+          baptismDate: baptismDate || undefined,
+          address: { line1, line2, city, stateOrProvince, postalCode, country },
         }),
       });
       router.replace('/dashboard/superadmin/users');
@@ -186,6 +205,14 @@ export default function SuperadminMemberCreatePage() {
               </div>
             </div>
             <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className={field} />
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
               <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
             </div>
@@ -202,12 +229,86 @@ export default function SuperadminMemberCreatePage() {
               <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={field} />
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
+              <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
-              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className={field} />
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
+              <input
+                type="date"
+                value={membershipDate}
+                onChange={(e) => setMembershipDate(e.target.value)}
+                className={field}
+                title="Leave empty to use today’s date"
+              />
+              <p className="mt-0.5 text-xs text-neutral-500">Optional — defaults to today if left blank</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
+              <input type="date" value={baptismDate} onChange={(e) => setBaptismDate(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as Gender)}
+                className={field}
+              >
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+                <option value="PREFER_NOT_SAY">Prefer not to say</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Congregation badge</label>
+              <select
+                value={memberBadgeType}
+                onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
+                className={field}
+              >
+                <option value="NON_BADGED">Non-badged</option>
+                <option value="BADGED">Badged</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>
+              <select
+                value={memberCategory}
+                onChange={(e) =>
+                  setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR')
+                }
+                className={field}
+              >
+                <option value="MEMBER">Member</option>
+                <option value="PRESIDENT">President</option>
+                <option value="MODERATOR">Moderator</option>
+                <option value="PASTOR">Pastor</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
+              <input value={line1} onChange={(e) => setLine1(e.target.value)} className={field} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
+              <input value={line2} onChange={(e) => setLine2(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
+              <input value={city} onChange={(e) => setCity(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
+              <input value={stateOrProvince} onChange={(e) => setStateOrProvince(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
+              <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
+              <input value={country} onChange={(e) => setCountry(e.target.value)} className={field} />
             </div>
           </div>
           {err ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}

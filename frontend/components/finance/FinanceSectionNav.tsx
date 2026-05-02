@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SuperadminFinanceReadOnlyBanner } from '@/components/finance/SuperadminFinanceReadOnlyBanner';
 
 const adminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/admin/finance', label: 'Overview' },
@@ -24,7 +25,9 @@ export function FinanceSectionNav({ variant }: { variant: Variant }) {
   const links = variant === 'admin' ? adminLinks : superadminLinks;
 
   return (
-    <nav className="mb-6 flex flex-wrap gap-2 border-b border-neutral-200 pb-3">
+    <>
+      {variant === 'superadmin' ? <SuperadminFinanceReadOnlyBanner /> : null}
+      <nav className="mb-6 flex flex-wrap gap-2 border-b border-neutral-200 pb-3">
       {links.map((item) => {
         const overviewHref = `/dashboard/${variant}/finance`;
         const active =
@@ -47,6 +50,7 @@ export function FinanceSectionNav({ variant }: { variant: Variant }) {
           </Link>
         );
       })}
-    </nav>
+      </nav>
+    </>
   );
 }

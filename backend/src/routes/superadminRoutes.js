@@ -38,6 +38,14 @@ const announcementController = require('../controllers/announcementController');
 
 const router = express.Router();
 
+/** Superadmin may list finance data platform-wide but cannot create or change records (church admin handles main + local congregations). */
+function superadminFinanceReadOnly(_req, res) {
+  res.status(403).json({
+    message:
+      'Superadmin has read-only access to finance. Record expenses, payments, and approvals from each congregation’s church admin dashboard (same workflow for main and local churches).',
+  });
+}
+
 router.use(authenticate, requireRoles('SUPERADMIN'));
 
 router.get('/churches', asyncHandler(listChurches));
@@ -85,14 +93,15 @@ router.post('/media/upload', mediaController.upload.single('file'), asyncHandler
 router.delete('/media/:fileName', asyncHandler(mediaController.remove));
 router.get('/announcements', asyncHandler(announcementController.listSuperadminAnnouncements));
 router.post('/announcements', asyncHandler(announcementController.createSuperadminAnnouncement));
+router.get('/payments/deposits', asyncHandler(paymentController.listSuperadminDepositHistory));
 router.get('/payments', asyncHandler(paymentController.listSuperadminPayments));
 router.get('/finance/summary', asyncHandler(financeController.getSuperadminFinanceSummary));
 router.get('/expenses', asyncHandler(expenseController.listSuperadminExpenses));
 router.get('/expenses/:expenseId', asyncHandler(expenseController.getSuperadminExpense));
-router.post('/expenses', asyncHandler(expenseController.createSuperadminExpense));
-router.put('/expenses/:expenseId', asyncHandler(expenseController.updateSuperadminExpense));
-router.post('/expenses/:expenseId/approval', asyncHandler(expenseController.decideSuperadminExpenseApproval));
-router.delete('/expenses/:expenseId', asyncHandler(expenseController.removeSuperadminExpense));
+router.post('/expenses', superadminFinanceReadOnly);
+router.put('/expenses/:expenseId', superadminFinanceReadOnly);
+router.post('/expenses/:expenseId/approval', superadminFinanceReadOnly);
+router.delete('/expenses/:expenseId', superadminFinanceReadOnly);
 router.get('/church-change-requests', asyncHandler(churchChangeController.listSuperadminChurchChangeRequests));
 router.post(
   '/church-change-requests/:requestId/decision',

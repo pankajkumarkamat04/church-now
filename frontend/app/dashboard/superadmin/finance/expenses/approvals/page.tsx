@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
 
 type ExpenseRow = {
   _id: string;
@@ -45,11 +46,13 @@ export default function SuperadminExpenseApprovalsPage() {
 
   return (
     <div className="w-full min-w-0 max-w-6xl">
+      <FinanceSectionNav variant="superadmin" />
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Pending expense approvals</h1>
           <p className="mt-1 text-sm text-neutral-600">
-            Church treasurer or vice treasurer now approves these expenses from the church admin panel.
+            Read-only. Approvals are completed by each church&apos;s treasurer or vice treasurer in church admin (main and
+            local congregations).
           </p>
         </div>
         <Link href="/dashboard/superadmin/finance/expenses" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
