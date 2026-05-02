@@ -88,6 +88,11 @@ const userSchema = new mongoose.Schema(
       enum: REGISTRATION_SOURCES,
       default: 'SYSTEM',
     },
+    walletBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
   },

@@ -90,6 +90,7 @@ export type AuthUser = {
   isActive?: boolean;
   approvalStatus?: 'PENDING' | 'APPROVED';
   registrationSource?: 'SYSTEM' | 'SELF_SIGNUP';
+  walletBalance?: number;
 };
 
 const STORAGE_KEY = 'church_auth';

@@ -16,6 +16,7 @@ router.put('/profile', asyncHandler(updateProfile));
 router.get('/church', asyncHandler(getMyChurchInfo));
 router.get('/councils', asyncHandler(getMyCouncils));
 router.get('/payments', asyncHandler(paymentController.listMemberPayments));
+router.get('/payments/balance', asyncHandler(paymentController.getMemberPaymentBalance));
 router.post('/payments/pay', asyncHandler(paymentController.payMember));
 router.get('/announcements', asyncHandler(announcementController.listMyAnnouncements));
 router.get('/church-change-requests', asyncHandler(churchChangeController.listMyChurchChangeRequests));

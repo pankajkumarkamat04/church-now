@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 
 const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
-type ConferenceRow = { _id: string; name: string; conferenceId?: string };
 type ExpenseRow = {
   _id: string;
   title: string;
@@ -30,8 +29,6 @@ export default function SuperadminEditExpensePage() {
   const params = useParams<{ expenseId: string }>();
   const expenseId = String(params?.expenseId || '');
   const { churches } = useSuperadminChurches();
-  const [conferences, setConferences] = useState<ConferenceRow[]>([]);
-  const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -47,13 +44,6 @@ export default function SuperadminEditExpensePage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (!token || !user || user.role !== 'SUPERADMIN') return;
-    apiFetch<ConferenceRow[]>('/api/superadmin/conferences', { token })
-      .then((data) => setConferences(data))
-      .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load conferences'));
-  }, [token, user]);
-
-  useEffect(() => {
     if (!token || !expenseId || !user || user.role !== 'SUPERADMIN') return;
     apiFetch<ExpenseRow>(`/api/superadmin/expenses/${expenseId}`, { token })
       .then((row) => {
@@ -67,33 +57,17 @@ export default function SuperadminEditExpensePage() {
         );
         const churchRef = row.church?._id ? String(row.church._id) : '';
         setChurchId(churchRef);
-        const confRef =
-          row.conference && typeof row.conference !== 'string'
-            ? String(row.conference._id || '')
-            : row.church?.conference && typeof row.church.conference !== 'string'
-              ? String(row.church.conference._id)
-              : String(row.conference || row.church?.conference || '');
-        setConferenceId(confRef);
       })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load expense'));
   }, [token, expenseId, user]);
 
-  const churchesForConference = useMemo(
-    () =>
-      conferenceId
-        ? churches.filter(
-            (c) => c.conference && typeof c.conference !== 'string' && c.conference._id === conferenceId
-          )
-        : churches,
-    [churches, conferenceId]
-  );
+  const mainChurches = useMemo(() => churches.filter((c) => c.churchType === 'MAIN'), [churches]);
 
   useEffect(() => {
-    if (!conferenceId) return;
-    if (!churchesForConference.some((c) => c._id === churchId)) {
-      setChurchId(churchesForConference[0]?._id || '');
+    if (!mainChurches.some((c) => c._id === churchId)) {
+      setChurchId(mainChurches[0]?._id || '');
     }
-  }, [conferenceId, churchesForConference, churchId]);
+  }, [mainChurches, churchId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,8 +79,7 @@ export default function SuperadminEditExpensePage() {
         method: 'PUT',
         token,
         body: JSON.stringify({
-          churchId: churchId || undefined,
-          conferenceId: conferenceId || undefined,
+          churchId,
           title: title.trim(),
           amount: Number(amount),
           currency,
@@ -134,21 +107,10 @@ export default function SuperadminEditExpensePage() {
         <h1 className="text-xl font-semibold text-neutral-900">Edit expense</h1>
         <form className="mt-6 grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Conference</label>
-            <select className={field} value={conferenceId} onChange={(e) => setConferenceId(e.target.value)}>
-              <option value="">No conference</option>
-              {conferences.map((conference) => (
-                <option key={conference._id} value={conference._id}>
-                  {conference.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Church</label>
-            <select className={field} value={churchId} onChange={(e) => setChurchId(e.target.value)}>
-              <option value="">No church</option>
-              {churchesForConference.map((c) => (
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Main church</label>
+            <select className={field} value={churchId} onChange={(e) => setChurchId(e.target.value)} required>
+              <option value="">Select main church</option>
+              {mainChurches.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
                 </option>

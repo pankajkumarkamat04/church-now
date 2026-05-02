@@ -1,7 +1,5 @@
 const Expense = require('../models/Expense');
-const User = require('../models/User');
 const Church = require('../models/Church');
-const Conference = require('../models/Conference');
 
 function churchId(req) {
   return req.user?.church;
@@ -264,34 +262,30 @@ async function getSuperadminExpense(req, res) {
 
 async function createSuperadminExpense(req, res) {
   const cid = String(req.body?.churchId || '').trim();
-  const conferenceId = String(req.body?.conferenceId || '').trim();
-  let church = null;
-  let conference = null;
-  if (cid) {
-    church = await Church.findOne({ _id: cid, isActive: true }).select('_id conference');
-    if (!church) return res.status(404).json({ message: 'Church not found' });
-  }
-  if (conferenceId) {
-    conference = await Conference.findOne({ _id: conferenceId, isActive: true }).select('_id');
-    if (!conference) return res.status(404).json({ message: 'Conference not found' });
-  }
-  if (!church && !conference) {
-    return res.status(400).json({ message: 'Please select church or conference scope' });
-  }
-  if (church && conference && String(church.conference || '') !== String(conference._id)) {
-    return res.status(400).json({ message: 'Selected church does not belong to selected conference' });
-  }
+  if (!cid) return res.status(400).json({ message: 'Main church is required' });
+  const church = await Church.findOne({ _id: cid, isActive: true, churchType: 'MAIN' }).select('_id conference');
+  if (!church) return res.status(400).json({ message: 'Superadmin can add expenses only for main church' });
   const data = parseBody(req.body);
   if (!data.title) return res.status(400).json({ message: 'title is required' });
   const row = await Expense.create({
     ...data,
-    church: church ? church._id : null,
-    conference: conference ? conference._id : church?.conference || null,
+    church: church._id,
+    conference: church.conference || null,
     createdBy: req.user._id,
-    approvalStatus: 'APPROVED',
-    approvalStage: 'POSTED',
-    approvedBy: req.user._id,
-    approvedAt: new Date(),
+    initiatedBy: req.user._id,
+    approvalStatus: 'PENDING',
+    approvedBy: null,
+    approvedAt: null,
+    approvalStage: 'PENDING_VERIFICATION',
+    verifiedBy: null,
+    verifiedAt: null,
+    paymentNoticeCreatedAt: null,
+    noticeApprovals: {
+      viceSecretary: false,
+      secretary: false,
+      viceDeacon: false,
+      deacon: false,
+    },
   });
   const populated = await Expense.findById(row._id)
     .populate('church', 'name')
@@ -304,31 +298,15 @@ async function createSuperadminExpense(req, res) {
 async function updateSuperadminExpense(req, res) {
   const row = await Expense.findById(req.params.expenseId);
   if (!row) return res.status(404).json({ message: 'Expense not found' });
-  if (req.body.churchId !== undefined || req.body.conferenceId !== undefined) {
-    const nextChurchId =
-      req.body.churchId !== undefined ? String(req.body.churchId || '').trim() : String(row.church || '');
-    const nextConferenceId =
-      req.body.conferenceId !== undefined
-        ? String(req.body.conferenceId || '').trim()
-        : String(row.conference || '');
-    let church = null;
-    let conference = null;
-    if (nextChurchId) {
-      church = await Church.findOne({ _id: nextChurchId, isActive: true }).select('_id conference');
-      if (!church) return res.status(404).json({ message: 'Church not found' });
-    }
-    if (nextConferenceId) {
-      conference = await Conference.findOne({ _id: nextConferenceId, isActive: true }).select('_id');
-      if (!conference) return res.status(404).json({ message: 'Conference not found' });
-    }
-    if (!church && !conference) {
-      return res.status(400).json({ message: 'Please select church or conference scope' });
-    }
-    if (church && conference && String(church.conference || '') !== String(conference._id)) {
-      return res.status(400).json({ message: 'Selected church does not belong to selected conference' });
-    }
-    row.church = church ? church._id : null;
-    row.conference = conference ? conference._id : church?.conference || null;
+  if (req.body.churchId !== undefined) {
+    const nextChurchId = String(req.body.churchId || '').trim();
+    if (!nextChurchId) return res.status(400).json({ message: 'Main church is required' });
+    const church = await Church.findOne({ _id: nextChurchId, isActive: true, churchType: 'MAIN' }).select(
+      '_id conference'
+    );
+    if (!church) return res.status(400).json({ message: 'Superadmin can assign expenses only to main church' });
+    row.church = church._id;
+    row.conference = church.conference || null;
   }
   if (req.body.title !== undefined) row.title = String(req.body.title).trim();
   if (req.body.amount !== undefined) row.amount = Number(req.body.amount);
@@ -336,22 +314,20 @@ async function updateSuperadminExpense(req, res) {
   if (req.body.category !== undefined) row.category = String(req.body.category).trim();
   if (req.body.description !== undefined) row.description = String(req.body.description).trim();
   if (req.body.expenseDate !== undefined) row.expenseDate = new Date(req.body.expenseDate);
-  if (req.body.approvalStatus !== undefined) {
-    const status = String(req.body.approvalStatus || '').toUpperCase();
-    if (!['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid approvalStatus' });
-    }
-    row.approvalStatus = status;
-    if (status === 'APPROVED') {
-      row.approvalStage = 'POSTED';
-      row.approvedBy = req.user._id;
-      row.approvedAt = new Date();
-    } else {
-      row.approvalStage = 'PENDING_VERIFICATION';
-      row.approvedBy = null;
-      row.approvedAt = null;
-    }
-  }
+  // Any edit restarts approval workflow to match local church process.
+  row.approvalStatus = 'PENDING';
+  row.approvedBy = null;
+  row.approvedAt = null;
+  row.approvalStage = 'PENDING_VERIFICATION';
+  row.verifiedBy = null;
+  row.verifiedAt = null;
+  row.paymentNoticeCreatedAt = null;
+  row.noticeApprovals = {
+    viceSecretary: false,
+    secretary: false,
+    viceDeacon: false,
+    deacon: false,
+  };
   if (!row.title) return res.status(400).json({ message: 'title is required' });
   if (!Number.isFinite(row.amount) || row.amount < 0) return res.status(400).json({ message: 'Valid amount is required' });
   await row.save();

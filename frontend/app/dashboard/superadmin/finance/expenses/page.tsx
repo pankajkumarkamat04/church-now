@@ -99,7 +99,7 @@ export default function SuperadminFinanceExpensesPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Expenses</h1>
-        <p className="mt-1 text-sm text-neutral-600">Review expenses for any church.</p>
+        <p className="mt-1 text-sm text-neutral-600">Review expenses across churches. New superadmin expenses are created for main church and follow full approval flow.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link href="/dashboard/superadmin/finance/expenses/create" className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500">
             Add expense

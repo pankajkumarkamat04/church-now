@@ -83,6 +83,7 @@ function toProfileResponse(userDoc) {
     isActive: u.isActive,
     approvalStatus: u.approvalStatus || 'APPROVED',
     registrationSource: u.registrationSource || 'SYSTEM',
+    walletBalance: Number(u.walletBalance || 0),
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };

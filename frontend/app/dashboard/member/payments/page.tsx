@@ -34,6 +34,7 @@ export default function MemberPaymentsPage() {
     HARVEST: '',
   }));
   const [note, setNote] = useState('');
+  const [balance, setBalance] = useState(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const totalPreview = PAYMENT_OPTIONS.reduce((sum, option) => {
@@ -44,8 +45,12 @@ export default function MemberPaymentsPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const data = await apiFetch<PaymentRow[]>('/api/member/payments', { token });
+    const [data, balanceData] = await Promise.all([
+      apiFetch<PaymentRow[]>('/api/member/payments', { token }),
+      apiFetch<{ balance: number }>('/api/member/payments/balance', { token }),
+    ]);
     setRows(data);
+    setBalance(Number(balanceData.balance || 0));
   }, [token]);
 
   useEffect(() => {
@@ -83,6 +88,9 @@ export default function MemberPaymentsPage() {
       if (!hasAtLeastOneAmount) {
         throw new Error('Enter at least one payment amount');
       }
+      if (totalPreview > balance) {
+        throw new Error('Insufficient balance. Ask treasurer to deposit funds first.');
+      }
       await apiFetch('/api/member/payments/pay', {
         method: 'POST',
         token,
@@ -113,8 +121,14 @@ export default function MemberPaymentsPage() {
   return (
     <div className="w-full min-w-0 max-w-5xl">
       <h1 className="text-2xl font-semibold text-neutral-900">Payments</h1>
-      <p className="mt-1 text-sm text-neutral-600">Choose a payment option, fill fields, and make your payment.</p>
+      <p className="mt-1 text-sm text-neutral-600">Use available balance deposited by treasurer, then allocate it across payment types.</p>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
+      <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-violet-700">Available balance</p>
+        <p className="mt-1 text-xl font-semibold text-violet-900">
+          {currency} {balance.toFixed(2)}
+        </p>
+      </div>
       <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Preview total</p>
         <p className="mt-1 text-xl font-semibold text-emerald-900">
@@ -144,7 +158,7 @@ export default function MemberPaymentsPage() {
           <label className="mb-1 block text-xs font-medium text-neutral-600">Note (optional, applies to submitted options)</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
         </div>
-        <button type="submit" disabled={busy} className="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60">
+        <button type="submit" disabled={busy || totalPreview > balance} className="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60">
           {busy ? <Loader2 className="size-4 animate-spin" /> : null}
           Submit payments
         </button>
