@@ -19,6 +19,7 @@ import {
 import {
   churchRoleLabel,
   emptyAmountsByOption,
+  hasTreasurerPrivileges,
   memberDropdownLabel,
   type MemberBalanceRow,
 } from '../_lib/treasurer-shared';
@@ -35,6 +36,7 @@ export default function AdminPaymentsOnBehalfPage() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const canManagePayments = hasTreasurerPrivileges(user);
 
   const loadMembers = useCallback(async () => {
     if (!token) return;
@@ -77,14 +79,18 @@ export default function AdminPaymentsOnBehalfPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN' && token) {
+    if (user?.role === 'ADMIN' && token && canManagePayments) {
       loadMembers().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
     }
-  }, [user, token, loadMembers]);
+  }, [user, token, loadMembers, canManagePayments]);
 
   async function onPay(e: React.FormEvent) {
     e.preventDefault();
     if (!token || !selectedMemberId) return;
+    if (!canManagePayments) {
+      setErr('Only Treasurer or Vice Treasurer can add balance and make payments.');
+      return;
+    }
     setErr(null);
     setBusy(true);
     try {
@@ -135,6 +141,11 @@ export default function AdminPaymentsOnBehalfPage() {
       <p className="mt-1 text-sm text-neutral-600">
         Allocate payment types from someone&apos;s wallet the same way they would on the member portal—useful when they pay cash or need help entering splits.
       </p>
+      {!canManagePayments ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Only Treasurer or Vice Treasurer can add balance and make payments.
+        </p>
+      ) : null}
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
       {ratesErr ? <p className="mt-2 text-xs text-amber-800">{ratesErr} (USD amounts still work.)</p> : null}
 
@@ -143,6 +154,7 @@ export default function AdminPaymentsOnBehalfPage() {
         <select
           value={selectedMemberId}
           onChange={(e) => setSelectedMemberId(e.target.value)}
+          disabled={!canManagePayments}
           className="w-full max-w-xl rounded-lg border border-neutral-300 px-3 py-2 text-sm"
         >
           <option value="">Select person</option>
@@ -185,6 +197,7 @@ export default function AdminPaymentsOnBehalfPage() {
               step="0.01"
               value={amountsByOption[opt]}
               onChange={(e) => setAmountsByOption((prev) => ({ ...prev, [opt]: e.target.value }))}
+              disabled={!canManagePayments}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               placeholder="0.00"
             />
@@ -195,6 +208,7 @@ export default function AdminPaymentsOnBehalfPage() {
           <select
             value={displayCurrency}
             onChange={(e) => setDisplayCurrency(normalizeDisplayCurrencyInput(e.target.value))}
+            disabled={!canManagePayments}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
           >
             {DISPLAY_CURRENCY_OPTIONS.map((o) => (
@@ -210,6 +224,7 @@ export default function AdminPaymentsOnBehalfPage() {
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
+            disabled={!canManagePayments}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
           />
         </div>
@@ -217,6 +232,7 @@ export default function AdminPaymentsOnBehalfPage() {
           type="submit"
           disabled={
             busy ||
+            !canManagePayments ||
             !selectedMemberId ||
             totalPreviewUsd > balanceUsd + 1e-9 ||
             (!rates && displayCurrency !== 'USD')

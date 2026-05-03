@@ -23,9 +23,6 @@ export default function SuperadminPaymentsLayout({ children }: { children: React
   return (
     <div className="w-full min-w-0 max-w-6xl">
       <h1 className="text-2xl font-semibold text-neutral-900">Payments</h1>
-      <p className="mt-1 text-sm text-neutral-600">
-        Platform-wide view of treasurer deposits and payment allocations across all congregations.
-      </p>
       <div className="mt-4">
         <SuperadminFinanceReadOnlyBanner />
       </div>

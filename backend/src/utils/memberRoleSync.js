@@ -30,4 +30,8 @@ async function syncChurchMemberRoleDisplays(churchDocOrLean) {
   }
 }
 
-module.exports = { syncChurchMemberRoleDisplays, ACTIVE_PASTOR_TERM_STATUSES, SPIRITUAL_LABEL };
+module.exports = {
+  syncChurchMemberRoleDisplays,
+  ACTIVE_PASTOR_TERM_STATUSES,
+  SPIRITUAL_LABEL,
+};

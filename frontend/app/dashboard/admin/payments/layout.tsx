@@ -2,19 +2,24 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasTreasurerPrivileges } from './_lib/treasurer-shared';
 
 const NAV = [
   { href: '/dashboard/admin/payments', label: 'Overview', match: 'exact' as const },
-  { href: '/dashboard/admin/payments/balance', label: 'Balances & deposits', match: 'prefix' as const },
-  { href: '/dashboard/admin/payments/on-behalf', label: 'Pay on behalf', match: 'prefix' as const },
+  { href: '/dashboard/admin/payments/balance', label: 'Balances & deposits', match: 'prefix' as const, requiresTreasurer: true },
+  { href: '/dashboard/admin/payments/on-behalf', label: 'Pay on behalf', match: 'prefix' as const, requiresTreasurer: true },
   { href: '/dashboard/admin/payments/history', label: 'History', match: 'prefix' as const },
 ] as const;
 
 export default function AdminPaymentsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isOverview = pathname === '/dashboard/admin/payments';
+  const { user } = useAuth();
+  const canManagePayments = hasTreasurerPrivileges(user);
+  const visibleNav = NAV.filter((tab) => !('requiresTreasurer' in tab) || !tab.requiresTreasurer || canManagePayments);
 
-  function isActive(tab: (typeof NAV)[number]): boolean {
+  function isActive(tab: (typeof visibleNav)[number]): boolean {
     if (tab.match === 'exact') return pathname === tab.href;
     return pathname === tab.href || pathname.startsWith(`${tab.href}/`);
   }
@@ -27,7 +32,7 @@ export default function AdminPaymentsLayout({ children }: { children: React.Reac
       </p>
       {!isOverview ? (
         <nav className="mt-4 flex flex-wrap gap-2 border-b border-neutral-200 pb-3" aria-label="Payments sections">
-          {NAV.map((tab) => {
+          {visibleNav.map((tab) => {
             const active = isActive(tab);
             return (
               <Link

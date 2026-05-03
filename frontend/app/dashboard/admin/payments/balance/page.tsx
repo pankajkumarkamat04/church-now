@@ -16,6 +16,7 @@ import {
 import {
   accountTypeLabel,
   churchRoleLabel,
+  hasTreasurerPrivileges,
   memberDropdownLabel,
   type MemberBalanceRow,
 } from '../_lib/treasurer-shared';
@@ -31,6 +32,7 @@ export default function AdminPaymentsBalancePage() {
   const [rates, setRates] = useState<PublicCurrencyRates | null>(null);
   const [listDisplay, setListDisplay] = useState<DisplayCurrency>('USD');
   const [err, setErr] = useState<string | null>(null);
+  const canManagePayments = hasTreasurerPrivileges(user);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -51,6 +53,10 @@ export default function AdminPaymentsBalancePage() {
   async function onDeposit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
+    if (!canManagePayments) {
+      setErr('Only Treasurer or Vice Treasurer can add balance and make payments.');
+      return;
+    }
     const amount = Number(depositAmount);
     if (!selectedMemberId) {
       setErr('Select a recipient');
@@ -87,17 +93,21 @@ export default function AdminPaymentsBalancePage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN' && token) load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
-  }, [user, token, load]);
+    if (user?.role === 'ADMIN' && token && canManagePayments) {
+      load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed'));
+    }
+  }, [user, token, load, canManagePayments]);
 
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
     <>
       <h2 className="text-lg font-semibold text-neutral-900">Balances & deposits</h2>
-      <p className="mt-1 text-sm text-neutral-600">
-        Add funds to a member or church admin wallet. They (or you on their behalf) allocate payment types from this balance.
-      </p>
+      {!canManagePayments ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Only Treasurer or Vice Treasurer can add balance and make payments.
+        </p>
+      ) : null}
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
       <form onSubmit={onDeposit} className="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm md:grid-cols-4">
         <div>
@@ -105,6 +115,7 @@ export default function AdminPaymentsBalancePage() {
           <select
             value={selectedMemberId}
             onChange={(e) => setSelectedMemberId(e.target.value)}
+            disabled={!canManagePayments}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
           >
             <option value="">Select person (member or church admin)</option>
@@ -123,6 +134,7 @@ export default function AdminPaymentsBalancePage() {
             step="0.01"
             value={depositAmount}
             onChange={(e) => setDepositAmount(e.target.value)}
+            disabled={!canManagePayments}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             placeholder="0.00"
           />
@@ -132,6 +144,7 @@ export default function AdminPaymentsBalancePage() {
           <select
             value={depositCurrency}
             onChange={(e) => setDepositCurrency(normalizeDisplayCurrencyInput(e.target.value))}
+            disabled={!canManagePayments}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
           >
             {DISPLAY_CURRENCY_OPTIONS.map((o) => (
@@ -143,7 +156,7 @@ export default function AdminPaymentsBalancePage() {
         </div>
         <button
           type="submit"
-          disabled={depositBusy}
+          disabled={depositBusy || !canManagePayments}
           className="self-end inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
         >
           {depositBusy ? 'Depositing...' : 'Deposit to balance'}

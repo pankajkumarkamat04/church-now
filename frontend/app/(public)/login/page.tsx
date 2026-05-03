@@ -44,9 +44,6 @@ export default function LoginPage() {
         </span>
       </div>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Sign in</h1>
-      <p className="mt-1 text-center text-sm text-neutral-600">
-        Use the email and password for your account.
-      </p>
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <div>

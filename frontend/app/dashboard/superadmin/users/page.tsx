@@ -120,10 +120,6 @@ export default function SuperadminUsersListPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
             Members
           </h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            Create and manage people across conferences and churches. The list includes church admins and members.
-          </p>
-          <p className="mt-1 text-xs text-neutral-500">Use the role filter to show everyone, members only, or admins only.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link

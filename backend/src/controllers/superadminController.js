@@ -19,11 +19,16 @@ function optionalDateInputForClient(v) {
   }
 }
 const GlobalCouncil = require('../models/GlobalCouncil');
+const PastorTerm = require('../models/PastorTerm');
 const Event = require('../models/Event');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
-const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
+const {
+  syncChurchMemberRoleDisplays,
+  ACTIVE_PASTOR_TERM_STATUSES,
+  SPIRITUAL_LABEL,
+} = require('../utils/memberRoleSync');
 const { enrichChurchRowsForLocalMinisterList } = require('../utils/churchListLocalMinister');
 const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 
@@ -207,6 +212,7 @@ async function listCouncilMembers(req, res) {
         fullName: u.fullName,
         memberId: u.memberId || '',
         role: u.role,
+        memberBadgeType: u.memberBadgeType === 'BADGED' ? 'BADGED' : 'NON_BADGED',
         church: u.church,
         isActive: u.isActive,
       })),
@@ -726,6 +732,47 @@ async function createChurchAdmin(req, res) {
       return res.status(404).json({ message: 'Church not found or inactive' });
     }
 
+    const existingAdminElsewhere = await User.findOne({
+      role: 'ADMIN',
+      $or: [{ church: routeChurchId }, { adminChurches: routeChurchId }],
+      _id: { $ne: member._id },
+    })
+      .select('fullName email')
+      .lean();
+    if (existingAdminElsewhere) {
+      return res.status(409).json({
+        message:
+          'This congregation already has a church administrator. Demote or reassign that account first (only one pastor may hold this login per church).',
+      });
+    }
+
+    const activePastorTerm = await PastorTerm.findOne({
+      church: routeChurchId,
+      status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+    })
+      .populate('pastor', 'fullName email')
+      .select('pastor');
+
+    if (!activePastorTerm) {
+      return res.status(400).json({
+        message:
+          'Assign an active spiritual pastor for this congregation first (Churches → manage pastor assignments). The pastor serves as church administrator; only they may receive this dashboard login.',
+      });
+    }
+
+    const pastorId = activePastorTerm.pastor?._id || activePastorTerm.pastor;
+    if (!pastorId || String(pastorId) !== String(member._id)) {
+      const pname =
+        activePastorTerm.pastor &&
+        typeof activePastorTerm.pastor === 'object' &&
+        (activePastorTerm.pastor.fullName || activePastorTerm.pastor.email)
+          ? activePastorTerm.pastor.fullName || activePastorTerm.pastor.email
+          : 'the assigned pastor';
+      return res.status(409).json({
+        message: `Church administrator is reserved for the active spiritual pastor (${pname}). Select that member.`,
+      });
+    }
+
     if (!member.memberId || !String(member.memberId).trim()) {
       member.memberId = await resolveMemberIdForChurch(memberChurchId, null);
     }
@@ -742,6 +789,7 @@ async function createChurchAdmin(req, res) {
     member.role = 'ADMIN';
     member.adminChurches = selectedIds;
     member.church = selectedIds[0];
+    member.memberRoleDisplay = SPIRITUAL_LABEL;
     await member.save();
 
     const populated = await User.findById(member._id)

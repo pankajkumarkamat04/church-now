@@ -21,6 +21,14 @@ function mapPaymentRow(p, churchLabel) {
     kind: 'PAYMENT',
     paymentType: type,
     paymentWay: p.source || '—',
+    /** Per-option USD amounts — used for congregation income matrices / reports */
+    paymentLineBreakdown:
+      breakdown.length > 0
+        ? breakdown.map(([pt, amt]) => ({
+            paymentType: String(pt || '').toUpperCase(),
+            amount: Number(amt) || 0,
+          }))
+        : null,
     amount: Number(p.amount || 0),
     currency: 'USD',
     displayCurrency: String(p.displayCurrency || 'USD').toUpperCase(),

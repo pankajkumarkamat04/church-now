@@ -1,6 +1,7 @@
 const { Payment, PAYMENT_OPTIONS } = require('../models/Payment');
 const MemberBalanceDeposit = require('../models/MemberBalanceDeposit');
 const User = require('../models/User');
+const Church = require('../models/Church');
 const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
 
 function churchId(req) {
@@ -22,6 +23,32 @@ function normalizeOption(option) {
   return String(option || '')
     .trim()
     .toUpperCase();
+}
+
+async function loadChurchTreasuryLeadership(churchIdValue) {
+  if (!churchIdValue) return null;
+  return Church.findById(churchIdValue).select('localLeadership.treasurer localLeadership.viceTreasurer').lean();
+}
+
+function isTreasurerOrViceTreasurer(church, userId) {
+  const uid = String(userId || '');
+  if (!uid || !church?.localLeadership) return false;
+  const { treasurer, viceTreasurer } = church.localLeadership;
+  return String(treasurer || '') === uid || String(viceTreasurer || '') === uid;
+}
+
+async function ensureTreasurerAccess(req, res) {
+  const cid = churchId(req);
+  if (!cid) {
+    res.status(400).json({ message: 'No church assigned' });
+    return false;
+  }
+  const church = await loadChurchTreasuryLeadership(cid);
+  if (!isTreasurerOrViceTreasurer(church, req.user?._id)) {
+    res.status(403).json({ message: 'Only treasurer or vice treasurer can add balance or make payment on behalf' });
+    return false;
+  }
+  return true;
 }
 
 function validatePayload({ amount, paymentType, paymentOption }) {
@@ -139,6 +166,7 @@ async function listAdminPayments(req, res) {
 
 /** Treasurer allocates payment types from a recipient's wallet (same rules as member self-pay). */
 async function payOnBehalf(req, res) {
+  if (!(await ensureTreasurerAccess(req, res))) return;
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const payload = req.body || {};
@@ -243,6 +271,7 @@ async function listAdminMemberBalances(req, res) {
 }
 
 async function depositMemberBalance(req, res) {
+  if (!(await ensureTreasurerAccess(req, res))) return;
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const memberId = String(req.body?.memberId || '').trim();

@@ -71,10 +71,6 @@ export default function SuperadminExpenseDetailPage() {
       {row ? (
         <div className="mt-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
           <h1 className="text-xl font-semibold text-neutral-900">Expense detail</h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            Read-only. Updates go through the congregation&apos;s church admin (treasurer / vice treasurer), including main
-            churches.
-          </p>
           <dl className="mt-6 grid gap-4 text-sm md:grid-cols-2">
             <div className="md:col-span-2">
               <dt className="text-xs font-medium text-neutral-500">Title</dt>

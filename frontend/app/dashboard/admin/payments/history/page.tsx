@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeDisplayCurrencyInput } from '@/lib/currency';
+import { PAYMENT_OPTIONS, amountsByPaymentOption } from '@/lib/payments';
 import {
   churchRoleLabel,
   memberStatementHref,
@@ -105,12 +106,19 @@ export default function AdminPaymentsHistoryPage() {
       </div>
 
       <h3 className="mt-8 text-sm font-semibold text-neutral-800">Payments</h3>
+      <p className="mt-1 text-xs text-neutral-500">
+        Per-type amounts are USD (same as row total). Scroll horizontally if needed.
+      </p>
       <div className="mt-2 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[1200px] text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
-              <th className="px-4 py-2 font-medium">Member</th>
-              <th className="px-4 py-2 font-medium">Payment types</th>
+              <th className="sticky left-0 z-10 border-r border-neutral-200 bg-neutral-50 px-4 py-2 font-medium">Member</th>
+              {PAYMENT_OPTIONS.map((opt) => (
+                <th key={opt} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium">
+                  {opt}
+                </th>
+              ))}
               <th className="px-4 py-2 font-medium">Total</th>
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Source</th>
@@ -119,9 +127,11 @@ export default function AdminPaymentsHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r) => {
+              const byType = amountsByPaymentOption(r.paymentLines);
+              return (
               <tr key={r._id} className="border-t border-neutral-100">
-                <td className="px-4 py-2">
+                <td className="sticky left-0 z-10 border-r border-neutral-100 bg-white px-4 py-2">
                   <span className="font-medium text-neutral-900">{r.user?.fullName || r.user?.email || '—'}</span>
                   {r.user?.memberId?.trim() ? (
                     <span className="ml-1 font-mono text-xs text-neutral-600">· ID {r.user.memberId.trim()}</span>
@@ -133,11 +143,14 @@ export default function AdminPaymentsHistoryPage() {
                   ) : null}
                   <span className="mt-0.5 block text-xs text-neutral-600">{churchRoleLabel(r.user || {})}</span>
                 </td>
-                <td className="px-4 py-2">
-                  {r.paymentLines && r.paymentLines.length > 0
-                    ? r.paymentLines.map((line) => `${line.paymentType} ${line.amount.toFixed(2)}`).join(', ')
-                    : '—'}
-                </td>
+                {PAYMENT_OPTIONS.map((opt) => {
+                  const v = byType[opt];
+                  return (
+                    <td key={opt} className="whitespace-nowrap px-2 py-2 text-right font-mono text-xs text-neutral-800">
+                      {v > 0 ? v.toFixed(2) : '—'}
+                    </td>
+                  );
+                })}
                 <td className="px-4 py-2">
                   <span className="font-medium">USD {r.amount.toFixed(2)}</span>
                   {r.displayCurrency && r.displayCurrency !== 'USD' && r.amountDisplayTotal != null ? (
@@ -164,7 +177,8 @@ export default function AdminPaymentsHistoryPage() {
                   )}
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No payments yet.</p> : null}

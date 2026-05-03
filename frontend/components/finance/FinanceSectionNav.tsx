@@ -9,6 +9,7 @@ const adminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/admin/finance/reports', label: 'Reports' },
   { href: '/dashboard/admin/payments', label: 'Payments' },
   { href: '/dashboard/admin/finance/expenses', label: 'Expenses' },
+  { href: '/dashboard/admin/finance/assets', label: 'Assets' },
 ];
 
 const superadminLinks: Array<{ href: string; label: string }> = [
@@ -16,6 +17,7 @@ const superadminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/superadmin/finance/reports', label: 'Reports' },
   { href: '/dashboard/superadmin/payments', label: 'Payments' },
   { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses' },
+  { href: '/dashboard/superadmin/finance/assets', label: 'Assets' },
 ];
 
 type Variant = 'admin' | 'superadmin';

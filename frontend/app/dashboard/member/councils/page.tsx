@@ -75,7 +75,7 @@ export default function MemberCouncilsPage() {
       )}
       {data && data.councils.length === 0 ? (
         <p className="mt-8 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-600">
-          You are not listed on any council yet. When your church admin adds you to a council, it will show here.
+          No councils yet.
         </p>
       ) : null}
     </div>

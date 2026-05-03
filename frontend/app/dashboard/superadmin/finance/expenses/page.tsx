@@ -90,10 +90,6 @@ export default function SuperadminFinanceExpensesPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Expenses</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          Read-only list of expenses from every congregation. Recording and approvals happen in each church&apos;s admin
-          dashboard (same process for main and local churches).
-        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href="/dashboard/superadmin/finance/expenses/approvals"

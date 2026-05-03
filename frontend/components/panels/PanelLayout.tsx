@@ -96,6 +96,7 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (
       href === '/dashboard/admin/finance/reports' ||
       href === '/dashboard/admin/finance/expenses' ||
+      href === '/dashboard/admin/finance/assets' ||
       href === '/dashboard/admin/payments'
     ) {
       return pathname === href || pathname.startsWith(`${href}/`);
@@ -112,6 +113,7 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (
       href === '/dashboard/superadmin/finance/reports' ||
       href === '/dashboard/superadmin/finance/expenses' ||
+      href === '/dashboard/superadmin/finance/assets' ||
       href === '/dashboard/superadmin/payments'
     ) {
       return pathname === href || pathname.startsWith(`${href}/`);
@@ -194,6 +196,7 @@ function superadminNavGroups(): AdminNavGroup[] {
         { href: '/dashboard/superadmin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/finance/assets', label: 'Assets', icon: <Building2 className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
       ],
     },
@@ -253,6 +256,7 @@ function adminNavGroups(): AdminNavGroup[] {
         { href: '/dashboard/admin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
         { href: '/dashboard/admin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/admin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/admin/finance/assets', label: 'Assets', icon: <Building2 className="size-3.5 opacity-70" /> },
         { href: '/dashboard/admin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
       ],
     },
@@ -309,6 +313,19 @@ const ADMIN_MIDDLE_LINKS: NavItem[] = [
   },
 ];
 
+function resolveAdminChurchRole(user: {
+  memberRoleDisplay?: string;
+  memberRolesFromChurch?: string[];
+  memberCategory?: string;
+}): string {
+  const display = String(user.memberRoleDisplay || '').trim();
+  if (display) return display;
+  const firstRole = Array.isArray(user.memberRolesFromChurch) ? String(user.memberRolesFromChurch[0] || '').trim() : '';
+  if (firstRole) return firstRole;
+  const category = String(user.memberCategory || '').trim();
+  return category || 'Pastor';
+}
+
 export function PanelLayout({
   variant,
   children,
@@ -328,6 +345,7 @@ export function PanelLayout({
   });
   const required = roleForVariant[variant];
   const meta = panelMeta[variant];
+  const adminChurchRoleLabel = variant === 'admin' ? resolveAdminChurchRole(user || {}) : '';
 
   const adminPathFinance =
     pathname === '/dashboard/admin/finance' ||
@@ -394,7 +412,7 @@ export function PanelLayout({
               <span
                 className={`mt-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.badgeStyle}`}
               >
-                {meta.badge}
+                {variant === 'admin' ? adminChurchRoleLabel : meta.badge}
               </span>
             </div>
             <button
@@ -627,7 +645,7 @@ export function PanelLayout({
               <span
                 className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ring-1 sm:px-3 sm:text-xs ${meta.rolePill}`}
               >
-                {user.role}
+                {variant === 'admin' ? adminChurchRoleLabel : user.role}
               </span>
             </div>
           </div>

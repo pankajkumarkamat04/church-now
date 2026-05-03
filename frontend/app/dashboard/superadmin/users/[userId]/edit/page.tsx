@@ -320,14 +320,7 @@ export default function SuperadminUserEditPage() {
           {isPromotedChurchAdmin ? (
             <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-3 text-sm text-neutral-800">
               <p className="font-medium text-neutral-900">Congregation admin (promoted from member)</p>
-              <p className="mt-1 text-xs text-neutral-600">
-                This account was promoted from a member. As an admin they manage{' '}
-                {typeof row.church === 'object' && row.church && 'name' in row.church
-                  ? row.church.name
-                  : 'their home congregation'}
-                . Their home conference, church, councils, and member role are editable below. Admin access is limited to
-                that congregation; use “Remove admin access” to make them a member only.
-              </p>
+              <p className="mt-1 text-xs text-neutral-600">Promoted from member. Admin for this congregation.</p>
               <div className="mt-3">
                 <button
                   type="button"
@@ -433,7 +426,6 @@ export default function SuperadminUserEditPage() {
                   <option value="NON_BADGED">Non-badged</option>
                   <option value="BADGED">Badged</option>
                 </select>
-                <p className="mt-1 text-xs text-neutral-500">Same classification as church admin member forms.</p>
               </div>
               <div className="md:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>

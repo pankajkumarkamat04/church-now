@@ -48,9 +48,6 @@ export default function AdminFinanceOverviewPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Overview</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          Unified payments and expenses for your church.
-        </p>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
       {!summary ? (
@@ -88,13 +85,12 @@ export default function AdminFinanceOverviewPage() {
         </>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
           href="/dashboard/admin/finance/reports"
           className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-sky-300"
         >
           <span className="text-sm font-semibold text-neutral-900">Reports</span>
-          <span className="mt-1 text-sm text-neutral-600">Date ranges and totals by currency</span>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700">
             Open <ArrowRight className="size-3.5" />
           </span>
@@ -114,7 +110,15 @@ export default function AdminFinanceOverviewPage() {
           className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-sky-300"
         >
           <span className="text-sm font-semibold text-neutral-900">Payments</span>
-          <span className="mt-1 text-sm text-neutral-600">All member payment options in one list</span>
+          <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700">
+            Open <ArrowRight className="size-3.5" />
+          </span>
+        </Link>
+        <Link
+          href="/dashboard/admin/finance/assets"
+          className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-sky-300"
+        >
+          <span className="text-sm font-semibold text-neutral-900">Assets</span>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700">
             Open <ArrowRight className="size-3.5" />
           </span>

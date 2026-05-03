@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -12,6 +12,14 @@ import type { ChurchRecord } from '../../../churches/types';
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
 
+/** Matches backend ACTIVE_PASTOR_TERM_STATUSES */
+const ACTIVE_PASTOR_TERM_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'] as const;
+
+type PastorTermApi = {
+  status: string;
+  pastor?: string | { _id?: string; fullName?: string; email?: string };
+};
+
 export default function SuperadminCreateChurchAdminPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
@@ -22,6 +30,8 @@ export default function SuperadminCreateChurchAdminPage() {
   const [password, setPassword] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activePastorId, setActivePastorId] = useState<string | null>(null);
+  const [pastorBusy, setPastorBusy] = useState(false);
 
   const loadChurches = useCallback(async () => {
     if (!token) return;
@@ -47,7 +57,32 @@ export default function SuperadminCreateChurchAdminPage() {
       { token }
     );
     setMembers(rows);
-    setMemberUserId((prev) => (prev && rows.some((m) => m.id === prev) ? prev : rows[0]?.id || ''));
+  }, [token, selectedChurchId]);
+
+  const loadActivePastor = useCallback(async () => {
+    if (!token || !selectedChurchId) {
+      setActivePastorId(null);
+      return;
+    }
+    setPastorBusy(true);
+    try {
+      const terms = await apiFetch<PastorTermApi[]>(
+        `/api/superadmin/pastor-terms?churchId=${encodeURIComponent(selectedChurchId)}`,
+        { token }
+      );
+      const activeStatuses = new Set<string>(ACTIVE_PASTOR_TERM_STATUSES);
+      const active = terms.find((t) => activeStatuses.has(t.status));
+      const pid = active?.pastor
+        ? typeof active.pastor === 'object' && active.pastor !== null && '_id' in active.pastor && active.pastor._id
+          ? String(active.pastor._id)
+          : String(active.pastor)
+        : '';
+      setActivePastorId(pid || null);
+    } catch {
+      setActivePastorId(null);
+    } finally {
+      setPastorBusy(false);
+    }
   }, [token, selectedChurchId]);
 
   useEffect(() => {
@@ -67,6 +102,29 @@ export default function SuperadminCreateChurchAdminPage() {
       loadMembers().catch(() => {});
     }
   }, [user, token, selectedChurchId, loadMembers]);
+
+  useEffect(() => {
+    if (user?.role === 'SUPERADMIN' && token && selectedChurchId) {
+      loadActivePastor().catch(() => {});
+    }
+  }, [user, token, selectedChurchId, loadActivePastor]);
+
+  const eligibleMembers = useMemo(() => {
+    if (!activePastorId) return [];
+    return members.filter((m) => m.id === activePastorId);
+  }, [members, activePastorId]);
+
+  const pastorMismatch = Boolean(
+    activePastorId && members.length > 0 && eligibleMembers.length === 0 && !pastorBusy
+  );
+
+  useEffect(() => {
+    if (!activePastorId) {
+      setMemberUserId('');
+      return;
+    }
+    setMemberUserId((prev) => (prev === activePastorId ? prev : activePastorId));
+  }, [activePastorId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -101,10 +159,6 @@ export default function SuperadminCreateChurchAdminPage() {
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Add church admin</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          Choose an active church, then select a <strong>member of that congregation</strong>. Their account becomes an
-          admin for that church only. They keep their member ID. Optional: set a new login password.
-        </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -125,20 +179,31 @@ export default function SuperadminCreateChurchAdminPage() {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Member (must belong to this church)</label>
+              <label className="mb-1 flex items-center gap-2 text-xs font-medium text-neutral-600">
+                Spiritual pastor for this congregation
+                {pastorBusy ? <Loader2 className="size-3.5 animate-spin text-violet-600" aria-hidden /> : null}
+              </label>
               <select
                 required
                 value={memberUserId}
                 onChange={(e) => setMemberUserId(e.target.value)}
                 className={field}
-                disabled={!selectedChurchId || members.length === 0}
+                disabled={
+                  !selectedChurchId || pastorBusy || members.length === 0 || !activePastorId || pastorMismatch
+                }
               >
                 {!selectedChurchId ? (
                   <option value="">Select a church first</option>
+                ) : pastorBusy ? (
+                  <option value="">Loading pastor assignment…</option>
+                ) : !activePastorId ? (
+                  <option value="">No active pastor assigned</option>
                 ) : members.length === 0 ? (
-                  <option value="">No members at this church — add members first</option>
+                  <option value="">No members</option>
+                ) : pastorMismatch ? (
+                  <option value="">Pastor not in member list</option>
                 ) : (
-                  members.map((m) => {
+                  eligibleMembers.map((m) => {
                     const roleLabel = m.memberRoleDisplay || m.memberCategory || 'MEMBER';
                     const name =
                       m.fullName || `${m.firstName || ''} ${m.surname || ''}`.trim() || m.email;
@@ -159,7 +224,6 @@ export default function SuperadminCreateChurchAdminPage() {
                 autoComplete="new-password"
                 className={field}
               />
-              <p className="mt-1 text-xs text-neutral-500">Leave blank to keep the member&apos;s current password.</p>
             </div>
           </div>
           {err ? (
@@ -168,7 +232,15 @@ export default function SuperadminCreateChurchAdminPage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              disabled={busy || !selectedChurchId || !memberUserId || members.length === 0}
+              disabled={
+                busy ||
+                !selectedChurchId ||
+                !memberUserId ||
+                pastorBusy ||
+                !activePastorId ||
+                eligibleMembers.length === 0 ||
+                pastorMismatch
+              }
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}

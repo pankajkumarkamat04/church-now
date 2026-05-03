@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** Expense creation is done in church admin (same flow for main and local congregations). */
+/** Redirect — expense creation uses church admin routes. */
 export default function SuperadminCreateExpenseRedirect() {
   redirect('/dashboard/superadmin/finance/expenses');
 }

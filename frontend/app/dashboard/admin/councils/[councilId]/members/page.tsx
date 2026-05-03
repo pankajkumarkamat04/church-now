@@ -12,6 +12,7 @@ type Row = {
   fullName?: string;
   memberId?: string;
   role?: string;
+  memberBadgeType?: 'BADGED' | 'NON_BADGED';
   church?: { _id: string; name: string } | string | null;
   isActive?: boolean;
 };
@@ -60,6 +61,7 @@ export default function AdminCouncilMembersPage() {
               <th className="px-4 py-3 font-medium">Member ID</th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Badge</th>
               <th className="px-4 py-3 font-medium">Account</th>
               <th className="px-4 py-3 font-medium">Status</th>
             </tr>
@@ -70,6 +72,7 @@ export default function AdminCouncilMembersPage() {
                 <td className="px-4 py-3 font-mono text-xs text-neutral-700">{m.memberId || '—'}</td>
                 <td className="px-4 py-3">{m.fullName || '—'}</td>
                 <td className="px-4 py-3">{m.email}</td>
+                <td className="px-4 py-3">{m.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}</td>
                 <td className="px-4 py-3">{m.role === 'ADMIN' ? 'Church admin' : 'Member'}</td>
                 <td className="px-4 py-3">{m.isActive === false ? 'Inactive' : 'Active'}</td>
               </tr>

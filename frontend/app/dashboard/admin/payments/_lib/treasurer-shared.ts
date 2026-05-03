@@ -1,4 +1,5 @@
 import type { PaymentOption } from '@/lib/payments';
+import type { AuthUser } from '@/lib/api';
 
 export type PaymentRow = {
   _id: string;
@@ -90,4 +91,15 @@ export function emptyAmountsByOption(): Record<PaymentOption, string> {
     XMAS: '',
     HARVEST: '',
   };
+}
+
+export function hasTreasurerPrivileges(user: Pick<AuthUser, 'memberRoleDisplay' | 'memberRolesFromChurch'> | null | undefined): boolean {
+  if (!user) return false;
+  const roles = [
+    ...(Array.isArray(user.memberRolesFromChurch) ? user.memberRolesFromChurch : []),
+    String(user.memberRoleDisplay || ''),
+  ]
+    .map((role) => role.trim().toLowerCase())
+    .filter(Boolean);
+  return roles.some((role) => role.includes('treasurer'));
 }

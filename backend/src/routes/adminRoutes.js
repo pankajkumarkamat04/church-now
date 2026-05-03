@@ -7,6 +7,7 @@ const eventController = require('../controllers/eventController');
 const paymentController = require('../controllers/paymentController');
 const expenseController = require('../controllers/expenseController');
 const financeController = require('../controllers/financeController');
+const assetController = require('../controllers/assetController');
 const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
 const mediaController = require('../controllers/mediaController');
@@ -54,6 +55,10 @@ router.get('/payments/deposits', asyncHandler(paymentController.listAdminDeposit
 router.post('/payments/deposit', asyncHandler(paymentController.depositMemberBalance));
 router.post('/payments/pay-on-behalf', asyncHandler(paymentController.payOnBehalf));
 router.get('/finance/summary', asyncHandler(financeController.getAdminFinanceSummary));
+router.get('/assets', asyncHandler(assetController.listAdminAssets));
+router.post('/assets', asyncHandler(assetController.createAdminAsset));
+router.put('/assets/:assetId', asyncHandler(assetController.updateAdminAsset));
+router.delete('/assets/:assetId', asyncHandler(assetController.removeAdminAsset));
 router.get('/expenses', asyncHandler(expenseController.listAdminExpenses));
 router.post('/expenses', asyncHandler(expenseController.createAdminExpense));
 router.put('/expenses/:expenseId', asyncHandler(expenseController.updateAdminExpense));

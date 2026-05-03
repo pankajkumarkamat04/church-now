@@ -38,9 +38,6 @@ export default function SuperadminPaymentsDepositsPage() {
   return (
     <>
       <h2 className="text-lg font-semibold text-neutral-900">Balance deposits</h2>
-      <p className="mt-1 text-sm text-neutral-600">
-        All treasurer credits to member and church-admin wallets, by congregation.
-      </p>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
       <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">

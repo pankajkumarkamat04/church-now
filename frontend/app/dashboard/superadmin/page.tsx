@@ -117,10 +117,6 @@ export default function SuperadminOverviewPage() {
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
           Control center
         </h1>
-        <p className="mt-2 max-w-3xl text-sm text-neutral-600">
-          Quick visibility across your churches, admins, and members. Use the quick links below to jump into
-          daily actions.
-        </p>
       </div>
 
       {err ? (

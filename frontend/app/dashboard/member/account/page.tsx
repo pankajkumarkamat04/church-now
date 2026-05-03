@@ -346,9 +346,6 @@ export default function MemberAccountPage() {
 
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-neutral-900">Change church request</h2>
-        <p className="mt-1 text-sm text-neutral-600">
-          Workflow: You request change, superadmin reviews, then your church gets updated.
-        </p>
         <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={submitChangeRequest}>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Requested conference</label>

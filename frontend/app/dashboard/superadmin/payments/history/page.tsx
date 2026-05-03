@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeDisplayCurrencyInput } from '@/lib/currency';
+import { PAYMENT_OPTIONS, amountsByPaymentOption } from '@/lib/payments';
 import {
   churchRoleLabel,
   superadminChurchHref,
@@ -44,7 +45,6 @@ export default function SuperadminPaymentsHistoryPage() {
   return (
     <>
       <h2 className="text-lg font-semibold text-neutral-900">Full history</h2>
-      <p className="mt-1 text-sm text-neutral-600">Deposits and payment allocations in one place (most recent first within each section).</p>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
 
       <h3 className="mt-6 text-sm font-semibold text-neutral-800">Deposits</h3>
@@ -110,13 +110,20 @@ export default function SuperadminPaymentsHistoryPage() {
       </div>
 
       <h3 className="mt-8 text-sm font-semibold text-neutral-800">Payments</h3>
+      <p className="mt-1 text-xs text-neutral-500">
+        Per-type amounts are USD. Scroll horizontally to see all columns.
+      </p>
       <div className="mt-2 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[1280px] text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
-              <th className="px-4 py-2 font-medium">Church</th>
-              <th className="px-4 py-2 font-medium">Member</th>
-              <th className="px-4 py-2 font-medium">Payment types</th>
+              <th className="sticky left-0 z-10 border-r border-neutral-200 bg-neutral-50 px-4 py-2 font-medium">Church</th>
+              <th className="min-w-[12rem] px-4 py-2 font-medium">Member</th>
+              {PAYMENT_OPTIONS.map((opt) => (
+                <th key={opt} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium">
+                  {opt}
+                </th>
+              ))}
               <th className="px-4 py-2 font-medium">Total</th>
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Source</th>
@@ -128,9 +135,10 @@ export default function SuperadminPaymentsHistoryPage() {
             {payments.map((r) => {
               const churchId =
                 r.church && typeof r.church === 'object' && '_id' in r.church ? String(r.church._id) : '';
+              const byType = amountsByPaymentOption(r.paymentLines);
               return (
                 <tr key={r._id} className="border-t border-neutral-100">
-                  <td className="px-4 py-2">
+                  <td className="sticky left-0 z-10 border-r border-neutral-100 bg-white px-4 py-2">
                     {r.church?.name ? (
                       superadminChurchHref(churchId) ? (
                         <Link href={superadminChurchHref(churchId)!} className="text-violet-800 hover:underline">
@@ -143,15 +151,18 @@ export default function SuperadminPaymentsHistoryPage() {
                       '—'
                     )}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="min-w-[12rem] px-4 py-2">
                     <span className="font-medium">{r.user?.fullName || r.user?.email || '—'}</span>
                     <span className="mt-0.5 block text-xs text-neutral-600">{churchRoleLabel(r.user || {})}</span>
                   </td>
-                  <td className="px-4 py-2">
-                    {r.paymentLines && r.paymentLines.length > 0
-                      ? r.paymentLines.map((line) => `${line.paymentType} ${line.amount.toFixed(2)}`).join(', ')
-                      : '—'}
-                  </td>
+                  {PAYMENT_OPTIONS.map((opt) => {
+                    const v = byType[opt];
+                    return (
+                      <td key={opt} className="whitespace-nowrap px-2 py-2 text-right font-mono text-xs text-neutral-800">
+                        {v > 0 ? v.toFixed(2) : '—'}
+                      </td>
+                    );
+                  })}
                   <td className="px-4 py-2">
                     USD {r.amount.toFixed(2)}
                     {r.displayCurrency && normalizeDisplayCurrencyInput(r.displayCurrency) !== 'USD' && r.amountDisplayTotal != null ? (

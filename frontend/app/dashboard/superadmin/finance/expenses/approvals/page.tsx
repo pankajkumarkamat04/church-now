@@ -50,10 +50,6 @@ export default function SuperadminExpenseApprovalsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Pending expense approvals</h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            Read-only. Approvals are completed by each church&apos;s treasurer or vice treasurer in church admin (main and
-            local congregations).
-          </p>
         </div>
         <Link href="/dashboard/superadmin/finance/expenses" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
           Back to expenses

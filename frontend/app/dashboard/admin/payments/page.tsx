@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { HandCoins, History, Wallet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasTreasurerPrivileges } from './_lib/treasurer-shared';
 
 const TILES = [
   {
@@ -12,34 +13,39 @@ const TILES = [
     title: 'Balances & deposits',
     description: 'Deposit funds into member or church-admin wallets and review live balances.',
     icon: Wallet,
+    requiresTreasurer: true,
   },
   {
     href: '/dashboard/admin/payments/on-behalf',
     title: 'Pay on behalf',
     description: 'Allocate tithes and offerings from someone’s balance when they pay cash or need help.',
     icon: HandCoins,
+    requiresTreasurer: true,
   },
   {
     href: '/dashboard/admin/payments/history',
     title: 'History',
     description: 'See all deposits and payment allocations for your congregation.',
     icon: History,
+    requiresTreasurer: false,
   },
 ] as const;
 
 export default function AdminPaymentsOverviewPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const canManagePayments = hasTreasurerPrivileges(user);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
   }, [loading, user, router]);
 
   if (!user || user.role !== 'ADMIN') return null;
+  const visibleTiles = TILES.filter((tile) => !tile.requiresTreasurer || canManagePayments);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {TILES.map(({ href, title, description, icon: Icon }) => (
+      {visibleTiles.map(({ href, title, description, icon: Icon }) => (
         <Link
           key={href}
           href={href}

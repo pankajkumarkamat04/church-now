@@ -123,7 +123,6 @@ export default function AdminMemberViewPage() {
             ← Back to members
           </Link>
           <h1 className="mt-3 text-2xl font-semibold text-neutral-900">Member profile &amp; statement</h1>
-          <p className="mt-1 text-sm text-neutral-600">Read-only detail and wallet activity for this congregation account.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canEdit ? (
@@ -136,7 +135,7 @@ export default function AdminMemberViewPage() {
             </Link>
           ) : (
             <span className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-medium text-neutral-600">
-              Promoted church admin — profile edits use the users tools where available.
+              Church admin
             </span>
           )}
         </div>
@@ -208,7 +207,6 @@ export default function AdminMemberViewPage() {
           <p className="mt-2 text-3xl font-semibold tabular-nums text-violet-950">
             USD {(statement?.walletBalance ?? profile.walletBalance ?? 0).toFixed(2)}
           </p>
-          <p className="mt-1 text-xs text-violet-800">Credits from treasurer deposits minus allocations below.</p>
           {statementErr ? (
             <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">{statementErr}</p>
           ) : null}
@@ -217,7 +215,6 @@ export default function AdminMemberViewPage() {
         <section className="rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-3">
             <h2 className="text-sm font-semibold text-neutral-900">Deposit history</h2>
-            <p className="text-xs text-neutral-500">Treasurer credits to this member&apos;s balance.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

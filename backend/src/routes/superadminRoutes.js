@@ -28,6 +28,7 @@ const churchChangeController = require('../controllers/churchChangeController');
 const paymentController = require('../controllers/paymentController');
 const expenseController = require('../controllers/expenseController');
 const financeController = require('../controllers/financeController');
+const assetController = require('../controllers/assetController');
 const conferenceController = require('../controllers/conferenceController');
 const mainChurchController = require('../controllers/mainChurchController');
 const subChurchController = require('../controllers/subChurchController');
@@ -38,11 +39,9 @@ const announcementController = require('../controllers/announcementController');
 
 const router = express.Router();
 
-/** Superadmin may list finance data platform-wide but cannot create or change records (church admin handles main + local congregations). */
 function superadminFinanceReadOnly(_req, res) {
   res.status(403).json({
-    message:
-      'Superadmin has read-only access to finance. Record expenses, payments, and approvals from each congregation’s church admin dashboard (same workflow for main and local churches).',
+    message: 'Superadmin finance access is read-only.',
   });
 }
 
@@ -96,6 +95,7 @@ router.post('/announcements', asyncHandler(announcementController.createSuperadm
 router.get('/payments/deposits', asyncHandler(paymentController.listSuperadminDepositHistory));
 router.get('/payments', asyncHandler(paymentController.listSuperadminPayments));
 router.get('/finance/summary', asyncHandler(financeController.getSuperadminFinanceSummary));
+router.get('/assets', asyncHandler(assetController.listSuperadminAssets));
 router.get('/expenses', asyncHandler(expenseController.listSuperadminExpenses));
 router.get('/expenses/:expenseId', asyncHandler(expenseController.getSuperadminExpense));
 router.post('/expenses', superadminFinanceReadOnly);
