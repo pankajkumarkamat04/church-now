@@ -83,7 +83,7 @@ export default function SuperadminFinanceOverviewPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Link
           href="/dashboard/superadmin/finance/reports"
           className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-violet-300"
@@ -98,6 +98,15 @@ export default function SuperadminFinanceOverviewPage() {
           className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-violet-300"
         >
           <span className="text-sm font-semibold text-neutral-900">Expenses</span>
+          <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-700">
+            Open <ArrowRight className="size-3.5" />
+          </span>
+        </Link>
+        <Link
+          href="/dashboard/superadmin/finance/remittances"
+          className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition hover:border-violet-300"
+        >
+          <span className="text-sm font-semibold text-neutral-900">Remittances</span>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-violet-700">
             Open <ArrowRight className="size-3.5" />
           </span>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { SystemSettingsProvider } from '@/contexts/SystemSettingsContext';
 import './globals.css';
 
 const inter = Inter({
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         suppressHydrationWarning
         className="min-h-screen w-full min-w-0 overflow-x-clip bg-white font-sans text-neutral-900 antialiased"
       >
-        <AuthProvider>{children}</AuthProvider>
+        <SystemSettingsProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </SystemSettingsProvider>
       </body>
     </html>
   );

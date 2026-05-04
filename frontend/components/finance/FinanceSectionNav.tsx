@@ -15,6 +15,7 @@ const adminLinks: Array<{ href: string; label: string }> = [
 const superadminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/superadmin/finance', label: 'Overview' },
   { href: '/dashboard/superadmin/finance/reports', label: 'Reports' },
+  { href: '/dashboard/superadmin/finance/remittances', label: 'Remittances' },
   { href: '/dashboard/superadmin/payments', label: 'Payments' },
   { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses' },
   { href: '/dashboard/superadmin/finance/assets', label: 'Assets' },

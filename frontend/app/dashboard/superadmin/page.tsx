@@ -18,7 +18,7 @@ import { useSuperadminData } from './useSuperadminData';
 export default function SuperadminOverviewPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { churches, users, err } = useSuperadminData();
+  const { churches, councils, users, err } = useSuperadminData();
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -37,7 +37,7 @@ export default function SuperadminOverviewPage() {
   const totalSuperadmins = users.filter((u) => u.role === 'SUPERADMIN').length;
   const activeUsers = users.filter((u) => u.isActive !== false).length;
   const inactiveUsers = totalUsers - activeUsers;
-  const totalCouncils = churches.reduce((sum, c) => sum + (Array.isArray(c.councils) ? c.councils.length : 0), 0);
+  const totalCouncils = councils.length;
 
   const statCards = [
     {
@@ -71,9 +71,10 @@ export default function SuperadminOverviewPage() {
     {
       title: 'Councils',
       value: totalCouncils,
-      subtitle: 'Councils across churches',
+      subtitle: 'Global councils in system',
       icon: Calendar,
       tint: 'bg-fuchsia-100 text-fuchsia-800',
+      href: '/dashboard/superadmin/councils',
     },
   ];
 
@@ -108,6 +109,12 @@ export default function SuperadminOverviewPage() {
       description: 'Tithes, subscriptions, donations, expenses, and reports.',
       icon: Wallet,
     },
+    {
+      href: '/dashboard/superadmin/councils',
+      title: 'Manage councils',
+      description: 'Create, rename, and track global councils.',
+      icon: Calendar,
+    },
   ];
 
   return (
@@ -127,7 +134,11 @@ export default function SuperadminOverviewPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
-          <div key={card.title} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <Link
+            key={card.title}
+            href={card.href || '#'}
+            className={`rounded-xl border border-neutral-200 bg-white p-5 shadow-sm ${card.href ? 'transition hover:border-violet-300 hover:shadow-md' : ''}`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-neutral-600">{card.title}</p>
@@ -138,7 +149,7 @@ export default function SuperadminOverviewPage() {
                 <card.icon className="size-4" aria-hidden />
               </span>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

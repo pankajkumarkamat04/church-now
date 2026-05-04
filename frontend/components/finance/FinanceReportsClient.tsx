@@ -63,9 +63,43 @@ type Summary = {
     { payments: number; expenses: number; incomeTotal: number; net: number }
   >;
   counts: { payments: number; expenses: number };
+  incomeByChurch?: Array<{ churchId: string | null; churchName: string; totalIncome: number }>;
   transactions: FinanceTx[];
   transactionMeta: { total: number; returned: number; truncated: boolean };
 };
+
+type DateRangePreset = 'CUSTOM' | 'TODAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS' | 'THIS_MONTH';
+
+function formatDateInputValue(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function resolvePresetRange(preset: DateRangePreset): { from: string; to: string } | null {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (preset === 'TODAY') {
+    const day = formatDateInputValue(end);
+    return { from: day, to: day };
+  }
+  if (preset === 'LAST_7_DAYS') {
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    return { from: formatDateInputValue(start), to: formatDateInputValue(end) };
+  }
+  if (preset === 'LAST_30_DAYS') {
+    const start = new Date(end);
+    start.setDate(start.getDate() - 29);
+    return { from: formatDateInputValue(start), to: formatDateInputValue(end) };
+  }
+  if (preset === 'THIS_MONTH') {
+    const start = new Date(end.getFullYear(), end.getMonth(), 1);
+    return { from: formatDateInputValue(start), to: formatDateInputValue(end) };
+  }
+  return null;
+}
 
 const KINDS = [
   { id: 'PAYMENT', label: 'Payment' },
@@ -119,6 +153,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const [churchId, setChurchId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [rangePreset, setRangePreset] = useState<DateRangePreset>('CUSTOM');
   const [summary, setSummary] = useState<Summary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -250,6 +285,10 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   }, [filteredRows, kindToggles]);
 
   const showChurchCol = variant === 'superadmin' && !churchId;
+  const churchIncomeRows = useMemo(() => {
+    if (variant !== 'superadmin' || churchId) return [];
+    return (summary?.incomeByChurch || []).slice();
+  }, [variant, summary, churchId]);
 
   const incomeMatrix = useMemo(() => {
     if (!kindToggles.PAYMENT) {
@@ -401,11 +440,36 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             </div>
           ) : null}
           <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Range</label>
+            <select
+              value={rangePreset}
+              onChange={(e) => {
+                const next = e.target.value as DateRangePreset;
+                setRangePreset(next);
+                const resolved = resolvePresetRange(next);
+                if (resolved) {
+                  setFrom(resolved.from);
+                  setTo(resolved.to);
+                }
+              }}
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            >
+              <option value="CUSTOM">Custom</option>
+              <option value="TODAY">Today</option>
+              <option value="LAST_7_DAYS">Last 7 days</option>
+              <option value="LAST_30_DAYS">Last 30 days</option>
+              <option value="THIS_MONTH">This month</option>
+            </select>
+          </div>
+          <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">From</label>
             <input
               type="date"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(e) => {
+                setRangePreset('CUSTOM');
+                setFrom(e.target.value);
+              }}
               className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
           </div>
@@ -414,7 +478,10 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             <input
               type="date"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => {
+                setRangePreset('CUSTOM');
+                setTo(e.target.value);
+              }}
               className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
           </div>
@@ -513,6 +580,32 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
           </p>
 
           {kindToggles.PAYMENT ? (
+            <>
+            {churchIncomeRows.length > 0 ? (
+              <div className="mb-6 overflow-x-auto rounded-xl border border-violet-300 bg-white shadow-sm">
+                <div className="border-b border-violet-100 bg-violet-50 px-4 py-2">
+                  <h2 className="text-sm font-semibold text-violet-900">Total income by church (USD)</h2>
+                </div>
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead className="text-neutral-600">
+                    <tr>
+                      <th className="border-b border-neutral-200 px-4 py-2 text-left font-medium">Church</th>
+                      <th className="border-b border-neutral-200 px-4 py-2 text-right font-medium">Total income (USD)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {churchIncomeRows.map((row) => (
+                      <tr key={row.churchId || row.churchName} className="border-t border-neutral-100">
+                        <td className="px-4 py-2">{row.churchName}</td>
+                        <td className="px-4 py-2 text-right font-semibold tabular-nums text-emerald-800">
+                          {formatUsdAnalysis(row.totalIncome)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
             <div
               className={
                 variant === 'admin'
@@ -612,6 +705,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                 </table>
               )}
             </div>
+            </>
           ) : null}
 
           {kindToggles.EXPENSE ? (

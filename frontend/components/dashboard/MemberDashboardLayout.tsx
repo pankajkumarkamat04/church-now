@@ -17,9 +17,12 @@ import {
   X,
 } from 'lucide-react';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+import { BrandIdentity } from '@/components/branding/BrandIdentity';
+import { useSystemSettings } from '@/contexts/SystemSettingsContext';
 
 export function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
+  const { settings } = useSystemSettings();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -85,8 +88,12 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
             >
               {mobileNavOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-            <Link href="/" className="truncate text-lg font-bold text-emerald-600 sm:text-xl">
-              ChurchNow
+            <Link href="/" className="truncate">
+              <BrandIdentity
+                wrapperClassName="flex min-w-0 items-center"
+                logoClassName="size-8 rounded-md object-cover ring-1 ring-neutral-200"
+                textClassName="truncate text-lg font-bold text-emerald-600 sm:text-xl"
+              />
             </Link>
           </div>
           <div className="shrink-0">
@@ -108,6 +115,13 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
           >
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
               <div className="mb-4 border-b border-neutral-100 pb-4">
+                <div className="mb-3">
+                  <BrandIdentity
+                    wrapperClassName="flex min-w-0 items-center"
+                    logoClassName="size-8 rounded-md object-cover ring-1 ring-neutral-200"
+                    textClassName="truncate text-sm font-semibold text-neutral-900"
+                  />
+                </div>
                 <p className="truncate text-sm font-semibold text-neutral-900">{user.fullName || 'Member'}</p>
                 <p className="truncate text-xs text-neutral-500">{user.email}</p>
               </div>
@@ -172,6 +186,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
       <footer className="mt-10 bg-slate-900 text-slate-200">
         <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 text-center text-xs sm:px-6 lg:px-8">
           <p>© {new Date().getFullYear()} Church OS</p>
+          {settings.footerText ? <p className="mt-1">{settings.footerText}</p> : null}
         </div>
       </footer>
     </div>

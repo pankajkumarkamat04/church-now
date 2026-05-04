@@ -36,6 +36,8 @@ const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
 const serviceCouncilController = require('../controllers/serviceCouncilController');
 const announcementController = require('../controllers/announcementController');
+const systemSettingController = require('../controllers/systemSettingController');
+const remittanceController = require('../controllers/remittanceController');
 
 const router = express.Router();
 
@@ -90,11 +92,33 @@ router.delete('/conferences/:conferenceId', asyncHandler(conferenceController.re
 router.get('/media', asyncHandler(mediaController.list));
 router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadOne));
 router.delete('/media/:fileName', asyncHandler(mediaController.remove));
+router.get('/system-settings', asyncHandler(systemSettingController.getSystemSettings));
+router.put('/system-settings', asyncHandler(systemSettingController.updateSystemSettings));
+router.post(
+  '/system-settings/logo',
+  mediaController.upload.single('file'),
+  asyncHandler(systemSettingController.uploadSystemLogo)
+);
 router.get('/announcements', asyncHandler(announcementController.listSuperadminAnnouncements));
 router.post('/announcements', asyncHandler(announcementController.createSuperadminAnnouncement));
 router.get('/payments/deposits', asyncHandler(paymentController.listSuperadminDepositHistory));
 router.get('/payments', asyncHandler(paymentController.listSuperadminPayments));
 router.get('/finance/summary', asyncHandler(financeController.getSuperadminFinanceSummary));
+router.get('/finance/remittances/church', asyncHandler(remittanceController.listChurchRemittances));
+router.get('/finance/remittances/church/:churchId/details', asyncHandler(remittanceController.getChurchRemittanceDetails));
+router.get('/finance/remittances/history', asyncHandler(remittanceController.listRemittanceHistory));
+router.post('/finance/remittances/church/:churchId', asyncHandler(remittanceController.recordChurchRemittance));
+router.patch('/finance/remittances/church/entries/:entryId', asyncHandler(remittanceController.updateChurchRemittanceEntry));
+router.delete('/finance/remittances/church/entries/:entryId', asyncHandler(remittanceController.deleteChurchRemittanceEntry));
+router.get('/finance/remittances/schools', asyncHandler(remittanceController.listSchoolRemittances));
+router.get('/finance/remittances/schools/:schoolId/details', asyncHandler(remittanceController.getSchoolRemittanceDetails));
+router.post('/finance/remittances/schools', asyncHandler(remittanceController.createSchool));
+router.patch('/finance/remittances/schools/:schoolId', asyncHandler(remittanceController.updateSchool));
+router.post('/finance/remittances/schools/:schoolId/dues', asyncHandler(remittanceController.addSchoolDue));
+router.patch('/finance/remittances/schools/dues/:dueId', asyncHandler(remittanceController.updateSchoolDue));
+router.delete('/finance/remittances/schools/dues/:dueId', asyncHandler(remittanceController.deleteSchoolDue));
+router.post('/finance/remittances/schools/:schoolId/payments', asyncHandler(remittanceController.recordSchoolPayment));
+router.delete('/finance/remittances/schools/payments/:paymentId', asyncHandler(remittanceController.deleteSchoolPayment));
 router.get('/assets', asyncHandler(assetController.listSuperadminAssets));
 router.get('/expenses', asyncHandler(expenseController.listSuperadminExpenses));
 router.get('/expenses/:expenseId', asyncHandler(expenseController.getSuperadminExpense));

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Church, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
@@ -38,11 +38,6 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <div className="mb-6 flex justify-center">
-        <span className="flex size-12 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50">
-          <Church className="size-6 text-neutral-700" aria-hidden />
-        </span>
-      </div>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Sign in</h1>
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>

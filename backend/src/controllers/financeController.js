@@ -1,5 +1,6 @@
 const { Payment } = require('../models/Payment');
 const Expense = require('../models/Expense');
+const Church = require('../models/Church');
 
 const MAX_TRANSACTION_ROWS = 3500;
 const postedExpenseFilter = { $or: [{ approvalStage: 'POSTED' }, { approvalStatus: 'APPROVED' }] };
@@ -285,6 +286,25 @@ async function getSuperadminFinanceSummary(req, res) {
     buckets.USD.expenses += Number(e.amount || 0);
   }
 
+  const incomeByChurchRaw = await Payment.aggregate([
+    { $match: payQ },
+    {
+      $group: {
+        _id: '$church',
+        totalIncome: { $sum: '$amount' },
+      },
+    },
+    { $sort: { totalIncome: -1 } },
+  ]);
+  const churchIds = incomeByChurchRaw.map((row) => row._id).filter(Boolean);
+  const churchRows = await Church.find({ _id: { $in: churchIds } }).select('name').lean();
+  const churchNameById = new Map(churchRows.map((c) => [String(c._id), c.name || 'Unnamed church']));
+  const incomeByChurch = incomeByChurchRaw.map((row) => ({
+    churchId: row._id ? String(row._id) : null,
+    churchName: row._id ? churchNameById.get(String(row._id)) || 'Unknown church' : 'Unknown church',
+    totalIncome: Number(row.totalIncome || 0),
+  }));
+
   return res.json({
     churchId: null,
     from: from || null,
@@ -294,6 +314,7 @@ async function getSuperadminFinanceSummary(req, res) {
       payments: payC,
       expenses: expC,
     },
+    incomeByChurch,
     ...tx,
   });
 }

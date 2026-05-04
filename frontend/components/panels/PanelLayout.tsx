@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+import { BrandIdentity } from '@/components/branding/BrandIdentity';
 import type { Role } from '@/lib/api';
 
 export type PanelVariant = 'admin' | 'superadmin';
@@ -114,6 +115,7 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
       href === '/dashboard/superadmin/finance/reports' ||
       href === '/dashboard/superadmin/finance/expenses' ||
       href === '/dashboard/superadmin/finance/assets' ||
+      href === '/dashboard/superadmin/finance/remittances' ||
       href === '/dashboard/superadmin/payments'
     ) {
       return pathname === href || pathname.startsWith(`${href}/`);
@@ -130,6 +132,12 @@ const SUPER_DASHBOARD_LINK: NavItem = {
   href: '/dashboard/superadmin',
   label: 'Dashboard',
   icon: <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />,
+};
+
+const SUPER_SETTINGS_LINK: NavItem = {
+  href: '/dashboard/superadmin/settings',
+  label: 'Settings',
+  icon: <UserCog className="size-4 shrink-0 opacity-80" aria-hidden />,
 };
 
 function superadminNavGroups(): AdminNavGroup[] {
@@ -160,6 +168,11 @@ function superadminNavGroups(): AdminNavGroup[] {
           href: '/dashboard/superadmin/church-change-requests',
           label: 'Church change',
           icon: <UserCog className="size-3.5 opacity-70" />,
+        },
+        {
+          href: '/dashboard/superadmin/settings',
+          label: 'System settings',
+          icon: <Shield className="size-3.5 opacity-70" />,
         },
       ],
     },
@@ -195,6 +208,7 @@ function superadminNavGroups(): AdminNavGroup[] {
       children: [
         { href: '/dashboard/superadmin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
+        { href: '/dashboard/superadmin/finance/remittances', label: 'Remittances', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/assets', label: 'Assets', icon: <Building2 className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
@@ -218,7 +232,8 @@ function superadminPathInGroup(
     return (
       pathname.startsWith('/dashboard/superadmin/users') ||
       pathname.startsWith('/dashboard/superadmin/admins') ||
-      pathname.startsWith('/dashboard/superadmin/church-change-requests')
+      pathname.startsWith('/dashboard/superadmin/church-change-requests') ||
+      pathname.startsWith('/dashboard/superadmin/settings')
     );
   }
   if (groupId === 'leadership') {
@@ -404,17 +419,11 @@ export function PanelLayout({
       >
         <div className="flex h-full flex-col overflow-y-auto px-4 pb-6 pt-6">
           <div className="mb-8 flex items-start justify-between gap-2">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
-                {meta.title}
-              </p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900">{meta.tagline}</p>
-              <span
-                className={`mt-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.badgeStyle}`}
-              >
-                {variant === 'admin' ? adminChurchRoleLabel : meta.badge}
-              </span>
-            </div>
+            <BrandIdentity
+              wrapperClassName="flex items-center"
+              logoClassName="size-10 rounded-md object-cover ring-1 ring-neutral-200"
+              textClassName="text-base font-semibold text-neutral-900"
+            />
             <button
               type="button"
               className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden"
@@ -571,6 +580,16 @@ export function PanelLayout({
                     </div>
                   );
                 })}
+                <Link
+                  key={SUPER_SETTINGS_LINK.href}
+                  href={SUPER_SETTINGS_LINK.href}
+                  className={`${NAV_ITEM_ROW} ${
+                    isNavActive(pathname, SUPER_SETTINGS_LINK.href, variant) ? meta.navActive : meta.navIdle
+                  }`}
+                >
+                  {SUPER_SETTINGS_LINK.icon}
+                  {SUPER_SETTINGS_LINK.label}
+                </Link>
               </>
             )}
           </nav>
@@ -626,13 +645,6 @@ export function PanelLayout({
                 <Menu className="size-5" />
               </button>
               <div className="flex min-w-0 items-center gap-2">
-                <span className={`inline-flex shrink-0 rounded-lg p-1.5 ${meta.badgeStyle}`}>
-                  {variant === 'superadmin' ? (
-                    <Shield className="size-4" />
-                  ) : (
-                    <Building2 className="size-4" />
-                  )}
-                </span>
                 <div className="min-w-0">
                   <h1 className="truncate text-sm font-semibold text-neutral-900 sm:text-base">
                     {meta.title}
