@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   websiteUrl: '',
   address: '',
   footerText: '',
+  copyrightText: '',
 };
 
 function normalizeString(value) {
@@ -36,6 +37,7 @@ function toClientPayload(doc) {
     websiteUrl: normalizeString(base.websiteUrl),
     address: normalizeString(base.address),
     footerText: normalizeString(base.footerText),
+    copyrightText: normalizeString(base.copyrightText),
   };
 }
 
@@ -77,6 +79,7 @@ async function updateSystemSettings(req, res) {
       'websiteUrl',
       'address',
       'footerText',
+      'copyrightText',
     ];
     const updates = {};
     for (const key of allowedKeys) {

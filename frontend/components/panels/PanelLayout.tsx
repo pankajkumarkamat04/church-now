@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import { BrandIdentity } from '@/components/branding/BrandIdentity';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { AppFooter } from '@/components/layout/AppFooter';
 import type { Role } from '@/lib/api';
 
 export type PanelVariant = 'admin' | 'superadmin';
@@ -55,8 +57,8 @@ const panelMeta: Record<
     rolePill: 'bg-sky-50 text-sky-800 ring-sky-200/60',
   },
   superadmin: {
-    title: 'Superadmin',
-    tagline: 'System control',
+    title: 'Superadmin dashboard',
+    tagline: 'Control center',
     badge: 'Superadmin',
     navActive:
       'bg-violet-50 text-violet-900 border-violet-200 shadow-sm',
@@ -417,11 +419,11 @@ export function PanelLayout({
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-full flex-col overflow-y-auto px-4 pb-6 pt-6">
+        <div className="sidebar-scrollbar flex h-full flex-col overflow-y-auto px-4 pb-6 pt-6">
           <div className="mb-8 flex items-start justify-between gap-2">
             <BrandIdentity
               wrapperClassName="flex items-center"
-              logoClassName="size-10 rounded-md object-cover ring-1 ring-neutral-200"
+              logoClassName="size-14 rounded-md object-cover ring-1 ring-neutral-200"
               textClassName="text-base font-semibold text-neutral-900"
             />
             <button
@@ -654,6 +656,7 @@ export function PanelLayout({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
               <span
                 className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ring-1 sm:px-3 sm:text-xs ${meta.rolePill}`}
               >
@@ -664,6 +667,7 @@ export function PanelLayout({
         </header>
 
         <div className="w-full min-w-0 max-w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">{children}</div>
+        <AppFooter />
       </div>
     </div>
   );

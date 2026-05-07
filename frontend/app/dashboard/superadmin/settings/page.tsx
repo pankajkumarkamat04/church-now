@@ -150,6 +150,15 @@ export default function SuperadminSystemSettingsPage() {
               placeholder="Optional line shown in footer"
             />
           </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Copyright text</span>
+            <input
+              value={form.copyrightText}
+              onChange={(e) => setForm((prev) => ({ ...prev, copyrightText: e.target.value }))}
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              placeholder="e.g. © 2026 Church OS. All rights reserved."
+            />
+          </label>
         </div>
         {form.systemLogoUrl ? (
           <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">

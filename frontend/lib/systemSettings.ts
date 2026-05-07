@@ -6,6 +6,7 @@ export type SystemSettings = {
   websiteUrl: string;
   address: string;
   footerText: string;
+  copyrightText: string;
 };
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
@@ -16,6 +17,7 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   websiteUrl: '',
   address: '',
   footerText: '',
+  copyrightText: '',
 };
 
 function normalizeString(value: unknown): string {
@@ -31,5 +33,6 @@ export function normalizeSystemSettings(input: Partial<SystemSettings> | null | 
     websiteUrl: normalizeString(input?.websiteUrl),
     address: normalizeString(input?.address),
     footerText: normalizeString(input?.footerText),
+    copyrightText: normalizeString(input?.copyrightText),
   };
 }

@@ -18,11 +18,11 @@ import {
 } from 'lucide-react';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import { BrandIdentity } from '@/components/branding/BrandIdentity';
-import { useSystemSettings } from '@/contexts/SystemSettingsContext';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { AppFooter } from '@/components/layout/AppFooter';
 
 export function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
-  const { settings } = useSystemSettings();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -91,12 +91,13 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
             <Link href="/" className="truncate">
               <BrandIdentity
                 wrapperClassName="flex min-w-0 items-center"
-                logoClassName="size-8 rounded-md object-cover ring-1 ring-neutral-200"
+                logoClassName="size-12 rounded-md object-cover ring-1 ring-neutral-200"
                 textClassName="truncate text-lg font-bold text-emerald-600 sm:text-xl"
               />
             </Link>
           </div>
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/dashboard/member/account"
               className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 sm:px-3 sm:text-sm"
@@ -118,7 +119,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
                 <div className="mb-3">
                   <BrandIdentity
                     wrapperClassName="flex min-w-0 items-center"
-                    logoClassName="size-8 rounded-md object-cover ring-1 ring-neutral-200"
+                    logoClassName="size-12 rounded-md object-cover ring-1 ring-neutral-200"
                     textClassName="truncate text-sm font-semibold text-neutral-900"
                   />
                 </div>
@@ -183,12 +184,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
         </div>
       </main>
 
-      <footer className="mt-10 bg-slate-900 text-slate-200">
-        <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 text-center text-xs sm:px-6 lg:px-8">
-          <p>© {new Date().getFullYear()} Church OS</p>
-          {settings.footerText ? <p className="mt-1">{settings.footerText}</p> : null}
-        </div>
-      </footer>
+      <AppFooter className="mt-10" />
     </div>
   );
 }

@@ -10,6 +10,7 @@ const systemSettingSchema = new mongoose.Schema(
     websiteUrl: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },
     footerText: { type: String, trim: true, default: '' },
+    copyrightText: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 );

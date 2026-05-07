@@ -119,15 +119,15 @@ export default function SuperadminOverviewPage() {
 
   return (
     <div className="w-full min-w-0 max-w-7xl">
-      <div className="mb-8 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Superadmin dashboard</p>
+      <div className="mb-8 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-white p-6 shadow-sm dark:border-violet-900/70 dark:from-violet-950/50 dark:via-neutral-900 dark:to-neutral-900">
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">Superadmin dashboard</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
           Control center
         </h1>
       </div>
 
       {err ? (
-        <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200">
           {err}
         </p>
       ) : null}
@@ -137,7 +137,9 @@ export default function SuperadminOverviewPage() {
           <Link
             key={card.title}
             href={card.href || '#'}
-            className={`rounded-xl border border-neutral-200 bg-white p-5 shadow-sm ${card.href ? 'transition hover:border-violet-300 hover:shadow-md' : ''}`}
+            className={`rounded-xl border border-neutral-200 bg-white p-5 shadow-sm ${
+              card.href ? 'transition hover:border-violet-300 hover:shadow-md dark:hover:border-violet-700' : ''
+            }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -145,7 +147,7 @@ export default function SuperadminOverviewPage() {
                 <p className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{card.value}</p>
                 <p className="mt-1 text-xs text-neutral-500">{card.subtitle}</p>
               </div>
-              <span className={`inline-flex rounded-lg p-2 ${card.tint}`}>
+              <span className={`inline-flex rounded-lg p-2 ${card.tint} dark:bg-neutral-800 dark:text-neutral-100`}>
                 <card.icon className="size-4" aria-hidden />
               </span>
             </div>
@@ -164,13 +166,13 @@ export default function SuperadminOverviewPage() {
               <Link
                 key={m.href}
                 href={m.href}
-                className="group rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-sm"
+                className="group rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="inline-flex rounded-md bg-violet-100 p-2 text-violet-800">
+                  <span className="inline-flex rounded-md bg-violet-100 p-2 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">
                     <m.icon className="size-4" aria-hidden />
                   </span>
-                  <ArrowRight className="size-4 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
+                  <ArrowRight className="size-4 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:text-violet-600 dark:group-hover:text-violet-300" />
                 </div>
                 <p className="mt-3 text-sm font-semibold text-neutral-900">{m.title}</p>
                 <p className="mt-1 text-xs text-neutral-600">{m.description}</p>
@@ -199,10 +201,7 @@ export default function SuperadminOverviewPage() {
               <p className="text-sm font-semibold text-neutral-900">{inactiveUsers}</p>
             </div>
           </div>
-          <Link
-            href="/dashboard/superadmin/users"
-            className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:text-violet-900"
-          >
+          <Link href="/dashboard/superadmin/users" className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:text-violet-900 dark:text-violet-300 dark:hover:text-violet-200">
             Open members
             <ArrowRight className="size-3.5" />
           </Link>
