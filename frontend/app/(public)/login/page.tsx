@@ -107,11 +107,6 @@ export default function LoginPage() {
           Register here
         </Link>
       </p>
-      <p className="mt-2 text-center text-sm">
-        <Link href="/donate" className="font-medium text-neutral-700 hover:text-neutral-900">
-          Want to donate without login? Donate here
-        </Link>
-      </p>
     </AuthShell>
   );
 }
