@@ -223,8 +223,26 @@ export default function AdminFinanceExpensesPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((r) => (
+            <div key={r._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{r.title}</p>
+              <p className="mt-1 text-xs text-neutral-600">{r.category} • {r.expenseDate ? new Date(r.expenseDate).toLocaleDateString() : '—'}</p>
+              <span className={r.approvalStage === 'POSTED' ? 'mt-2 inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800' : r.approvalStage === 'PENDING_NOTICE_APPROVALS' ? 'mt-2 inline-flex rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800' : 'mt-2 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800'}>
+                {r.approvalStage || 'PENDING_VERIFICATION'}
+              </span>
+              <p className="mt-2 text-sm font-medium text-neutral-900">USD {r.amount.toFixed(2)}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {r.canCurrentUserVerify && r.approvalStage === 'PENDING_VERIFICATION' ? <button type="button" onClick={() => void verifyPayment(r._id)} className="inline-flex items-center text-sky-700 hover:underline">Verify</button> : null}
+                {r.canCurrentUserNoticeApprove && r.approvalStage === 'PENDING_NOTICE_APPROVALS' ? <button type="button" onClick={() => void approveNotice(r._id)} className="inline-flex items-center text-emerald-700 hover:underline">Approve notice</button> : null}
+                <button type="button" onClick={() => startEdit(r)} className="inline-flex items-center text-sky-700 hover:underline"><Pencil className="mr-1 size-3.5" />Edit</button>
+                <button type="button" onClick={() => remove(r._id)} className="inline-flex items-center text-red-700 hover:underline"><Trash2 className="mr-1 size-3.5" />Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <table className="hidden w-full text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-2 font-medium">Date</th>

@@ -39,8 +39,33 @@ export default function SuperadminPaymentsDepositsPage() {
     <>
       <h2 className="text-lg font-semibold text-neutral-900">Balance deposits</h2>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="mt-4 rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((d) => {
+            const churchId = d.church && typeof d.church === 'object' && '_id' in d.church ? String(d.church._id) : '';
+            return (
+              <div key={d._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+                <p className="text-xs text-neutral-600">{d.depositedAt ? new Date(d.depositedAt).toLocaleString() : '—'}</p>
+                <p className="mt-1 text-sm font-semibold text-neutral-900">
+                  {d.church?.name ? (superadminChurchHref(churchId) ? <Link href={superadminChurchHref(churchId)!} className="text-violet-800 hover:underline">{d.church.name}</Link> : d.church.name) : '—'}
+                </p>
+                <p className="mt-1 text-xs text-neutral-600">Deposited by: {d.depositedBy?.fullName || d.depositedBy?.email || '—'}</p>
+                <p className="mt-1 text-xs text-neutral-600">Recipient: {d.member?.fullName || d.member?.email || '—'}</p>
+                <p className="mt-1 text-xs text-neutral-600">{churchRoleLabel(d.member || {})}</p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">USD {Number(d.amount || 0).toFixed(2)}</p>
+                {d.displayCurrency && d.displayCurrency !== 'USD' && d.amountDisplay != null ? (
+                  <p className="text-xs text-neutral-500">entered {normalizeDisplayCurrencyInput(d.displayCurrency)} {Number(d.amountDisplay).toFixed(2)}</p>
+                ) : null}
+                <div className="mt-2">
+                  {superadminUserHref(d.member?._id) ? (
+                    <Link href={superadminUserHref(d.member?._id)!} className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline">User</Link>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <table className="hidden w-full text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-2 font-medium">When</th>

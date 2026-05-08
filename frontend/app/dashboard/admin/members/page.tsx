@@ -225,8 +225,34 @@ export default function AdminMembersListPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {members.map((m) => (
+            <div key={m.id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{m.name || m.fullName || '—'}</p>
+              <p className="text-xs text-neutral-600">{m.email}</p>
+              <p className="mt-1 text-xs text-neutral-600">Member ID: {m.memberId || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Councils: {(m.councils || []).length ? (m.councils || []).map((c) => c.name).join(', ') : '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Membership: {formatShortDate(m.membershipDate || m.membership_date || null)}</p>
+              <p className="mt-1 text-xs text-neutral-600">Role: {normalizeMemberRoleLabel(m.memberRoleDisplay || m.memberCategory || 'MEMBER')}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className={m.memberBadgeType === 'BADGED' ? 'rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-900' : 'rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700'}>
+                  {m.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}
+                </span>
+                <span className={m.approvalStatus === 'PENDING' ? 'rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-900' : m.isActive === false ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900' : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'}>
+                  {m.approvalStatus === 'PENDING' ? 'Pending approval' : m.isActive === false ? 'Inactive' : 'Active'}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={`/dashboard/admin/members/${m.id}`} className={inputBtn}><Eye className="mr-1 size-3.5" />View</Link>
+                {m.role === 'MEMBER' ? <Link href={`/dashboard/admin/members/${m.id}/edit`} className={inputBtn}><Pencil className="mr-1 size-3.5" />Edit</Link> : null}
+                {m.role === 'MEMBER' && m.isActive !== false ? <button type="button" disabled={busyId === m.id} onClick={() => deactivate(m.id)} className={`${inputBtn} text-amber-800 border-amber-200 hover:bg-amber-50`}><UserX className="mr-1 size-3.5" />{busyId === m.id ? '…' : 'Deactivate'}</button> : null}
+                {m.role === 'MEMBER' && m.approvalStatus === 'PENDING' ? <button type="button" disabled={busyId === m.id} onClick={() => approve(m.id)} className={`${inputBtn} border-emerald-200 text-emerald-800 hover:bg-emerald-50`}><CheckCircle2 className="mr-1 size-3.5" />{busyId === m.id ? '…' : 'Approve'}</button> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1040px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

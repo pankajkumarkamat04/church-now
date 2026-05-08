@@ -396,7 +396,7 @@ export default function SuperadminRemittancesPage() {
         </p>
       </div>
 
-      <div className="mb-6 flex items-center gap-2 border-b border-neutral-200 pb-3">
+      <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-3">
         <button
           type="button"
           onClick={() => setTab('CHURCH')}
@@ -458,7 +458,7 @@ export default function SuperadminRemittancesPage() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-end gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-neutral-600">Month</span>
               <input
@@ -529,7 +529,43 @@ export default function SuperadminRemittancesPage() {
             </button>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <div className="space-y-3 p-3 md:hidden">
+              {churchOptions.map((r) => (
+                <div key={r.churchId} className="rounded-lg border border-neutral-200 bg-white p-3">
+                  <p className="text-sm font-semibold text-neutral-900">{r.churchName}</p>
+                  <p className="mt-1 text-xs text-neutral-600">
+                    Main: {r.mainChurch.recipientName} | Conf: {r.conference.recipientName}
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-neutral-700">
+                    <p>Income: {r.totalIncome.toFixed(2)}</p>
+                    <p>Main due: {r.mainChurch.due.toFixed(2)}</p>
+                    <p>Main paid: {r.mainChurch.paid.toFixed(2)}</p>
+                    <p>Conf due: {r.conference.due.toFixed(2)}</p>
+                    <p>Conf paid: {r.conference.paid.toFixed(2)}</p>
+                    <p>Balance: {(r.mainChurch.balance + r.conference.balance).toFixed(2)}</p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(r.mainChurch.status)}`}>
+                      Main {statusLabel(r.mainChurch.status)}
+                    </span>
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(r.conference.status)}`}>
+                      Conf {statusLabel(r.conference.status)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/dashboard/superadmin/finance/remittances/view?kind=church&id=${r.churchId}&month=${month}`)
+                    }
+                    className="mt-3 rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+                  >
+                    View
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
               <h2 className="text-sm font-semibold text-neutral-900">Church Remit Details</h2>
             </div>
@@ -681,6 +717,7 @@ export default function SuperadminRemittancesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       ) : tab === 'SCHOOL' ? (
@@ -700,7 +737,7 @@ export default function SuperadminRemittancesPage() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-end gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-neutral-600">Year</span>
               <input
@@ -894,7 +931,34 @@ export default function SuperadminRemittancesPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <div className="space-y-3 p-3 md:hidden">
+              {(schoolData?.rows || []).map((r) => (
+                <div key={r.schoolId} className="rounded-lg border border-neutral-200 bg-white p-3">
+                  <p className="text-sm font-semibold text-neutral-900">{r.schoolName}</p>
+                  <p className="mt-1 text-xs text-neutral-600">{r.contactPerson || 'No contact'} · {r.phone || 'No phone'}</p>
+                  <p className="mt-1 text-xs text-neutral-600">{r.email || 'No email'}</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-neutral-700">
+                    <p>Due: {r.totalDue.toFixed(2)}</p>
+                    <p>Paid: {r.totalPaid.toFixed(2)}</p>
+                    <p>Bal: {r.totalBalance.toFixed(2)}</p>
+                  </div>
+                  <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClass(r.paymentStatus || 'PENDING')}`}>
+                    {statusLabel(r.paymentStatus || 'PENDING')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/dashboard/superadmin/finance/remittances/view?kind=school&id=${r.schoolId}&year=${year}`)
+                    }
+                    className="mt-3 rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+                  >
+                    View
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
               <h2 className="text-sm font-semibold text-neutral-900">School Remit Details</h2>
             </div>
@@ -1096,10 +1160,23 @@ export default function SuperadminRemittancesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="space-y-3 p-3 md:hidden">
+            {historyRows.map((row) => (
+              <div key={row.id} className="rounded-lg border border-neutral-200 bg-white p-3">
+                <p className="text-xs text-neutral-600">{row.at ? new Date(row.at).toLocaleString() : '—'}</p>
+                <p className="mt-1 text-sm font-semibold text-neutral-900">{row.scope} · {row.action}</p>
+                <p className="mt-1 text-xs text-neutral-600">{row.entity}</p>
+                <p className="mt-1 text-xs text-neutral-600">By: {row.actor}</p>
+                <p className="mt-1 text-xs text-neutral-700">{row.details}</p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
             <h2 className="text-sm font-semibold text-neutral-900">Remittance History</h2>
             <p className="text-xs text-neutral-600">Shows who added/updated school, due, and payment records.</p>
@@ -1130,6 +1207,7 @@ export default function SuperadminRemittancesPage() {
               ))}
             </tbody>
           </table>
+          </div>
           {historyRows.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-neutral-500">No history rows yet.</p>
           ) : null}

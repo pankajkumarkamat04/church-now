@@ -333,3 +333,36 @@ video {
 .dark .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgb(115 115 115 / 0.95);
 }
+
+/* Responsive hardening for shared dashboard/public content */
+.dashboard-content {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-content {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-content table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-content thead,
+  .dashboard-content tbody,
+  .dashboard-content tr {
+    white-space: nowrap;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

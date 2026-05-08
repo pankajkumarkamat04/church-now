@@ -48,8 +48,19 @@ export default function AdminPaymentsHistoryPage() {
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
 
       <h3 className="mt-6 text-sm font-semibold text-neutral-800">Deposits</h3>
-      <div className="mt-2 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="mt-2 rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {depositHistory.map((d) => (
+            <div key={d._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-xs text-neutral-600">{d.depositedAt ? new Date(d.depositedAt).toLocaleString() : '—'}</p>
+              <p className="mt-1 text-sm font-semibold text-neutral-900">{d.member?.fullName || d.member?.email || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Deposited by: {d.depositedBy?.fullName || d.depositedBy?.email || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">{churchRoleLabel(d.member || {})}</p>
+              <p className="mt-2 text-sm font-medium text-neutral-900">USD {Number(d.amount || 0).toFixed(2)}</p>
+            </div>
+          ))}
+        </div>
+        <table className="hidden w-full text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-2 font-medium">When</th>
@@ -109,8 +120,25 @@ export default function AdminPaymentsHistoryPage() {
       <p className="mt-1 text-xs text-neutral-500">
         Per-type amounts are USD (same as row total). Scroll horizontally if needed.
       </p>
-      <div className="mt-2 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full min-w-[1200px] text-left text-sm">
+      <div className="mt-2 rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((r) => {
+            const byType = amountsByPaymentOption(r.paymentLines);
+            return (
+              <div key={r._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+                <p className="text-sm font-semibold text-neutral-900">{r.user?.fullName || r.user?.email || '—'}</p>
+                <p className="mt-1 text-xs text-neutral-600">{churchRoleLabel(r.user || {})}</p>
+                <p className="mt-1 text-xs text-neutral-600">Date: {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '—'}</p>
+                <p className="mt-1 text-xs text-neutral-600">Source: {r.source}</p>
+                <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-neutral-700">
+                  {PAYMENT_OPTIONS.map((opt) => <p key={opt}>{opt}: {byType[opt] > 0 ? byType[opt].toFixed(2) : '—'}</p>)}
+                </div>
+                <p className="mt-2 text-sm font-medium text-neutral-900">USD {r.amount.toFixed(2)}</p>
+              </div>
+            );
+          })}
+        </div>
+        <table className="hidden w-full min-w-[1200px] text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="sticky left-0 z-10 border-r border-neutral-200 bg-neutral-50 px-4 py-2 font-medium">Member</th>

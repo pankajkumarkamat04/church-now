@@ -144,8 +144,39 @@ export default function AdminAttendancePage() {
             </button>
           </div>
           {selectedDateKey ? (
-            <div className="max-h-[540px] overflow-y-auto">
-              <table className="w-full text-left text-sm">
+            <>
+              <div className="space-y-3 md:hidden">
+                {dayMembers.map((m) => (
+                  <div key={m.memberId} className="rounded-lg border border-neutral-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-neutral-900">{m.name}</p>
+                    <p className="text-xs text-neutral-500">{m.memberCode || '—'}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <select
+                        value={m.status}
+                        onChange={(e) =>
+                          setDayMembers((prev) =>
+                            prev.map((x) => (x.memberId === m.memberId ? { ...x, status: e.target.value as 'PRESENT' | 'ABSENT' } : x))
+                          )
+                        }
+                        className="rounded-lg border border-neutral-300 px-2 py-1 text-xs"
+                      >
+                        <option value="PRESENT">Present</option>
+                        <option value="ABSENT">Absent</option>
+                      </select>
+                      <input
+                        value={m.note}
+                        onChange={(e) =>
+                          setDayMembers((prev) => prev.map((x) => (x.memberId === m.memberId ? { ...x, note: e.target.value } : x)))
+                        }
+                        placeholder="Optional note"
+                        className="w-full rounded-lg border border-neutral-300 px-2 py-1 text-xs"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden max-h-[540px] overflow-y-auto md:block">
+                <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-neutral-200 text-neutral-600">
                     <th className="py-2 pr-2 font-medium">Member</th>
@@ -187,8 +218,9 @@ export default function AdminAttendancePage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-neutral-500">Pick a day on the calendar to manage attendance.</p>
           )}

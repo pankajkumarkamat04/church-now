@@ -127,8 +127,42 @@ export default function SuperadminChurchesListPage() {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {churches.map((c) => {
+            const localMinister = withRevMinisterPrefix(localMinisterFromChurch(c));
+            return (
+              <div key={c._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+                <p className="text-sm font-semibold text-neutral-900">{c.name}</p>
+                <p className="mt-1 text-xs text-neutral-600">Minister: {localMinister}</p>
+                <p className="mt-1 text-xs text-neutral-600">Type: {c.churchType === 'SUB' ? 'Sub' : 'Main'}</p>
+                <p className="mt-1 text-xs text-neutral-600">Conference: {conferenceLabel(c)}</p>
+                <p className="mt-1 text-xs text-neutral-600">Main church: {c.churchType === 'SUB' ? mainChurchLabel(c) : '—'}</p>
+                <p className="mt-1 text-xs text-neutral-600">Location: {[c.city, c.country].filter(Boolean).join(', ') || '—'}</p>
+                <div className="mt-2">
+                  <span
+                    className={
+                      c.isActive === false
+                        ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
+                        : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
+                    }
+                  >
+                    {c.isActive === false ? 'Inactive' : 'Active'}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setViewChurch(c)} className={btn} aria-label="View church details"><Eye className="size-3.5" /></button>
+                  <Link href={`/dashboard/superadmin/churches/${c._id}/edit`} className={btn} aria-label="Edit church"><Pencil className="size-3.5" /></Link>
+                  <Link href={`/dashboard/superadmin/churches/${c._id}/members`} className={btn} aria-label="Church members"><Users className="size-3.5" /></Link>
+                  <button type="button" onClick={() => setPastorChurch(c)} className={btn} aria-label="Manage pastor assignments"><UserCog className="size-3.5" /></button>
+                  <button type="button" onClick={() => setLeadershipChurch(c)} className={btn} aria-label="Edit leadership"><Shield className="size-3.5" /></button>
+                  <button type="button" disabled={busyId === c._id} onClick={() => removeChurch(c._id)} className={`${btn} border-red-200 text-red-700 hover:bg-red-50`} aria-label="Delete church"><Trash2 className="size-3.5" /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1020px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

@@ -116,8 +116,21 @@ export default function AdminEventsPage() {
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p> : null}
       <div className="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-          <table className="w-full min-w-[620px] text-left text-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="space-y-3 p-3 md:hidden">
+            {rows.map((r) => (
+              <div key={r._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+                <p className="text-sm font-semibold text-neutral-900">{r.title}</p>
+                <p className="mt-1 text-xs text-neutral-600">{r.startsAt ? new Date(r.startsAt).toLocaleString() : '—'}</p>
+                <p className="mt-1 text-xs text-neutral-600">Published: {r.published !== false ? 'Yes' : 'No'}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => startEdit(r)} className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-xs"><Pencil className="size-3.5" />Edit</button>
+                  <button type="button" onClick={() => void onDelete(r._id)} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700"><Trash2 className="size-3.5" />Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <table className="hidden w-full min-w-[620px] text-left text-sm md:table">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Title</th>

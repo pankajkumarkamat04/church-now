@@ -272,8 +272,64 @@ export default function SuperadminUsersListPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {users.map((u) => (
+            <div key={u.id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{u.fullName || '—'}</p>
+              <p className="text-xs text-neutral-600">{u.email}</p>
+              <p className="mt-1 text-xs text-neutral-600">Member ID: {u.memberId || '—'}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span
+                  className={
+                    u.memberBadgeType === 'BADGED'
+                      ? 'rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900'
+                      : 'rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800'
+                  }
+                >
+                  {u.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}
+                </span>
+                <span
+                  className={
+                    u.isActive === false
+                      ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
+                      : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
+                  }
+                >
+                  {u.isActive === false ? 'Inactive' : 'Active'}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-neutral-700">
+                Role: {normalizeMemberRoleLabel(u.memberRoleDisplay || u.memberCategory || (u.role === 'ADMIN' ? 'Church admin' : 'MEMBER'))}
+              </p>
+              <p className="mt-1 text-xs text-neutral-600">
+                Church:{' '}
+                {u.role === 'ADMIN' && Array.isArray(u.adminChurches) && u.adminChurches.length > 0
+                  ? u.adminChurches.map((c) => c.name).join(', ')
+                  : typeof u.church === 'object' && u.church && 'name' in u.church
+                    ? u.church.name
+                    : '—'}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={`/dashboard/superadmin/users/${u.id}/edit`} className={btn}>
+                  <Pencil className="mr-1 size-3.5" aria-hidden />
+                  Edit
+                </Link>
+                <button
+                  type="button"
+                  disabled={busyId === u.id || u.id === user.id}
+                  onClick={() => removeUser(u.id)}
+                  className={`${btn} border-red-200 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50`}
+                  title={u.id === user.id ? 'Cannot delete yourself' : undefined}
+                >
+                  <Trash2 className="mr-1 size-3.5" aria-hidden />
+                  {busyId === u.id ? '…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

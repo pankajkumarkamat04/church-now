@@ -415,7 +415,7 @@ export function PanelLayout({
   return (
     <div className="min-h-screen bg-neutral-100 text-neutral-900">
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-neutral-200 bg-white shadow-sm transition-transform duration-200 ease-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-80 border-r border-neutral-200 bg-white shadow-sm transition-transform duration-200 ease-out sm:w-72 lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -634,9 +634,9 @@ export function PanelLayout({
         />
       ) : null}
 
-      <div className="w-full min-w-0 lg:pl-72">
+      <div className="flex min-h-screen w-full min-w-0 flex-col lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur-md">
-          <div className="flex min-w-0 items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
@@ -655,10 +655,10 @@ export function PanelLayout({
                 </div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <ThemeToggle />
               <span
-                className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ring-1 sm:px-3 sm:text-xs ${meta.rolePill}`}
+                className={`hidden whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ring-1 sm:inline-flex sm:px-3 sm:text-xs ${meta.rolePill}`}
               >
                 {variant === 'admin' ? adminChurchRoleLabel : user.role}
               </span>
@@ -666,7 +666,7 @@ export function PanelLayout({
           </div>
         </header>
 
-        <div className="w-full min-w-0 max-w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10">{children}</div>
+        <div className="dashboard-content w-full min-w-0 max-w-full flex-1 px-3 py-5 sm:px-6 sm:py-8 lg:px-10">{children}</div>
         <AppFooter />
       </div>
     </div>

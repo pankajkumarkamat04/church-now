@@ -151,8 +151,37 @@ export default function SuperadminFinanceExpensesPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((r) => (
+            <div key={r._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{r.title}</p>
+              <p className="mt-1 text-xs text-neutral-600">{r.category} • {r.expenseDate ? new Date(r.expenseDate).toLocaleDateString() : '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Conference: {r.conference?.name || r.conference?.conferenceId || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Church: {r.church?.name || '—'}</p>
+              <div className="mt-2 flex items-center justify-between">
+                <span
+                  className={
+                    r.approvalStatus === 'APPROVED'
+                      ? 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
+                      : r.approvalStatus === 'REJECTED'
+                        ? 'rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800'
+                        : 'rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800'
+                  }
+                >
+                  {r.approvalStatus || 'PENDING'}
+                </span>
+                <span className="text-sm font-medium text-neutral-900">USD {r.amount.toFixed(2)}</span>
+              </div>
+              <div className="mt-3">
+                <Link href={`/dashboard/superadmin/finance/expenses/${r._id}/edit`} className="text-sm font-medium text-violet-700 hover:underline">
+                  View details
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+        <table className="hidden w-full text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-2 font-medium">Conference</th>

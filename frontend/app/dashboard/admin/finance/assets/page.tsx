@@ -291,8 +291,25 @@ export default function AdminFinanceAssetsPage() {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((row) => (
+            <div key={row._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{row.name}</p>
+              <p className="mt-1 text-xs text-neutral-600">{CATEGORY_OPTIONS.find((o) => o.value === row.category)?.label || row.category} • {STATUS_OPTIONS.find((o) => o.value === row.status)?.label || row.status}</p>
+              <p className="mt-1 text-xs text-neutral-600">Ownership: {OWNERSHIP_OPTIONS.find((o) => o.value === row.ownershipType)?.label || row.ownershipType}</p>
+              <p className="mt-1 text-xs text-neutral-600">Location: {row.location || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Reg/Ref: {row.registrationNumber || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Acquisition: {row.acquisitionDate ? new Date(row.acquisitionDate).toLocaleDateString() : '—'} • {row.acquisitionCost == null ? '—' : `USD ${Number(row.acquisitionCost).toFixed(2)}`}</p>
+              <p className="mt-2 text-sm font-medium text-neutral-900">{row.currentEstimatedValue == null ? '—' : `USD ${Number(row.currentEstimatedValue).toFixed(2)}`}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => { setEditId(row._id); setForm(toForm(row)); }} className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">Edit</button>
+                <button type="button" onClick={() => onDelete(row._id)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <table className="hidden w-full min-w-[1080px] text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-3 font-medium">Asset</th>

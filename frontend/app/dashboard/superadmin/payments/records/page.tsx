@@ -39,8 +39,27 @@ export default function SuperadminPaymentsRecordsPage() {
     <>
       <h2 className="text-lg font-semibold text-neutral-900">Payment allocations</h2>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="mt-4 rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((r) => (
+            <div key={r._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{r.user?.fullName || r.user?.email || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Church: {r.church?.name || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Date: {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Source: {r.source}</p>
+              <p className="mt-1 text-xs text-neutral-600">Types: {r.paymentLines && r.paymentLines.length > 0 ? r.paymentLines.map((line) => `${line.paymentType} ${line.amount.toFixed(2)}`).join(', ') : '—'}</p>
+              <p className="mt-2 text-sm font-medium text-neutral-900">USD {r.amount.toFixed(2)}</p>
+              <div className="mt-2">
+                {superadminUserHref(r.user?._id) ? (
+                  <Link href={superadminUserHref(r.user?._id)!} className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline">
+                    Open user
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+        <table className="hidden w-full text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-2 font-medium">Church</th>

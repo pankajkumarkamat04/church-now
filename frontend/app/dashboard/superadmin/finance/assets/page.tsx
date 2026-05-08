@@ -61,8 +61,23 @@ export default function SuperadminFinanceAssetsPage() {
 
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <table className="w-full min-w-[1040px] text-left text-sm">
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((row) => (
+            <div key={row._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">{row.name}</p>
+              <p className="mt-1 text-xs text-neutral-600">Church: {typeof row.church === 'object' && row.church && 'name' in row.church ? row.church.name || '—' : '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Category: {row.category}</p>
+              <p className="mt-1 text-xs text-neutral-600">Status: {row.status}</p>
+              <p className="mt-1 text-xs text-neutral-600">Ownership: {row.ownershipType}</p>
+              <p className="mt-1 text-xs text-neutral-600">Location: {row.location || '—'}</p>
+              <p className="mt-1 text-xs text-neutral-600">Reg/Ref: {row.registrationNumber || '—'}</p>
+              <p className="mt-2 text-sm font-medium text-neutral-900">USD {row.currentEstimatedValue == null ? '—' : Number(row.currentEstimatedValue).toFixed(2)}</p>
+              <p className="mt-1 text-xs text-neutral-500">{row.notes || '—'}</p>
+            </div>
+          ))}
+        </div>
+        <table className="hidden w-full min-w-[1040px] text-left text-sm md:table">
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-3 font-medium">Asset</th>

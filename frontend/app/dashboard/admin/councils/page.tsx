@@ -41,8 +41,22 @@ export default function AdminCouncilsPage() {
         <p className="mt-1 text-sm text-neutral-600">
           Councils are global across all churches and conferences.
         </p>
-        <div className="mt-5 overflow-x-auto rounded-xl border border-neutral-200">
-          <table className="w-full min-w-[620px] text-left text-sm">
+        <div className="mt-5 rounded-xl border border-neutral-200">
+          <div className="space-y-3 p-3 md:hidden">
+            {rows.map((row) => (
+              <div key={row._id} className="rounded-lg border border-neutral-200 bg-white p-3">
+                <p className="text-sm font-semibold text-neutral-900">{row.name}</p>
+                <Link
+                  href={`/dashboard/admin/councils/${row._id}/members`}
+                  className="mt-2 inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                >
+                  <Users className="size-3.5" />
+                  View members
+                </Link>
+              </div>
+            ))}
+          </div>
+          <table className="hidden w-full min-w-[620px] text-left text-sm md:table">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                 <th className="px-4 py-3 font-medium">Council</th>
