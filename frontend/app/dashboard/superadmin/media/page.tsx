@@ -19,6 +19,7 @@ export default function SuperadminMediaPage() {
   const router = useRouter();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [fetching, setFetching] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -36,16 +37,16 @@ export default function SuperadminMediaPage() {
     setFetching(true);
     try {
       const res = await apiFetch<{ data: MediaItem[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/superadmin/media?page=${page}&limit=20`, { token }
+        `/api/superadmin/media?page=${page}&limit=${pageSize}`, { token }
       );
       setItems(res.data);
-      setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+      setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit ?? pageSize });
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Failed to load media');
     } finally {
       setFetching(false);
     }
-  }, [token, page]);
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (user?.role === 'SUPERADMIN' && token) {
@@ -166,7 +167,18 @@ export default function SuperadminMediaPage() {
           ) : null}
         </div>
       )}
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
     </div>
   );
 }

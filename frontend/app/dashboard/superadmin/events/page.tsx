@@ -39,7 +39,7 @@ export default function SuperadminEventsPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [churchFilter, setChurchFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   const load = useCallback(
     async (opts?: { quiet?: boolean }) => {
@@ -95,10 +95,10 @@ export default function SuperadminEventsPage() {
   }, [events, churchFilter]);
 
   const pagedEvents = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredEvents.slice(start, start + PAGE_SIZE);
-  }, [filteredEvents, page, PAGE_SIZE]);
-  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE));
+    const start = (page - 1) * pageSize;
+    return filteredEvents.slice(start, start + pageSize);
+  }, [filteredEvents, page, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
 
   async function onDelete(id: string, churchId: string) {
     if (!token || !confirm('Delete this event?')) return;
@@ -228,8 +228,12 @@ export default function SuperadminEventsPage() {
         page={page}
         totalPages={totalPages}
         total={filteredEvents.length}
-        limit={PAGE_SIZE}
+        limit={pageSize}
         onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         className="mt-2"
       />
     </div>

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@/components/ui/Pagination';
-
-const PASTOR_PAGE_SIZE = 12;
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { PastorAssignModal } from '@/components/church/PastorAssignModal';
+
+const PASTOR_PAGE_DEFAULT = 12;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,6 +87,7 @@ function DirectoryTab({
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PASTOR_PAGE_DEFAULT);
 
   const filtered = useMemo(() => {
     let rows = records;
@@ -105,8 +106,8 @@ function DirectoryTab({
     return rows;
   }, [records, selectedChurchId, statusFilter, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PASTOR_PAGE_SIZE));
-  const paged = useMemo(() => filtered.slice((page - 1) * PASTOR_PAGE_SIZE, page * PASTOR_PAGE_SIZE), [filtered, page]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
 
   async function toggleActive(recordId: string) {
     if (!token) return;
@@ -231,7 +232,18 @@ function DirectoryTab({
           <div className="col-span-full py-12 text-center text-sm text-neutral-500">No pastors found.</div>
         )}
       </div>
-      <Pagination page={page} totalPages={totalPages} total={filtered.length} limit={PASTOR_PAGE_SIZE} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        limit={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
     </div>
   );
 }
@@ -420,6 +432,7 @@ function TermsTab({
   const [transferTo, setTransferTo] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PASTOR_PAGE_DEFAULT);
 
   const filtered = useMemo(() => {
     if (!churchFilter) return terms;
@@ -429,8 +442,8 @@ function TermsTab({
     });
   }, [terms, churchFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PASTOR_PAGE_SIZE));
-  const paged = useMemo(() => filtered.slice((page - 1) * PASTOR_PAGE_SIZE, page * PASTOR_PAGE_SIZE), [filtered, page]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
 
   async function renew(termId: string) {
     if (!token) return;
@@ -553,7 +566,18 @@ function TermsTab({
         </table>
         {filtered.length === 0 && <p className="px-4 py-8 text-center text-sm text-neutral-500">No terms found.</p>}
       </div>
-      <Pagination page={page} totalPages={totalPages} total={filtered.length} limit={PASTOR_PAGE_SIZE} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        limit={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
     </div>
   );
 }

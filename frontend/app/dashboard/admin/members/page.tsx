@@ -35,6 +35,7 @@ export default function AdminMembersListPage() {
   const router = useRouter();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [churchName, setChurchName] = useState('My church');
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
@@ -49,7 +50,7 @@ export default function AdminMembersListPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const query = new URLSearchParams({ page: String(page), limit: '20' });
+    const query = new URLSearchParams({ page: String(page), limit: String(pageSize) });
     if (councilId) query.set('councilId', councilId);
     if (isActiveFilter) query.set('isActive', isActiveFilter);
     if (badgeFilter) query.set('memberBadgeType', badgeFilter);
@@ -62,7 +63,7 @@ export default function AdminMembersListPage() {
     setMembers(res.data);
     setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
     setChurchName(c?.name || 'My church');
-  }, [token, councilId, isActiveFilter, badgeFilter, page]);
+  }, [token, councilId, isActiveFilter, badgeFilter, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -376,6 +377,10 @@ export default function AdminMembersListPage() {
         total={meta.total}
         limit={meta.limit}
         onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         className="mt-2"
       />
     </div>

@@ -164,7 +164,7 @@ async function validateChurchLeadershipPayload(churchId, localLeadership, counci
   return { leadership, councils: councilList };
 }
 
-const LEADERSHIP_MEMBER_SELECT = 'email fullName firstName surname';
+const LEADERSHIP_MEMBER_SELECT = 'email fullName firstName surname memberId';
 
 const populateLeadershipPaths = [
   { path: 'localLeadership.spiritualPastor', select: LEADERSHIP_MEMBER_SELECT },

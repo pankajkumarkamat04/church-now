@@ -35,6 +35,7 @@ export default function SuperadminFinanceExpensesPage() {
   const { churches } = useSuperadminChurches();
   const [rows, setRows] = useState<ExpenseRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [conferences, setConferences] = useState<ConferenceRow[]>([]);
   const [filterConference, setFilterConference] = useState('');
@@ -44,7 +45,7 @@ export default function SuperadminFinanceExpensesPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
     if (filterChurch) {
       params.set('churchId', filterChurch);
     } else if (filterConference) {
@@ -55,8 +56,8 @@ export default function SuperadminFinanceExpensesPage() {
       `/api/superadmin/expenses?${params.toString()}`, { token }
     );
     setRows(res.data);
-    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
-  }, [token, filterChurch, filterConference, filterApprovalStatus, page]);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit ?? pageSize });
+  }, [token, filterChurch, filterConference, filterApprovalStatus, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -243,7 +244,18 @@ export default function SuperadminFinanceExpensesPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No expenses yet.</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-2"
+      />
     </div>
   );
 }

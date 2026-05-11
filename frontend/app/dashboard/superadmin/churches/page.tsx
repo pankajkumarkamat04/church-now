@@ -20,6 +20,7 @@ export default function SuperadminChurchesListPage() {
   const router = useRouter();
   const [churches, setChurches] = useState<ChurchRecord[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -40,11 +41,12 @@ export default function SuperadminChurchesListPage() {
     if (!token) return;
     setErr(null);
     const res = await apiFetch<{ data: ChurchRecord[]; total: number; page: number; limit: number; totalPages: number }>(
-      `/api/superadmin/churches?page=${page}&limit=20`, { token }
+      `/api/superadmin/churches?page=${page}&limit=${pageSize}`,
+      { token }
     );
     setChurches(res.data);
     setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
-  }, [token, page]);
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -281,6 +283,10 @@ export default function SuperadminChurchesListPage() {
         total={meta.total}
         limit={meta.limit}
         onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         className="mt-2"
       />
 

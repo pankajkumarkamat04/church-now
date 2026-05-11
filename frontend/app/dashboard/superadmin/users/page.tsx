@@ -28,6 +28,7 @@ export default function SuperadminUsersListPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'MEMBER' | 'ADMIN'>('ALL');
   const [conferenceId, setConferenceId] = useState('');
@@ -51,7 +52,7 @@ export default function SuperadminUsersListPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const query = new URLSearchParams({ role: roleFilter, page: String(page), limit: '20' });
+    const query = new URLSearchParams({ role: roleFilter, page: String(page), limit: String(pageSize) });
     if (conferenceId) query.set('conferenceId', conferenceId);
     if (churchId) query.set('churchId', churchId);
     if (councilId) query.set('councilId', councilId);
@@ -62,7 +63,7 @@ export default function SuperadminUsersListPage() {
     );
     setUsers(res.data);
     setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
-  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter, badgeFilter, page]);
+  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter, badgeFilter, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -427,6 +428,10 @@ export default function SuperadminUsersListPage() {
         total={meta.total}
         limit={meta.limit}
         onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
         className="mt-2"
       />
     </div>

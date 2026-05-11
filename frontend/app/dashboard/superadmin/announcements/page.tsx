@@ -45,6 +45,7 @@ export default function SuperadminAnnouncementsPage() {
   const { churches } = useSuperadminChurches();
   const [rows, setRows] = useState<AnnouncementRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [scope, setScope] = useState<'SYSTEM' | 'CHURCH'>('SYSTEM');
   const [churchId, setChurchId] = useState('');
@@ -61,11 +62,11 @@ export default function SuperadminAnnouncementsPage() {
   const load = useCallback(async () => {
     if (!token) return;
     const res = await apiFetch<{ data: AnnouncementRow[]; total: number; page: number; limit: number; totalPages: number }>(
-      `/api/superadmin/announcements?page=${page}&limit=20`, { token }
+      `/api/superadmin/announcements?page=${page}&limit=${pageSize}`, { token }
     );
     setRows(res.data);
-    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
-  }, [token, page]);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit ?? pageSize });
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -320,7 +321,18 @@ export default function SuperadminAnnouncementsPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No announcements yet.</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-2"
+      />
     </div>
   );
 }

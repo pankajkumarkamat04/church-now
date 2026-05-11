@@ -52,22 +52,26 @@ const panelMeta: Record<
     tagline: 'Lead your congregation',
     badge: 'Admin',
     navActive:
-      'bg-sky-50 text-sky-900 border-sky-200 shadow-sm',
+      'bg-sky-50 text-sky-900 border-sky-200 shadow-sm dark:bg-sky-950/90 dark:text-sky-50 dark:border-sky-700 dark:shadow-sky-950/30',
     navIdle:
-      'text-neutral-600 border-transparent hover:bg-neutral-50 hover:text-neutral-900',
-    badgeStyle: 'bg-sky-100 text-sky-800 ring-1 ring-sky-200/80',
-    rolePill: 'bg-sky-50 text-sky-800 ring-sky-200/60',
+      'text-neutral-600 border-transparent hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/90 dark:hover:text-neutral-100',
+    badgeStyle:
+      'bg-sky-100 text-sky-800 ring-1 ring-sky-200/80 dark:bg-sky-900 dark:text-sky-100 dark:ring-sky-700/60',
+    rolePill:
+      'bg-sky-50 text-sky-800 ring-1 ring-sky-200/60 dark:bg-sky-950/90 dark:text-sky-100 dark:ring-sky-700/50',
   },
   superadmin: {
     title: 'Superadmin dashboard',
     tagline: 'Control center',
     badge: 'Superadmin',
     navActive:
-      'bg-violet-50 text-violet-900 border-violet-200 shadow-sm',
+      'bg-violet-50 text-violet-900 border-violet-200 shadow-sm dark:bg-violet-950/90 dark:text-violet-50 dark:border-violet-700 dark:shadow-violet-950/30',
     navIdle:
-      'text-neutral-600 border-transparent hover:bg-neutral-50 hover:text-neutral-900',
-    badgeStyle: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80',
-    rolePill: 'bg-violet-50 text-violet-900 ring-violet-200/60',
+      'text-neutral-600 border-transparent hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/90 dark:hover:text-neutral-100',
+    badgeStyle:
+      'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80 dark:bg-violet-900 dark:text-violet-100 dark:ring-violet-700/60',
+    rolePill:
+      'bg-violet-50 text-violet-900 ring-1 ring-violet-200/60 dark:bg-violet-950/90 dark:text-violet-100 dark:ring-violet-700/50',
   },
 };
 
@@ -316,16 +320,6 @@ const ADMIN_PENDING_LINK: NavItem = {
 
 const ADMIN_MIDDLE_LINKS: NavItem[] = [
   {
-    href: '/dashboard/admin/pastors',
-    label: 'Pastors (View)',
-    icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
-  },
-  {
-    href: '/dashboard/admin/pastor-terms',
-    label: 'Leader terms (View)',
-    icon: <Shield className="size-4 shrink-0 opacity-80" aria-hidden />,
-  },
-  {
     href: '/dashboard/admin/announcements',
     label: 'Announcements',
     icon: <Megaphone className="size-4 shrink-0 opacity-80" aria-hidden />,
@@ -423,10 +417,10 @@ export function PanelLayout({
 
   if (loading || !user || user.role !== required) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-100">
+      <div className="flex min-h-screen items-center justify-center bg-neutral-100 dark:bg-neutral-950">
         <div className="flex flex-col items-center gap-3">
-          <div className="size-10 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />
-          <p className="text-sm text-neutral-500">Loading dashboard…</p>
+          <div className="size-10 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700 dark:border-neutral-600 dark:border-t-neutral-300" />
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">Loading dashboard…</p>
         </div>
       </div>
     );
@@ -435,23 +429,23 @@ export function PanelLayout({
   const adminGroups = adminNavGroups();
 
   return (
-    <div className="min-h-screen bg-neutral-100 text-neutral-900">
+    <div className="min-h-screen bg-neutral-100 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-80 border-r border-neutral-200 bg-white shadow-lg transition-transform duration-200 ease-out sm:w-72 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-80 border-r border-neutral-200 bg-white shadow-lg transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-black/40 sm:w-72 lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="sidebar-scrollbar flex h-full flex-col overflow-y-auto pb-6">
           {/* ── Logo / Brand ── */}
-          <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-4">
+          <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-4 dark:border-neutral-800">
             <BrandIdentity
               wrapperClassName="flex items-center gap-3"
-              logoClassName="size-9 rounded-lg object-cover ring-1 ring-neutral-200"
-              textClassName="text-sm font-semibold text-neutral-900 leading-tight"
+              logoClassName="size-9 rounded-lg object-cover ring-1 ring-neutral-200 dark:ring-neutral-600"
+              textClassName="text-sm font-semibold text-neutral-900 leading-tight dark:text-neutral-100"
             />
             <button
               type="button"
-              className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:hidden"
+              className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300 lg:hidden"
               onClick={() => setMobileOpen(false)}
               aria-label="Close menu"
             >
@@ -460,13 +454,19 @@ export function PanelLayout({
           </div>
 
           {/* ── User card ── */}
-          <div className="mx-3 mt-3 flex items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2.5 ring-1 ring-neutral-200/70">
-            <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${variant === 'superadmin' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+          <div className="mx-3 mt-3 flex items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2.5 ring-1 ring-neutral-200/70 dark:bg-neutral-800/80 dark:ring-neutral-600/80">
+            <div
+              className={`flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                variant === 'superadmin'
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200'
+                  : 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200'
+              }`}
+            >
               {(user.fullName || user.email || '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-neutral-900">{user.fullName || user.email}</p>
-              <p className="truncate text-[10px] text-neutral-400">{user.email}</p>
+              <p className="truncate text-xs font-semibold text-neutral-900 dark:text-neutral-100">{user.fullName || user.email}</p>
+              <p className="truncate text-[10px] text-neutral-400 dark:text-neutral-500">{user.email}</p>
             </div>
             <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.badgeStyle}`}>
               {meta.badge}
@@ -524,7 +524,11 @@ export function PanelLayout({
                         type="button"
                         onClick={() => setAdminFinanceOpen((v) => !v)}
                         aria-expanded={isOpen}
-                        className={`${NAV_GROUP_BTN} mt-1 ${groupHasActive ? 'text-sky-700' : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50'}`}
+                        className={`${NAV_GROUP_BTN} mt-1 ${
+                          groupHasActive
+                            ? 'text-sky-700 dark:text-sky-300'
+                            : 'text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-300'
+                        }`}
                       >
                         <span className="flex items-center gap-2">
                           {group.icon}
@@ -533,7 +537,7 @@ export function PanelLayout({
                         <ChevronDown className={`size-3.5 shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
                       </button>
                       {isOpen && (
-                        <div className="ml-3 mt-1 border-l-2 border-neutral-100 pl-3 pb-1 space-y-0.5">
+                        <div className="ml-3 mt-1 border-l-2 border-neutral-100 pl-3 pb-1 space-y-0.5 dark:border-neutral-700">
                           {group.children.map((child) => {
                             const subActive = isNavActive(pathname, child.href, variant);
                             return (
@@ -554,7 +558,7 @@ export function PanelLayout({
                 })}
 
                 {/* Divider */}
-                <div className="my-2 border-t border-neutral-100" />
+                <div className="my-2 border-t border-neutral-100 dark:border-neutral-800" />
 
                 {/* Middle links */}
                 {ADMIN_MIDDLE_LINKS.map((item) => (
@@ -579,7 +583,7 @@ export function PanelLayout({
                   {SUPER_DASHBOARD_LINK.label}
                 </Link>
 
-                <div className="my-1 border-t border-neutral-100" />
+                <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
 
                 {/* Accordion groups */}
                 {superadminNavGroups().map((group, gIdx) => {
@@ -593,7 +597,11 @@ export function PanelLayout({
                         type="button"
                         onClick={() => setSaGroupOpen((s) => ({ ...s, [group.id]: !(s[group.id] ?? false) }))}
                         aria-expanded={isOpen}
-                        className={`${NAV_GROUP_BTN} ${groupHasActive ? 'text-violet-700 bg-violet-50/60' : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50'}`}
+                        className={`${NAV_GROUP_BTN} ${
+                          groupHasActive
+                            ? 'bg-violet-50/60 text-violet-700 dark:bg-violet-950/70 dark:text-violet-200'
+                            : 'text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-300'
+                        }`}
                       >
                         <span className="flex items-center gap-2">
                           {group.icon}
@@ -626,11 +634,11 @@ export function PanelLayout({
           </nav>
 
           {/* ── Footer ── */}
-          <div className="mt-4 space-y-1.5 border-t border-neutral-100 px-3 pt-4">
+          <div className="mt-4 space-y-1.5 border-t border-neutral-100 px-3 pt-4 dark:border-neutral-800">
             <button
               type="button"
               onClick={() => { logout(); router.replace('/login'); }}
-              className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50/60 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700"
+              className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50/60 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/70 dark:hover:text-red-300"
             >
               <LogOut className="size-4 shrink-0" />
               Sign out
@@ -649,20 +657,20 @@ export function PanelLayout({
       ) : null}
 
       <div className="flex min-h-screen w-full min-w-0 flex-col lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur-md">
+        <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/90">
           <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                className="shrink-0 rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden"
+                className="shrink-0 rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 lg:hidden"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Open menu"
               >
                 <Menu className="size-5" />
               </button>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-neutral-900 sm:text-base">{meta.title}</p>
-                <p className="truncate text-xs text-neutral-400">{meta.tagline}</p>
+                <p className="truncate text-sm font-semibold text-neutral-900 sm:text-base dark:text-neutral-100">{meta.title}</p>
+                <p className="truncate text-xs text-neutral-400 dark:text-neutral-500">{meta.tagline}</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">

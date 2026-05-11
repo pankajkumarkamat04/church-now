@@ -8,7 +8,7 @@ import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
-const PAGE_SIZE = 20;
+const ADMINS_PAGE_DEFAULT = 20;
 
 type UserRow = AuthUser & { id: string };
 
@@ -22,8 +22,9 @@ export default function SuperadminAdminsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
-  const paged = useMemo(() => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [users, page]);
+  const [pageSize, setPageSize] = useState(ADMINS_PAGE_DEFAULT);
+  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  const paged = useMemo(() => users.slice((page - 1) * pageSize, page * pageSize), [users, page, pageSize]);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -196,7 +197,17 @@ export default function SuperadminAdminsPage() {
           </table>
         </div>
         {users.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No admins yet.</p> : null}
-        <Pagination page={page} totalPages={totalPages} total={users.length} limit={PAGE_SIZE} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={users.length}
+          limit={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

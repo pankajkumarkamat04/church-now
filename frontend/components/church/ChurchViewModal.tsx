@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
-import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
+import type { ChurchMemberRef, ChurchRecord, LocalLeadership } from '@/app/dashboard/superadmin/churches/types';
 
 type Props = {
   open: boolean;
@@ -10,6 +10,72 @@ type Props = {
   church: ChurchRecord | null;
   localMinister: string;
 };
+
+/** Labels aligned with ChurchLeadershipModal single-role fields. */
+const VIEW_ROLE_LABELS: Record<string, string> = {
+  spiritualPastor: 'Spiritual pastor',
+  churchPresident: 'Church president (minister)',
+  vicePresident: 'Vice president (minister)',
+  moderator: 'Moderator',
+  viceModerator: 'Vice moderator',
+  superintendent: 'Superintendent (minister)',
+  viceSuperintendent: 'Vice superintendent (minister)',
+  conferenceMinister1: 'Conference minister 1',
+  conferenceMinister2: 'Conference minister 2',
+  minister: 'Minister',
+  deacon: 'Deacon (elected)',
+  viceDeacon: 'Vice deacon',
+  secretary: 'Secretary',
+  viceSecretary: 'Vice secretary',
+  treasurer: 'Treasurer',
+  viceTreasurer: 'Vice treasurer',
+};
+
+const MAIN_LEADERSHIP_VIEW_KEYS: (keyof LocalLeadership)[] = [
+  'spiritualPastor',
+  'churchPresident',
+  'vicePresident',
+  'moderator',
+  'viceModerator',
+  'secretary',
+  'viceSecretary',
+  'treasurer',
+  'viceTreasurer',
+  'minister',
+  'superintendent',
+  'viceSuperintendent',
+  'conferenceMinister1',
+  'conferenceMinister2',
+];
+
+const SUB_LEADERSHIP_VIEW_KEYS: (keyof LocalLeadership)[] = [
+  'deacon',
+  'viceDeacon',
+  'secretary',
+  'viceSecretary',
+  'treasurer',
+  'viceTreasurer',
+];
+
+function memberDisplayName(ref: ChurchMemberRef | string | null | undefined): string {
+  if (ref == null || ref === '') return '—';
+  if (typeof ref === 'string') {
+    const s = ref.trim();
+    return s || '—';
+  }
+  const n =
+    (ref.fullName && String(ref.fullName).trim()) ||
+    [ref.firstName, ref.surname].filter(Boolean).join(' ').trim() ||
+    (ref.email && String(ref.email).trim());
+  return n || '—';
+}
+
+function committeeMembersLine(l: LocalLeadership | undefined): string {
+  const arr = l?.committeeMembers;
+  if (!Array.isArray(arr) || arr.length === 0) return '—';
+  const names = arr.map((r) => memberDisplayName(r)).filter((x) => x !== '—');
+  return names.length ? names.join(', ') : '—';
+}
 
 function conferenceLabel(row: ChurchRecord) {
   if (!row.conference || typeof row.conference === 'string') return '—';
@@ -47,6 +113,11 @@ export function ChurchViewModal({ open, onClose, church, localMinister }: Props)
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  const leadershipKeys = useMemo(() => {
+    if (!church) return [];
+    return church.churchType === 'SUB' ? SUB_LEADERSHIP_VIEW_KEYS : MAIN_LEADERSHIP_VIEW_KEYS;
+  }, [church]);
+
   if (!open || !church) return null;
 
   const c = church;
@@ -65,7 +136,7 @@ export function ChurchViewModal({ open, onClose, church, localMinister }: Props)
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[min(90vh,100dvh-2rem)] w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl">
+      <div className="flex max-h-[min(90vh,100dvh-2rem)] w-full min-w-0 max-w-xl flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Church</p>
@@ -98,6 +169,22 @@ export function ChurchViewModal({ open, onClose, church, localMinister }: Props)
             <Row label="Email" value={c.email || '—'} />
             <Row label="Coordinates" value={coords} />
           </dl>
+
+          <div className="mt-4 border-t border-neutral-200 pt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">Local leadership</p>
+            <dl>
+              {leadershipKeys.map((key) => {
+                const raw = c.localLeadership?.[key];
+                const value =
+                  raw === undefined || raw === null || (typeof raw === 'string' && !String(raw).trim())
+                    ? '—'
+                    : memberDisplayName(raw as ChurchMemberRef | string);
+                const label = VIEW_ROLE_LABELS[String(key)] || String(key);
+                return <Row key={String(key)} label={label} value={value} />;
+              })}
+              <Row label="Committee members (elected)" value={committeeMembersLine(c.localLeadership)} />
+            </dl>
+          </div>
         </div>
         <div className="border-t border-neutral-200 bg-neutral-50 px-5 py-3">
           <button

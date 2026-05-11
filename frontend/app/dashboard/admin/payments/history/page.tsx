@@ -20,9 +20,11 @@ export default function AdminPaymentsHistoryPage() {
   const router = useRouter();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [payPage, setPayPage] = useState(1);
+  const [payPageSize, setPayPageSize] = useState(20);
   const [payMeta, setPayMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [depositHistory, setDepositHistory] = useState<DepositHistoryRow[]>([]);
   const [depPage, setDepPage] = useState(1);
+  const [depPageSize, setDepPageSize] = useState(20);
   const [depMeta, setDepMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
 
@@ -30,17 +32,17 @@ export default function AdminPaymentsHistoryPage() {
     if (!token) return;
     const [payRes, depRes] = await Promise.all([
       apiFetch<{ data: PaymentRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/admin/payments?page=${payPage}&limit=20`, { token }
+        `/api/admin/payments?page=${payPage}&limit=${payPageSize}`, { token }
       ),
       apiFetch<{ data: DepositHistoryRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/admin/payments/deposits?page=${depPage}&limit=20`, { token }
+        `/api/admin/payments/deposits?page=${depPage}&limit=${depPageSize}`, { token }
       ),
     ]);
     setRows(payRes.data);
-    setPayMeta({ total: payRes.total, totalPages: payRes.totalPages, limit: payRes.limit });
+    setPayMeta({ total: payRes.total, totalPages: payRes.totalPages, limit: payRes.limit ?? payPageSize });
     setDepositHistory(depRes.data);
-    setDepMeta({ total: depRes.total, totalPages: depRes.totalPages, limit: depRes.limit });
-  }, [token, payPage, depPage]);
+    setDepMeta({ total: depRes.total, totalPages: depRes.totalPages, limit: depRes.limit ?? depPageSize });
+  }, [token, payPage, depPage, payPageSize, depPageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -126,7 +128,18 @@ export default function AdminPaymentsHistoryPage() {
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No deposit history yet.</p>
         ) : null}
       </div>
-      <Pagination page={depPage} totalPages={depMeta.totalPages} total={depMeta.total} limit={depMeta.limit} onPageChange={setDepPage} className="mt-2" />
+      <Pagination
+        page={depPage}
+        totalPages={depMeta.totalPages}
+        total={depMeta.total}
+        limit={depMeta.limit}
+        onPageChange={setDepPage}
+        onPageSizeChange={(n) => {
+          setDepPageSize(n);
+          setDepPage(1);
+        }}
+        className="mt-2"
+      />
 
       <h3 className="mt-8 text-sm font-semibold text-neutral-800">Payments</h3>
       <p className="mt-1 text-xs text-neutral-500">
@@ -223,7 +236,18 @@ export default function AdminPaymentsHistoryPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No payments yet.</p> : null}
       </div>
-      <Pagination page={payPage} totalPages={payMeta.totalPages} total={payMeta.total} limit={payMeta.limit} onPageChange={setPayPage} className="mt-2" />
+      <Pagination
+        page={payPage}
+        totalPages={payMeta.totalPages}
+        total={payMeta.total}
+        limit={payMeta.limit}
+        onPageChange={setPayPage}
+        onPageSizeChange={(n) => {
+          setPayPageSize(n);
+          setPayPage(1);
+        }}
+        className="mt-2"
+      />
     </>
   );
 }

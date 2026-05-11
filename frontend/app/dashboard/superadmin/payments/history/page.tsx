@@ -21,9 +21,11 @@ export default function SuperadminPaymentsHistoryPage() {
   const router = useRouter();
   const [payments, setPayments] = useState<SuperadminPaymentRow[]>([]);
   const [payPage, setPayPage] = useState(1);
+  const [payPageSize, setPayPageSize] = useState(20);
   const [payMeta, setPayMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [deposits, setDeposits] = useState<SuperadminDepositRow[]>([]);
   const [depPage, setDepPage] = useState(1);
+  const [depPageSize, setDepPageSize] = useState(20);
   const [depMeta, setDepMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
 
@@ -31,17 +33,17 @@ export default function SuperadminPaymentsHistoryPage() {
     if (!token) return;
     const [payRes, depRes] = await Promise.all([
       apiFetch<{ data: SuperadminPaymentRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/superadmin/payments?page=${payPage}&limit=20`, { token }
+        `/api/superadmin/payments?page=${payPage}&limit=${payPageSize}`, { token }
       ),
       apiFetch<{ data: SuperadminDepositRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/superadmin/payments/deposits?page=${depPage}&limit=20`, { token }
+        `/api/superadmin/payments/deposits?page=${depPage}&limit=${depPageSize}`, { token }
       ),
     ]);
     setPayments(payRes.data);
-    setPayMeta({ total: payRes.total, totalPages: payRes.totalPages, limit: payRes.limit });
+    setPayMeta({ total: payRes.total, totalPages: payRes.totalPages, limit: payRes.limit ?? payPageSize });
     setDeposits(depRes.data);
-    setDepMeta({ total: depRes.total, totalPages: depRes.totalPages, limit: depRes.limit });
-  }, [token, payPage, depPage]);
+    setDepMeta({ total: depRes.total, totalPages: depRes.totalPages, limit: depRes.limit ?? depPageSize });
+  }, [token, payPage, depPage, payPageSize, depPageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -139,7 +141,18 @@ export default function SuperadminPaymentsHistoryPage() {
         </table>
         {deposits.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No deposits yet.</p> : null}
       </div>
-      <Pagination page={depPage} totalPages={depMeta.totalPages} total={depMeta.total} limit={depMeta.limit} onPageChange={setDepPage} className="mt-2" />
+      <Pagination
+        page={depPage}
+        totalPages={depMeta.totalPages}
+        total={depMeta.total}
+        limit={depMeta.limit}
+        onPageChange={setDepPage}
+        onPageSizeChange={(n) => {
+          setDepPageSize(n);
+          setDepPage(1);
+        }}
+        className="mt-2"
+      />
 
       <h3 className="mt-8 text-sm font-semibold text-neutral-800">Payments</h3>
       <p className="mt-1 text-xs text-neutral-500">
@@ -244,7 +257,18 @@ export default function SuperadminPaymentsHistoryPage() {
         </table>
         {payments.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No payments yet.</p> : null}
       </div>
-      <Pagination page={payPage} totalPages={payMeta.totalPages} total={payMeta.total} limit={payMeta.limit} onPageChange={setPayPage} className="mt-2" />
+      <Pagination
+        page={payPage}
+        totalPages={payMeta.totalPages}
+        total={payMeta.total}
+        limit={payMeta.limit}
+        onPageChange={setPayPage}
+        onPageSizeChange={(n) => {
+          setPayPageSize(n);
+          setPayPage(1);
+        }}
+        className="mt-2"
+      />
     </>
   );
 }

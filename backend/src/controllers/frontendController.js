@@ -12,7 +12,10 @@ const {
   attachCouncilNamesToProfiles,
 } = require('../utils/memberProfile');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
-const { validateChurchLeadershipPayload } = require('../utils/churchLeadershipValidation');
+const {
+  validateChurchLeadershipPayload,
+  populateLeadershipPaths,
+} = require('../utils/churchLeadershipValidation');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
@@ -44,7 +47,10 @@ async function getMyChurch(req, res) {
     if (!id) {
       return res.status(400).json({ message: 'No church assigned' });
     }
-    const church = await Church.findById(id);
+    const church = await Church.findById(id)
+      .populate('conference', 'name conferenceId')
+      .populate('mainChurch', 'name')
+      .populate(populateLeadershipPaths);
     if (!church) {
       return res.status(404).json({ message: 'Church not found' });
     }
@@ -96,7 +102,11 @@ async function updateMyChurch(req, res) {
     }
     await church.save();
     await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
-    return res.json(church);
+    const fresh = await Church.findById(id)
+      .populate('conference', 'name conferenceId')
+      .populate('mainChurch', 'name')
+      .populate(populateLeadershipPaths);
+    return res.json(fresh || church);
   } catch (err) {
     console.error(err);
     if (err.name === 'ValidationError') {

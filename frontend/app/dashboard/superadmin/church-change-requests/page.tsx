@@ -7,8 +7,6 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
-const PAGE_SIZE = 20;
-
 type ChangeRequest = {
   _id: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -27,15 +25,16 @@ export default function SuperadminChurchChangeRequestsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
+  const [pageSize, setPageSize] = useState(20);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const res = await apiFetch<{ data: ChangeRequest[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/church-change-requests?page=${page}&limit=${PAGE_SIZE}`, { token });
+    const res = await apiFetch<{ data: ChangeRequest[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/church-change-requests?page=${page}&limit=${pageSize}`, { token });
     setRows(res.data ?? []);
-    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? PAGE_SIZE });
-  }, [token, page]);
+    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? pageSize });
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -152,7 +151,18 @@ export default function SuperadminChurchChangeRequestsPage() {
           </table>
         </div>
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
     </div>
   );
 }

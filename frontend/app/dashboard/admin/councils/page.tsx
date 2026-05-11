@@ -8,8 +8,6 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
-const PAGE_SIZE = 20;
-
 type CouncilRow = { _id: string; name: string };
 
 export default function AdminCouncilsPage() {
@@ -18,6 +16,7 @@ export default function AdminCouncilsPage() {
   const [rows, setRows] = useState<CouncilRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -34,8 +33,8 @@ export default function AdminCouncilsPage() {
     load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load councils'));
   }, [token, user]);
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const paged = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const paged = useMemo(() => rows.slice((page - 1) * pageSize, page * pageSize), [rows, page, pageSize]);
 
   if (!user || user.role !== 'ADMIN') return null;
 
@@ -90,7 +89,17 @@ export default function AdminCouncilsPage() {
           {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No councils yet.</p> : null}
         </div>
         {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-        <Pagination page={page} totalPages={totalPages} total={rows.length} limit={PAGE_SIZE} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={rows.length}
+          limit={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

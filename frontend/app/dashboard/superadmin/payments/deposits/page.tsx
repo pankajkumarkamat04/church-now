@@ -1,9 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pagination } from '@/components/ui/Pagination';
-
-const PAGE_SIZE = 20;
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
@@ -15,6 +12,7 @@ import {
   superadminUserHref,
   type SuperadminDepositRow,
 } from '../_lib/shared';
+import { Pagination } from '@/components/ui/Pagination';
 
 export default function SuperadminPaymentsDepositsPage() {
   const { user, token, loading } = useAuth();
@@ -22,14 +20,15 @@ export default function SuperadminPaymentsDepositsPage() {
   const [rows, setRows] = useState<SuperadminDepositRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
+  const [pageSize, setPageSize] = useState(20);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
 
   const load = useCallback(async () => {
     if (!token) return;
-    const res = await apiFetch<{ data: SuperadminDepositRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/payments/deposits?page=${page}&limit=${PAGE_SIZE}`, { token });
+    const res = await apiFetch<{ data: SuperadminDepositRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/payments/deposits?page=${page}&limit=${pageSize}`, { token });
     setRows(res.data ?? []);
-    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? PAGE_SIZE });
-  }, [token, page]);
+    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? pageSize });
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -143,7 +142,17 @@ export default function SuperadminPaymentsDepositsPage() {
           </tbody>
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No deposits yet.</p> : null}
-        <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          totalPages={meta.totalPages}
+          total={meta.total}
+          limit={meta.limit}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
+        />
       </div>
     </>
   );

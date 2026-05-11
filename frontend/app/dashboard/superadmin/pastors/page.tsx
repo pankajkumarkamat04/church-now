@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
-
-const PAGE_SIZE = 20;
 import {
   displayChurchName,
   displayCurrentRole,
@@ -14,6 +12,8 @@ import {
   formatDateOnly,
   memberAddressString,
 } from '@/lib/pastorRecordDisplay';
+
+const PASTORS_PAGE_DEFAULT = 20;
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
@@ -79,7 +79,8 @@ export default function SuperadminPastorsPage() {
   const [savingRecord, setSavingRecord] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
+  const [pageSize, setPageSize] = useState(PASTORS_PAGE_DEFAULT);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PASTORS_PAGE_DEFAULT });
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -88,7 +89,7 @@ export default function SuperadminPastorsPage() {
   useEffect(() => {
     async function load() {
       if (!token || user?.role !== 'SUPERADMIN') return;
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
       if (selectedChurchId) params.set('churchId', selectedChurchId);
       const [churchRows, pastorRes] = await Promise.all([
         apiFetch<ChurchOption[]>('/api/superadmin/churches', { token }),
@@ -96,10 +97,10 @@ export default function SuperadminPastorsPage() {
       ]);
       setChurches(churchRows);
       setRows(pastorRes.data ?? []);
-      setMeta({ total: pastorRes.total ?? 0, totalPages: pastorRes.totalPages ?? 1, limit: pastorRes.limit ?? PAGE_SIZE });
+      setMeta({ total: pastorRes.total ?? 0, totalPages: pastorRes.totalPages ?? 1, limit: pastorRes.limit ?? pageSize });
     }
     load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load records'));
-  }, [token, user, page, selectedChurchId]);
+  }, [token, user, page, pageSize, selectedChurchId]);
 
   useEffect(() => {
     async function loadMembersForChurch() {
@@ -172,11 +173,11 @@ export default function SuperadminPastorsPage() {
           },
         }),
       });
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
       if (selectedChurchId) params.set('churchId', selectedChurchId);
       const pastorRes = await apiFetch<{ data: PastorRecordRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/pastors?${params.toString()}`, { token });
       setRows(pastorRes.data ?? []);
-      setMeta({ total: pastorRes.total ?? 0, totalPages: pastorRes.totalPages ?? 1, limit: pastorRes.limit ?? PAGE_SIZE });
+      setMeta({ total: pastorRes.total ?? 0, totalPages: pastorRes.totalPages ?? 1, limit: pastorRes.limit ?? pageSize });
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to create record');
     } finally {
@@ -338,7 +339,18 @@ export default function SuperadminPastorsPage() {
         </table>
         {filteredByChurch.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No records found.</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
     </div>
   );
 }

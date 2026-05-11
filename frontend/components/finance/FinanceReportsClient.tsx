@@ -1,9 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pagination } from '@/components/ui/Pagination';
-
-const TX_PAGE_SIZE = 50;
 import { useRouter } from 'next/navigation';
 import { FileDown, Loader2, Table2 } from 'lucide-react';
 import {
@@ -37,8 +34,11 @@ import {
   type FinanceReportExportInput,
 } from '@/lib/financeReportExport';
 import type { FinanceTx } from '@/lib/financeTypes';
+import { Pagination } from '@/components/ui/Pagination';
 
 export type { FinanceTx } from '@/lib/financeTypes';
+
+const TX_PAGE_DEFAULT = 50;
 
 function emptyPaymentOptionTotals(): Record<PaymentOption, number> {
   return Object.fromEntries(PAYMENT_OPTIONS.map((k) => [k, 0])) as Record<PaymentOption, number>;
@@ -161,6 +161,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [txPage, setTxPage] = useState(1);
+  const [txPageSize, setTxPageSize] = useState(TX_PAGE_DEFAULT);
   const [kindToggles, setKindToggles] = useState<Record<string, boolean>>({
     PAYMENT: true,
     EXPENSE: true,
@@ -242,14 +243,14 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     });
   }, [summary, kindToggles, search]);
 
-  const txTotalPages = Math.max(1, Math.ceil(filteredRows.length / TX_PAGE_SIZE));
+  const txTotalPages = Math.max(1, Math.ceil(filteredRows.length / txPageSize));
   const pagedRows = useMemo(
-    () => filteredRows.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE),
-    [filteredRows, txPage]
+    () => filteredRows.slice((txPage - 1) * txPageSize, txPage * txPageSize),
+    [filteredRows, txPage, txPageSize]
   );
 
   const amountBarData = useMemo(() => {
-    const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 };
+    const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 }; 
     for (const r of filteredRows) {
       const amt =
         rates && displayCurrency !== 'USD'
@@ -974,7 +975,17 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             {filteredRows.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-neutral-500">No rows match the current filters.</p>
             ) : null}
-            <Pagination page={txPage} totalPages={txTotalPages} total={filteredRows.length} limit={TX_PAGE_SIZE} onPageChange={setTxPage} />
+            <Pagination
+              page={txPage}
+              totalPages={txTotalPages}
+              total={filteredRows.length}
+              limit={txPageSize}
+              onPageChange={setTxPage}
+              onPageSizeChange={(n) => {
+                setTxPageSize(n);
+                setTxPage(1);
+              }}
+            />
           </div>
         </>
       ) : null}

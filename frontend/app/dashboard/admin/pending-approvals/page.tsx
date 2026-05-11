@@ -7,8 +7,6 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
-const PAGE_SIZE = 20;
-
 type PendingMember = {
   id: string;
   _id: string;
@@ -32,8 +30,9 @@ export default function AdminPendingApprovalsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
-  const paged = useMemo(() => members.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [members, page]);
+  const [pageSize, setPageSize] = useState(20);
+  const totalPages = Math.max(1, Math.ceil(members.length / pageSize));
+  const paged = useMemo(() => members.slice((page - 1) * pageSize, page * pageSize), [members, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -276,7 +275,17 @@ export default function AdminPendingApprovalsPage() {
             </div>
           </>
         )}
-        <Pagination page={page} totalPages={totalPages} total={members.length} limit={PAGE_SIZE} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={members.length}
+          limit={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => {
+            setPageSize(n);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

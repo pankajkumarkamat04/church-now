@@ -41,6 +41,7 @@ export default function AdminAnnouncementsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<AnnouncementRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [members, setMembers] = useState<Array<AuthUser & { id: string }>>([]);
   const [title, setTitle] = useState('');
@@ -56,14 +57,14 @@ export default function AdminAnnouncementsPage() {
     if (!token) return;
     const [annRes, memberRes] = await Promise.all([
       apiFetch<{ data: AnnouncementRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/admin/announcements?page=${page}&limit=20`, { token }
+        `/api/admin/announcements?page=${page}&limit=${pageSize}`, { token }
       ),
       apiFetch<{ data: Array<AuthUser & { id: string }> }>('/api/admin/members?limit=200', { token }),
     ]);
     setRows(annRes.data);
-    setMeta({ total: annRes.total, totalPages: annRes.totalPages, limit: annRes.limit });
+    setMeta({ total: annRes.total, totalPages: annRes.totalPages, limit: annRes.limit ?? pageSize });
     setMembers(memberRes.data);
-  }, [token, page]);
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -275,7 +276,18 @@ export default function AdminAnnouncementsPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No announcements yet.</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-2"
+      />
     </div>
   );
 }

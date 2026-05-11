@@ -12,8 +12,6 @@ import {
   conferenceLeadershipSummary,
 } from '@/components/conference/ConferenceLeadershipModal';
 
-const PAGE_SIZE = 20;
-
 const actionIconBtn =
   'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
@@ -35,14 +33,18 @@ export default function SuperadminConferencesPage() {
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
   const [leadershipConference, setLeadershipConference] = useState<Conference | null>(null);
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
+  const [pageSize, setPageSize] = useState(20);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
 
   const load = useCallback(async () => {
     if (!token) return;
-    const res = await apiFetch<{ data: Conference[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/conferences?page=${page}&limit=${PAGE_SIZE}`, { token });
+    const res = await apiFetch<{ data: Conference[]; total: number; totalPages: number; limit: number }>(
+      `/api/superadmin/conferences?page=${page}&limit=${pageSize}`,
+      { token }
+    );
     setRows(res.data ?? []);
-    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? PAGE_SIZE });
-  }, [token, page]);
+    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? pageSize });
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -145,7 +147,18 @@ export default function SuperadminConferencesPage() {
         </div>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No conferences yet.</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
 
       <ConferenceLeadershipModal
         open={Boolean(leadershipConference)}

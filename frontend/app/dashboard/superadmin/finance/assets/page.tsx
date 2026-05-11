@@ -27,6 +27,7 @@ export default function SuperadminFinanceAssetsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<AssetRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -36,14 +37,14 @@ export default function SuperadminFinanceAssetsPage() {
     setBusy(true);
     try {
       const res = await apiFetch<{ data: AssetRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/superadmin/assets?page=${page}&limit=20`, { token }
+        `/api/superadmin/assets?page=${page}&limit=${pageSize}`, { token }
       );
       setRows(res.data);
-      setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+      setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit ?? pageSize });
     } finally {
       setBusy(false);
     }
-  }, [token, page]);
+  }, [token, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -119,7 +120,18 @@ export default function SuperadminFinanceAssetsPage() {
         {!busy && rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No assets found.</p> : null}
         {busy ? <p className="px-4 py-8 text-center text-sm text-neutral-500">Loading assets…</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-2"
+      />
     </div>
   );
 }

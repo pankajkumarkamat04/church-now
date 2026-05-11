@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pagination } from '@/components/ui/Pagination';
-
-const HISTORY_PAGE_SIZE = 50;
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import { Pagination } from '@/components/ui/Pagination';
+
+const HISTORY_PAGE_DEFAULT = 50;
 
 type ChurchRow = {
   churchId: string;
@@ -72,8 +72,12 @@ export default function SuperadminRemittancesPage() {
   const [schoolData, setSchoolData] = useState<SchoolPayload | null>(null);
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [histPage, setHistPage] = useState(1);
-  const histTotalPages = Math.max(1, Math.ceil(historyRows.length / HISTORY_PAGE_SIZE));
-  const pagedHistory = useMemo(() => historyRows.slice((histPage - 1) * HISTORY_PAGE_SIZE, histPage * HISTORY_PAGE_SIZE), [historyRows, histPage]);
+  const [histPageSize, setHistPageSize] = useState(HISTORY_PAGE_DEFAULT);
+  const histTotalPages = Math.max(1, Math.ceil(historyRows.length / histPageSize));
+  const pagedHistory = useMemo(
+    () => historyRows.slice((histPage - 1) * histPageSize, histPage * histPageSize),
+    [historyRows, histPage, histPageSize]
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1217,7 +1221,17 @@ export default function SuperadminRemittancesPage() {
           {historyRows.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-neutral-500">No history rows yet.</p>
           ) : null}
-          <Pagination page={histPage} totalPages={histTotalPages} total={historyRows.length} limit={HISTORY_PAGE_SIZE} onPageChange={setHistPage} />
+          <Pagination
+            page={histPage}
+            totalPages={histTotalPages}
+            total={historyRows.length}
+            limit={histPageSize}
+            onPageChange={setHistPage}
+            onPageSizeChange={(n) => {
+              setHistPageSize(n);
+              setHistPage(1);
+            }}
+          />
         </div>
       )}
     </div>

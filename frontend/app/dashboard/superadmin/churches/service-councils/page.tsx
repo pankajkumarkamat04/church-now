@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pagination } from '@/components/ui/Pagination';
-
-const PAGE_SIZE = 20;
 import Link from 'next/link';
 import { Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
 import type { ChurchRecord, ServiceCouncil } from '../types';
+
+const SERVICE_COUNCILS_PAGE_DEFAULT = 20;
 
 const btn =
   'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
@@ -26,8 +26,9 @@ export default function SuperadminServiceCouncilsPage() {
   const [createBusy, setCreateBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const paged = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
+  const [pageSize, setPageSize] = useState(SERVICE_COUNCILS_PAGE_DEFAULT);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const paged = useMemo(() => rows.slice((page - 1) * pageSize, page * pageSize), [rows, page, pageSize]);
 
   const mainChurchId = useMemo(() => mainChurch?._id || '', [mainChurch]);
 
@@ -199,7 +200,17 @@ export default function SuperadminServiceCouncilsPage() {
           {rows.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-neutral-500">No service councils yet.</p>
           ) : null}
-          <Pagination page={page} totalPages={totalPages} total={rows.length} limit={PAGE_SIZE} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={rows.length}
+            limit={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
+          />
         </div>
       )}
       {createOpen ? (

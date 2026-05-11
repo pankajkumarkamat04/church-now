@@ -117,6 +117,7 @@ export default function AdminFinanceAssetsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<AssetRow[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [form, setForm] = useState<AssetPayload>(initialForm);
   const [editId, setEditId] = useState<string | null>(null);
@@ -127,15 +128,15 @@ export default function AdminFinanceAssetsPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
     if (categoryFilter) params.set('category', categoryFilter);
     if (statusFilter) params.set('status', statusFilter);
     const res = await apiFetch<{ data: AssetRow[]; total: number; page: number; limit: number; totalPages: number }>(
       `/api/admin/assets?${params.toString()}`, { token }
     );
     setRows(res.data);
-    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
-  }, [token, categoryFilter, statusFilter, page]);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit ?? pageSize });
+  }, [token, categoryFilter, statusFilter, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -361,7 +362,18 @@ export default function AdminFinanceAssetsPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No assets found.</p> : null}
       </div>
-      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-2"
+      />
     </div>
   );
 }
