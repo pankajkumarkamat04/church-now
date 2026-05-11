@@ -5,6 +5,9 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type ChangeRequest = {
   _id: string;
@@ -23,13 +26,16 @@ export default function SuperadminChurchChangeRequestsPage() {
   const [rows, setRows] = useState<ChangeRequest[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const data = await apiFetch<ChangeRequest[]>('/api/superadmin/church-change-requests', { token });
-    setRows(data);
-  }, [token]);
+    const res = await apiFetch<{ data: ChangeRequest[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/church-change-requests?page=${page}&limit=${PAGE_SIZE}`, { token });
+    setRows(res.data ?? []);
+    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? PAGE_SIZE });
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -146,6 +152,7 @@ export default function SuperadminChurchChangeRequestsPage() {
           </table>
         </div>
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
     </div>
   );
 }

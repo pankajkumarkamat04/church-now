@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 type Conference = {
@@ -29,7 +29,6 @@ type Conference = {
   };
 };
 
-type MemberOption = { id: string; label: string };
 type LeadershipState = {
   superintendent: string;
   viceSuperintendent: string;
@@ -43,17 +42,57 @@ type LeadershipState = {
   conferenceMinister2: string;
 };
 
+type MemberOption = { id: string; label: string; memberCategory?: string };
+
+const PASTOR_ONLY_KEYS = new Set<keyof LeadershipState>([
+  'superintendent',
+  'viceSuperintendent',
+  'conferenceMinister1',
+  'conferenceMinister2',
+]);
+
+const LAY_MEMBER_KEYS = new Set<keyof LeadershipState>([
+  'moderator',
+  'viceModerator',
+  'secretary',
+  'viceSecretary',
+  'treasurer',
+  'viceTreasurer',
+]);
+
+function normCat(c?: string) {
+  return String(c || 'MEMBER').toUpperCase();
+}
+
+function memberOptionsForField(
+  key: keyof LeadershipState,
+  all: MemberOption[],
+  selectedId: string
+): MemberOption[] {
+  const filtered = all.filter((m) => {
+    const cat = normCat(m.memberCategory);
+    if (PASTOR_ONLY_KEYS.has(key)) return cat === 'PASTOR';
+    if (LAY_MEMBER_KEYS.has(key)) return cat !== 'PASTOR';
+    return true;
+  });
+  const sel = all.find((m) => m.id === selectedId);
+  if (selectedId && sel && !filtered.some((m) => m.id === selectedId)) {
+    return [...filtered, sel];
+  }
+  return filtered;
+}
+
 const LEADERSHIP_FIELDS: Array<{ key: keyof LeadershipState; label: string }> = [
-  { key: 'superintendent', label: 'Supt (minister)' },
-  { key: 'viceSuperintendent', label: 'Vice supt (minister)' },
-  { key: 'moderator', label: 'Moderator' },
-  { key: 'viceModerator', label: 'Vice moderator' },
-  { key: 'secretary', label: 'Secretary' },
-  { key: 'viceSecretary', label: 'Vice secretary' },
-  { key: 'treasurer', label: 'Treasurer' },
-  { key: 'viceTreasurer', label: 'Vice treasurer' },
-  { key: 'conferenceMinister1', label: 'Conference minister 1' },
-  { key: 'conferenceMinister2', label: 'Conference minister 2' },
+  { key: 'superintendent', label: 'Substantive supt (pastor only)' },
+  { key: 'viceSuperintendent', label: 'Vice supt (pastor only)' },
+  { key: 'moderator', label: 'Moderator (member only)' },
+  { key: 'viceModerator', label: 'Vice moderator (member only)' },
+  { key: 'secretary', label: 'Secretary (member only)' },
+  { key: 'viceSecretary', label: 'Vice secretary (member only)' },
+  { key: 'treasurer', label: 'Treasurer (member only)' },
+  { key: 'viceTreasurer', label: 'Vice treasurer (member only)' },
+  { key: 'conferenceMinister1', label: 'Conference minister 1 (pastor only)' },
+  { key: 'conferenceMinister2', label: 'Conference minister 2 (pastor only)' },
 ];
 
 function memberRefId(value: string | { _id: string } | null | undefined): string {
@@ -76,7 +115,6 @@ export default function SuperadminConferenceEditPage() {
   const [phone, setPhone] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
-  const [spiritualMemberIds, setSpiritualMemberIds] = useState<string[]>([]);
   const [leadership, setLeadership] = useState<LeadershipState>({
     superintendent: '',
     viceSuperintendent: '',
@@ -113,20 +151,22 @@ export default function SuperadminConferenceEditPage() {
       conferenceMinister1: memberRefId(row.localLeadership?.conferenceMinister1),
       conferenceMinister2: memberRefId(row.localLeadership?.conferenceMinister2),
     });
-    const members = await apiFetch<
-      Array<{ id: string; fullName?: string; email: string; memberId?: string; memberRoleDisplay?: string }>
-    >(
-      `/api/superadmin/users?role=MEMBER&conferenceId=${encodeURIComponent(conferenceId)}`,
+    type UserRow = {
+      id: string;
+      fullName?: string;
+      email: string;
+      memberId?: string;
+      memberCategory?: string;
+    };
+    const raw = await apiFetch<UserRow[] | Paginated<UserRow>>(
+      `/api/superadmin/users?role=ALL&conferenceId=${encodeURIComponent(conferenceId)}&limit=500`,
       { token }
     );
-    setSpiritualMemberIds(
-      members
-        .filter((m) => String(m.memberRoleDisplay || '').toLowerCase().includes('spiritual'))
-        .map((m) => m.id)
-    );
+    const members = unwrapPaginatedArray(raw);
     setMemberOptions(
       members.map((m) => ({
         id: m.id,
+        memberCategory: m.memberCategory,
         label: `${m.memberId ? `${m.memberId} — ` : ''}${(m.fullName || m.email || '').trim()}`,
       }))
     );
@@ -230,10 +270,7 @@ export default function SuperadminConferenceEditPage() {
                       className={field}
                     >
                       <option value="">— None —</option>
-                      {(item.key === 'conferenceMinister1' || item.key === 'conferenceMinister2'
-                        ? memberOptions.filter((m) => spiritualMemberIds.includes(m.id))
-                        : memberOptions
-                      ).map((m) => (
+                      {memberOptionsForField(item.key, memberOptions, leadership[item.key]).map((m) => (
                         <option key={`${item.key}-${m.id}`} value={m.id}>
                           {m.label}
                         </option>

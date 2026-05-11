@@ -1,5 +1,8 @@
 import type { AuthUser, Role } from '@/lib/api';
 
+/** Dedicated shell for users on `Conference.localLeadership`. */
+export const CONFERENCE_LEADER_PANEL_PATH = '/dashboard/conference-leader';
+
 /**
  * True for congregation members, and for church admins who were members (kept home church + member id).
  * Used for member API access and the member UI shell.

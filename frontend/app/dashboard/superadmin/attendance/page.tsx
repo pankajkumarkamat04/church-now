@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 type DaySummary = { dateKey: string; presentCount: number; totalCount: number };
@@ -43,11 +43,14 @@ export default function SuperadminAttendancePage() {
   useEffect(() => {
     if (!token || user?.role !== 'SUPERADMIN') return;
     Promise.all([
-      apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', { token }),
+      apiFetch<Array<{ _id: string; name: string; conferenceId?: string }> | Paginated<{ _id: string; name: string; conferenceId?: string }>>(
+        '/api/superadmin/conferences?limit=500',
+        { token }
+      ),
       apiFetch<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>('/api/superadmin/sub-churches', { token }),
     ])
-      .then(([confRows, churchRows]) => {
-        setConferences(confRows);
+      .then(([confRaw, churchRows]) => {
+        setConferences(unwrapPaginatedArray(confRaw));
         setChurches(churchRows);
       })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load filters'));

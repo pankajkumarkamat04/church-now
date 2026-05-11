@@ -19,6 +19,10 @@ export type ProtectedRouteProps = {
    * may view the subtree. Others are redirected to their default dashboard.
    */
   requireMemberPortal?: boolean;
+  /**
+   * When true, only users listed on `Conference.localLeadership` may view the subtree.
+   */
+  requireConferenceLeader?: boolean;
   /** Replaces the default loading screen while `AuthProvider` resolves the session. */
   loadingFallback?: React.ReactNode;
 };
@@ -32,6 +36,7 @@ export function ProtectedRoute({
   children,
   allowedRoles,
   requireMemberPortal,
+  requireConferenceLeader,
   loadingFallback,
 }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
@@ -54,8 +59,12 @@ export function ProtectedRoute({
     }
     if (requireMemberPortal && !canAccessMemberPortal(user)) {
       router.replace(getDefaultDashboardPath(user));
+      return;
     }
-  }, [loading, user, router, roleKey, requireMemberPortal]);
+    if (requireConferenceLeader && !user.isConferenceLeader) {
+      router.replace(getDefaultDashboardPath(user));
+    }
+  }, [loading, user, router, roleKey, requireMemberPortal, requireConferenceLeader]);
 
   if (loading) {
     return <>{loadingFallback ?? <AuthLoadingScreen label="Verifying your session…" />}</>;
@@ -67,6 +76,9 @@ export function ProtectedRoute({
     return null;
   }
   if (requireMemberPortal && !canAccessMemberPortal(user)) {
+    return null;
+  }
+  if (requireConferenceLeader && !user.isConferenceLeader) {
     return null;
   }
   return <>{children}</>;

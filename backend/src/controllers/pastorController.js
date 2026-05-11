@@ -3,6 +3,7 @@ const PastorTerm = require('../models/PastorTerm');
 const User = require('../models/User');
 const Church = require('../models/Church');
 const { syncChurchMemberRoleDisplays, ACTIVE_PASTOR_TERM_STATUSES } = require('../utils/memberRoleSync');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 const TERM_YEARS = 4;
 const MAX_TERMS = 2;
 
@@ -128,11 +129,18 @@ function churchId(req) {
 async function listPastors(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const rows = await PastorRecord.find({ church: cid })
-    .populate('member', 'fullName email memberId contactPhone')
-    .populate('church', 'name churchType')
-    .sort({ 'personal.name': 1, 'personal.fullName': 1, createdAt: -1 });
-  return res.json(rows);
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const filter = { church: cid };
+  const [total, rows] = await Promise.all([
+    PastorRecord.countDocuments(filter),
+    PastorRecord.find(filter)
+      .populate('member', 'fullName email memberId contactPhone')
+      .populate('church', 'name churchType')
+      .sort({ 'personal.name': 1, 'personal.fullName': 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function listEligibleMembers(req, res) {
@@ -213,11 +221,56 @@ async function createPastorForSuperadmin(req, res) {
 
 async function listPastorsForSuperadmin(req, res) {
   const churchFilter = req.query.churchId ? { church: req.query.churchId } : {};
+  const { page, limit, skip } = getPaginationParams(req.query);
+
+  // Fetch formal PastorRecord documents (all, to merge with synthetic before paginating)
   const rows = await PastorRecord.find(churchFilter)
     .populate('church', 'name churchType')
     .populate('member', 'fullName email memberId contactPhone')
-    .sort({ 'personal.name': 1, 'personal.fullName': 1, createdAt: -1 });
-  return res.json(rows);
+    .sort({ 'personal.name': 1, createdAt: -1 });
+
+  // Track which user IDs already have a formal PastorRecord
+  const recordMemberIds = new Set(
+    rows.map((r) => String(r.member?._id || r.member || '')).filter(Boolean)
+  );
+
+  // Fetch active PastorTerms for the same church scope
+  const ACTIVE_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
+  const terms = await PastorTerm.find({ ...churchFilter, status: { $in: ACTIVE_STATUSES } })
+    .populate('pastor', 'fullName email memberId contactPhone memberCategory')
+    .populate('church', 'name churchType');
+
+  // Build synthetic "term-only" entries for pastors who have no PastorRecord
+  const synthetic = [];
+  const seenTermPastors = new Set();
+  for (const term of terms) {
+    const pastorId = String(term.pastor?._id || term.pastor || '');
+    if (!pastorId || recordMemberIds.has(pastorId) || seenTermPastors.has(pastorId)) continue;
+    seenTermPastors.add(pastorId);
+    synthetic.push({
+      _id: `term_${term._id}`,
+      _termOnly: true,
+      _termId: String(term._id),
+      personal: {
+        name: term.pastor?.fullName || term.pastor?.email || 'Unknown',
+        contactEmail: term.pastor?.email || '',
+        contactPhone: term.pastor?.contactPhone || '',
+      },
+      church: term.church,
+      member: term.pastor,
+      currentRole: 'Spiritual Leader',
+      isActive: true,
+    });
+  }
+
+  const combined = [
+    ...rows.map((r) => r.toObject ? r.toObject() : r),
+    ...synthetic,
+  ];
+  combined.sort((a, b) => (a.personal?.name || '').localeCompare(b.personal?.name || ''));
+  const total = combined.length;
+  const paged = combined.slice(skip, skip + limit);
+  return res.json(paginatedResponse(paged, total, page, limit));
 }
 
 function addYears(date, years) {
@@ -237,25 +290,34 @@ function refreshStatus(row) {
 async function listAdminPastorTerms(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const rows = await PastorTerm.find({ church: cid })
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const filter = { church: cid };
+  const total = await PastorTerm.countDocuments(filter);
+  const rows = await PastorTerm.find(filter)
     .populate('pastor', 'fullName email memberId')
     .populate('church', 'name')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
   rows.forEach(refreshStatus);
   await Promise.all(rows.map((r) => r.save()));
-  return res.json(rows);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function listSuperadminPastorTerms(req, res) {
   const filter = req.query.churchId ? { church: req.query.churchId } : {};
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const total = await PastorTerm.countDocuments(filter);
   const rows = await PastorTerm.find(filter)
     .populate('pastor', 'fullName email memberId')
     .populate('church', 'name')
     .populate('transferredToChurch', 'name')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
   rows.forEach(refreshStatus);
   await Promise.all(rows.map((r) => r.save()));
-  return res.json(rows);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function assignPastorTerm(req, res) {
@@ -386,16 +448,239 @@ async function transferPastor(req, res) {
   return res.status(201).json(populated);
 }
 
+// ── Single-record CRUD (admin scope) ─────────────────────────────────────────
+
+async function getPastor(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const record = await PastorRecord.findOne({ _id: req.params.recordId, church: cid })
+    .populate('member', 'fullName firstName surname email memberId contactPhone role memberCategory isActive adminChurches')
+    .populate('church', 'name churchType');
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  return res.json(record);
+}
+
+async function updatePastor(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const record = await PastorRecord.findOne({ _id: req.params.recordId, church: cid });
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  const member = await User.findById(record.member);
+  const { personal, credentials, currentRole } = buildPastorRecordFromBody(req.body, member || {});
+  record.personal = personal;
+  record.credentials = credentials;
+  record.currentRole = currentRole;
+  await record.save();
+  const fresh = await PastorRecord.findById(record._id)
+    .populate('member', 'fullName firstName surname email memberId contactPhone role memberCategory isActive adminChurches')
+    .populate('church', 'name churchType');
+  return res.json(fresh);
+}
+
+async function togglePastorActive(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const record = await PastorRecord.findOne({ _id: req.params.recordId, church: cid });
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  record.isActive = !record.isActive;
+  await record.save();
+  return res.json({ isActive: record.isActive });
+}
+
+async function deletePastorRecord(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const record = await PastorRecord.findOneAndDelete({ _id: req.params.recordId, church: cid });
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  return res.json({ message: 'Pastor record deleted' });
+}
+
+// ── Member upgrades & access management (admin scope) ─────────────────────────
+
+async function listAllMembersForUpgrade(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const rows = await User.find({ church: cid, isActive: true, role: { $in: ['MEMBER', 'ADMIN'] } })
+    .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender role memberCategory adminChurches')
+    .sort({ fullName: 1, email: 1 });
+  return res.json(rows);
+}
+
+async function upgradeMemberToPastor(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const member = await User.findOne({ _id: req.params.userId, church: cid, isActive: true });
+  if (!member) return res.status(404).json({ message: 'Member not found in this church' });
+  member.memberCategory = 'PASTOR';
+  await member.save();
+  return res.json({ message: 'Member upgraded to PASTOR category', memberCategory: member.memberCategory });
+}
+
+async function grantAdminAccess(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const member = await User.findOne({ _id: req.params.userId, church: cid, isActive: true });
+  if (!member) return res.status(404).json({ message: 'Member not found in this church' });
+  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role === 'ADMIN') return res.status(400).json({ message: 'Member already has admin access' });
+  member.role = 'ADMIN';
+  const cidStr = String(cid);
+  if (!member.adminChurches.map(String).includes(cidStr)) member.adminChurches.push(cid);
+  await member.save();
+  return res.json({ message: 'Admin access granted', role: member.role });
+}
+
+async function revokeAdminAccess(req, res) {
+  const cid = churchId(req);
+  if (!cid) return res.status(400).json({ message: 'No church assigned' });
+  const member = await User.findOne({ _id: req.params.userId, church: cid, isActive: true });
+  if (!member) return res.status(404).json({ message: 'Member not found in this church' });
+  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role !== 'ADMIN') return res.status(400).json({ message: 'Member does not have admin access' });
+  member.role = 'MEMBER';
+  member.adminChurches = (member.adminChurches || []).filter((id) => String(id) !== String(cid));
+  await member.save();
+  return res.json({ message: 'Admin access revoked', role: member.role });
+}
+
+// ── Single-record CRUD (superadmin scope) ────────────────────────────────────
+
+function parseSuperadminChurchId(req) {
+  return String(req.query.churchId || req.body?.churchId || req.params.churchId || '');
+}
+
+async function getPastorForSuperadmin(req, res) {
+  const record = await PastorRecord.findById(req.params.recordId)
+    .populate('member', 'fullName firstName surname email memberId contactPhone role memberCategory isActive adminChurches')
+    .populate('church', 'name churchType');
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  return res.json(record);
+}
+
+async function updatePastorForSuperadmin(req, res) {
+  const record = await PastorRecord.findById(req.params.recordId);
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  const member = await User.findById(record.member);
+  const { personal, credentials, currentRole } = buildPastorRecordFromBody(req.body, member || {});
+  record.personal = personal;
+  record.credentials = credentials;
+  record.currentRole = currentRole;
+  await record.save();
+  const fresh = await PastorRecord.findById(record._id)
+    .populate('member', 'fullName firstName surname email memberId contactPhone role memberCategory isActive adminChurches')
+    .populate('church', 'name churchType');
+  return res.json(fresh);
+}
+
+async function togglePastorActiveForSuperadmin(req, res) {
+  const record = await PastorRecord.findById(req.params.recordId);
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  record.isActive = !record.isActive;
+  await record.save();
+  return res.json({ isActive: record.isActive });
+}
+
+async function deletePastorRecordForSuperadmin(req, res) {
+  const record = await PastorRecord.findByIdAndDelete(req.params.recordId);
+  if (!record) return res.status(404).json({ message: 'Pastor record not found' });
+  return res.json({ message: 'Pastor record deleted' });
+}
+
+async function listAllMembersForUpgradeForSuperadmin(req, res) {
+  const targetChurchId = String(req.query.churchId || '');
+  if (!targetChurchId) return res.status(400).json({ message: 'churchId is required' });
+
+  const [directMembers, pastorRecords, pastorTerms] = await Promise.all([
+    User.find({ church: targetChurchId, isActive: true, role: { $in: ['MEMBER', 'ADMIN'] } })
+      .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender role memberCategory adminChurches'),
+    PastorRecord.find({ church: targetChurchId }).select('member'),
+    PastorTerm.find({ church: targetChurchId }).select('pastor'),
+  ]);
+
+  const seenIds = new Set(directMembers.map((m) => String(m._id)));
+
+  const extraIdSet = new Set(
+    [...pastorRecords.map((p) => String(p.member)), ...pastorTerms.map((t) => String(t.pastor))]
+      .filter((id) => !seenIds.has(id))
+  );
+
+  let combined = [...directMembers];
+  if (extraIdSet.size > 0) {
+    const extra = await User.find({ _id: { $in: [...extraIdSet] } })
+      .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender role memberCategory adminChurches');
+    combined = [...combined, ...extra.filter((u) => u.isActive !== false)];
+  }
+
+  combined.sort((a, b) => (a.fullName || a.email || '').localeCompare(b.fullName || b.email || ''));
+  return res.json(combined);
+}
+
+async function upgradeMemberToPastorForSuperadmin(req, res) {
+  const member = await User.findOne({ _id: req.params.userId, isActive: true });
+  if (!member) return res.status(404).json({ message: 'Member not found' });
+  member.memberCategory = 'PASTOR';
+  await member.save();
+  return res.json({ message: 'Member upgraded to PASTOR category', memberCategory: member.memberCategory });
+}
+
+async function grantAdminAccessForSuperadmin(req, res) {
+  const member = await User.findOne({ _id: req.params.userId, isActive: true });
+  if (!member) return res.status(404).json({ message: 'Member not found' });
+  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role === 'ADMIN') return res.status(400).json({ message: 'Member already has admin access' });
+  const churchRef = member.church;
+  member.role = 'ADMIN';
+  if (churchRef && !member.adminChurches.map(String).includes(String(churchRef))) {
+    member.adminChurches.push(churchRef);
+  }
+  await member.save();
+  return res.json({ message: 'Admin access granted', role: member.role });
+}
+
+async function revokeAdminAccessForSuperadmin(req, res) {
+  const member = await User.findOne({ _id: req.params.userId, isActive: true });
+  if (!member) return res.status(404).json({ message: 'Member not found' });
+  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role !== 'ADMIN') return res.status(400).json({ message: 'Member does not have admin access' });
+  member.role = 'MEMBER';
+  member.adminChurches = [];
+  await member.save();
+  return res.json({ message: 'Admin access revoked', role: member.role });
+}
+
+// ── Superadmin: assign pastor term ───────────────────────────────────────────
+
+async function assignPastorTermForSuperadmin(req, res) {
+  return assignPastorTerm(req, res);
+}
+
 module.exports = {
   listPastors,
   listEligibleMembers,
   createPastor,
+  getPastor,
+  updatePastor,
+  togglePastorActive,
+  deletePastorRecord,
+  listAllMembersForUpgrade,
+  upgradeMemberToPastor,
+  grantAdminAccess,
+  revokeAdminAccess,
   listEligibleMembersForSuperadmin,
   createPastorForSuperadmin,
   listPastorsForSuperadmin,
+  getPastorForSuperadmin,
+  updatePastorForSuperadmin,
+  togglePastorActiveForSuperadmin,
+  deletePastorRecordForSuperadmin,
+  listAllMembersForUpgradeForSuperadmin,
+  upgradeMemberToPastorForSuperadmin,
+  grantAdminAccessForSuperadmin,
+  revokeAdminAccessForSuperadmin,
   listAdminPastorTerms,
   listSuperadminPastorTerms,
   assignPastorTerm,
+  assignPastorTermForSuperadmin,
   renewPastorTerm,
   transferPastor,
 };

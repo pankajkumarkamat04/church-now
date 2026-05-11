@@ -6,6 +6,7 @@ import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import { Pagination } from '@/components/ui/Pagination';
 import {
   DISPLAY_CURRENCY_OPTIONS,
   type DisplayCurrency,
@@ -41,6 +42,8 @@ export default function AdminFinanceExpensesPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<ExpenseRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<ExpenseRow | null>(null);
   const [title, setTitle] = useState('');
@@ -55,9 +58,12 @@ export default function AdminFinanceExpensesPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const data = await apiFetch<ExpenseRow[]>('/api/admin/expenses', { token });
-    setRows(data);
-  }, [token]);
+    const res = await apiFetch<{ data: ExpenseRow[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/admin/expenses?page=${page}&limit=20`, { token }
+    );
+    setRows(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -314,6 +320,7 @@ export default function AdminFinanceExpensesPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No expenses yet.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
     </div>
   );
 }

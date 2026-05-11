@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 const field =
@@ -37,13 +37,14 @@ export default function SuperadminChurchCreatePage() {
     async function loadReferences() {
       if (!token || !user || user.role !== 'SUPERADMIN') return;
       try {
-        const [confRows, mainRows] = await Promise.all([
-          apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>(
-            '/api/superadmin/conferences',
+        const [confRaw, mainRows] = await Promise.all([
+          apiFetch<Array<{ _id: string; name: string; conferenceId?: string }> | Paginated<{ _id: string; name: string; conferenceId?: string }>>(
+            '/api/superadmin/conferences?limit=500',
             { token }
           ),
           apiFetch<Array<{ _id: string }>>('/api/superadmin/main-churches', { token }),
         ]);
+        const confRows = unwrapPaginatedArray(confRaw);
         setConferences(confRows);
         setHasMainChurch(mainRows.length > 0);
         if (mainRows.length > 0 && confRows.length > 0) setConferenceId(confRows[0]._id);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 
 type Props = {
   open: boolean;
@@ -23,10 +23,11 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
     if (!open || !token || !churchId) return;
     const path =
       mode === 'superadmin'
-        ? `/api/superadmin/users?churchId=${encodeURIComponent(churchId)}`
+        ? `/api/superadmin/users?churchId=${encodeURIComponent(churchId)}&limit=500`
         : '/api/admin/members';
-    apiFetch<AuthUser[]>(path, { token })
-      .then((rows) => {
+    apiFetch<AuthUser[] | Paginated<AuthUser>>(path, { token })
+      .then((raw) => {
+        const rows = unwrapPaginatedArray(raw);
         const filtered = rows.filter((r) => r.role === 'MEMBER' || r.role === 'ADMIN');
         setMembers(filtered);
         setPastorUserId(filtered[0]?.id || '');

@@ -60,6 +60,8 @@ export type AuthUser = {
   memberBadgeType?: 'BADGED' | 'NON_BADGED';
   /** Labels from church localLeadership / councils (backend-computed). */
   memberRolesFromChurch?: string[];
+  /** User appears in church `localLeadership.committeeMembers` (badge-only role). */
+  isChurchCommitteeMember?: boolean;
   /** Preferred label for lists: congregation offices or memberCategory fallback. */
   memberRoleDisplay?: string;
   /** Congregation-unique member number (members and admins promoted from members). */
@@ -93,7 +95,31 @@ export type AuthUser = {
   approvalStatus?: 'PENDING' | 'APPROVED';
   registrationSource?: 'SYSTEM' | 'SELF_SIGNUP';
   walletBalance?: number;
+  /** True when listed on any `Conference.localLeadership` slot (from `/api/auth/me`). */
+  isConferenceLeader?: boolean;
+  conferenceLeadership?: Array<{
+    id: string;
+    name: string;
+    conferenceId?: string;
+    roles: Array<{ key: string; label: string }>;
+  }>;
 };
+
+/** Standard paginated list envelope from several `/api/superadmin/*` endpoints. */
+export type Paginated<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+/** Accept either a raw array or `{ data: [...] }` from paginated APIs. */
+export function unwrapPaginatedArray<T>(body: T[] | Paginated<T>): T[] {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === 'object' && Array.isArray(body.data)) return body.data;
+  return [];
+}
 
 const STORAGE_KEY = 'church_auth';
 
@@ -127,8 +153,9 @@ export async function apiFetch<T>(
   options: RequestInit & { token?: string | null; timeoutMs?: number } = {}
 ): Promise<T> {
   const { token, timeoutMs, ...init } = options;
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(init.headers || {}),
   };
   const t = token ?? loadStoredAuth()?.token;

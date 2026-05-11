@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SuperadminEventRecord } from '@/lib/superadminContentTypes';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
+import { Pagination } from '@/components/ui/Pagination';
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
@@ -37,6 +38,8 @@ export default function SuperadminEventsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [churchFilter, setChurchFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const load = useCallback(
     async (opts?: { quiet?: boolean }) => {
@@ -46,11 +49,11 @@ export default function SuperadminEventsPage() {
       try {
         const rows = await Promise.all(
           churches.map(async (church) => {
-            const list = await apiFetch<SuperadminEventRecord[]>(
-              `/api/superadmin/churches/${church._id}/events`,
+            const res = await apiFetch<{ data: SuperadminEventRecord[]; total: number }>(
+              `/api/superadmin/churches/${church._id}/events?limit=200`,
               { token }
             );
-            return list.map((ev) => ({
+            return res.data.map((ev) => ({
               ...ev,
               churchId: church._id,
               churchName: church.name,
@@ -90,6 +93,12 @@ export default function SuperadminEventsPage() {
     if (churchFilter === 'all') return events;
     return events.filter((ev) => ev.churchId === churchFilter);
   }, [events, churchFilter]);
+
+  const pagedEvents = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredEvents.slice(start, start + PAGE_SIZE);
+  }, [filteredEvents, page, PAGE_SIZE]);
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / PAGE_SIZE));
 
   async function onDelete(id: string, churchId: string) {
     if (!token || !confirm('Delete this event?')) return;
@@ -155,7 +164,7 @@ export default function SuperadminEventsPage() {
               <label className="mb-1 block text-xs font-medium text-neutral-600">Filter by church</label>
               <select
                 value={churchFilter}
-                onChange={(e) => setChurchFilter(e.target.value)}
+                onChange={(e) => { setChurchFilter(e.target.value); setPage(1); }}
                 className={field}
               >
                 <option value="all">All churches</option>
@@ -179,7 +188,7 @@ export default function SuperadminEventsPage() {
                 </tr>
               </thead>
               <tbody className="text-neutral-800">
-                {filteredEvents.map((ev) => (
+                {pagedEvents.map((ev) => (
                   <tr key={ev._id} className="border-b border-neutral-100 last:border-0">
                     <td className="px-4 py-2 font-medium">{ev.title}</td>
                     <td className="px-4 py-2">{ev.churchName}</td>
@@ -215,6 +224,14 @@ export default function SuperadminEventsPage() {
             <p className="px-4 py-8 text-center text-sm text-neutral-500">No events found.</p>
           ) : null}
       </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={filteredEvents.length}
+        limit={PAGE_SIZE}
+        onPageChange={setPage}
+        className="mt-2"
+      />
     </div>
   );
 }

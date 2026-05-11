@@ -7,7 +7,11 @@ const {
 const {
   validateChurchLeadershipPayload,
   populateLeadershipPaths,
+  normalizeLocalLeadership,
+  normalizeCouncils,
+  collectLeadershipUserIdsForAdminSync,
 } = require('../utils/churchLeadershipValidation');
+const { syncChurchLeadershipAdmins } = require('../utils/churchLeadershipAdminSync');
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 const { enrichChurchRowsForLocalMinisterList } = require('../utils/churchListLocalMinister');
 
@@ -118,8 +122,15 @@ async function updateSubChurch(req, res) {
   row.conference = nextConference;
   row.mainChurch = mainChurch._id;
 
+  let previousAdminLeaderIds = [];
+  let previousCommitteeIds = [];
   if (req.body.localLeadership !== undefined || req.body.councils !== undefined) {
     try {
+      const prevL = normalizeLocalLeadership(row.localLeadership?.toObject?.() || row.localLeadership || {});
+      const prevC = normalizeCouncils(row.councils?.toObject?.() || row.councils || []);
+      previousAdminLeaderIds = collectLeadershipUserIdsForAdminSync(prevL, prevC);
+      previousCommitteeIds = prevL.committeeMembers || [];
+
       const leadershipSrc =
         req.body.localLeadership !== undefined
           ? req.body.localLeadership
@@ -135,6 +146,21 @@ async function updateSubChurch(req, res) {
   }
 
   await row.save();
+
+  if (req.body.localLeadership !== undefined || req.body.councils !== undefined) {
+    const nextL = normalizeLocalLeadership(row.localLeadership?.toObject?.() || row.localLeadership || {});
+    const nextC = normalizeCouncils(row.councils?.toObject?.() || row.councils || []);
+    const nextAdminLeaderIds = collectLeadershipUserIdsForAdminSync(nextL, nextC);
+    const nextCommitteeIds = nextL.committeeMembers || [];
+    await syncChurchLeadershipAdmins(
+      row._id,
+      previousAdminLeaderIds,
+      nextAdminLeaderIds,
+      previousCommitteeIds,
+      nextCommitteeIds
+    );
+  }
+
   await syncChurchMemberRoleDisplays(row.toObject ? row.toObject() : row);
   const populated = await Church.findById(row._id)
     .populate('conference', 'name conferenceId')

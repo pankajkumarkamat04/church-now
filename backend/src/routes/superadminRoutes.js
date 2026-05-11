@@ -20,6 +20,9 @@ const {
   createChurchAdmin,
   createSuperadminUser,
   createMemberUser,
+  listPendingApprovals,
+  approvePendingMember,
+  rejectPendingMember,
 } = require('../controllers/superadminController');
 const frontendController = require('../controllers/frontendController');
 const eventController = require('../controllers/eventController');
@@ -91,6 +94,11 @@ router.delete('/conferences/:conferenceId', asyncHandler(conferenceController.re
 
 router.get('/media', asyncHandler(mediaController.list));
 router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadOne));
+router.post(
+  '/media/announcement-upload',
+  mediaController.announcementUpload.single('file'),
+  asyncHandler(mediaController.uploadAnnouncementSuperadmin)
+);
 router.delete('/media/:fileName', asyncHandler(mediaController.remove));
 router.get('/system-settings', asyncHandler(systemSettingController.getSystemSettings));
 router.put('/system-settings', asyncHandler(systemSettingController.updateSystemSettings));
@@ -150,16 +158,27 @@ router.post('/councils', asyncHandler(createCouncil));
 router.put('/councils/:councilId', asyncHandler(updateCouncil));
 router.delete('/councils/:councilId', asyncHandler(deleteCouncil));
 router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembersForSuperadmin));
+router.get('/pastor-members-all', asyncHandler(pastorController.listAllMembersForUpgradeForSuperadmin));
 router.get('/attendance', asyncHandler(attendanceController.listMonthSuperadmin));
 router.get('/attendance/:dateKey', asyncHandler(attendanceController.getDaySuperadmin));
 router.put('/attendance/:dateKey', asyncHandler(attendanceController.saveDaySuperadmin));
 router.get('/pastors', asyncHandler(pastorController.listPastorsForSuperadmin));
 router.post('/pastors', asyncHandler(pastorController.createPastorForSuperadmin));
+router.get('/pastors/:recordId', asyncHandler(pastorController.getPastorForSuperadmin));
+router.put('/pastors/:recordId', asyncHandler(pastorController.updatePastorForSuperadmin));
+router.post('/pastors/:recordId/toggle-active', asyncHandler(pastorController.togglePastorActiveForSuperadmin));
+router.delete('/pastors/:recordId', asyncHandler(pastorController.deletePastorRecordForSuperadmin));
+router.post('/members/:userId/upgrade-to-pastor', asyncHandler(pastorController.upgradeMemberToPastorForSuperadmin));
+router.post('/members/:userId/grant-admin', asyncHandler(pastorController.grantAdminAccessForSuperadmin));
+router.post('/members/:userId/revoke-admin', asyncHandler(pastorController.revokeAdminAccessForSuperadmin));
 router.get('/pastor-terms', asyncHandler(pastorController.listSuperadminPastorTerms));
 router.post('/pastor-terms/assign', asyncHandler(pastorController.assignPastorTerm));
 router.post('/pastor-terms/:termId/renew', asyncHandler(pastorController.renewPastorTerm));
 router.post('/pastor-terms/:termId/transfer', asyncHandler(pastorController.transferPastor));
 router.post('/members', asyncHandler(createMemberUser));
+router.get('/pending-approvals', asyncHandler(listPendingApprovals));
+router.patch('/members/:memberId/approve', asyncHandler(approvePendingMember));
+router.patch('/members/:memberId/reject', asyncHandler(rejectPendingMember));
 router.get('/users/:id', asyncHandler(getUser));
 router.put('/users/:id', asyncHandler(updateUser));
 router.delete('/users/:id', asyncHandler(deleteUser));

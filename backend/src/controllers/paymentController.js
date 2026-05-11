@@ -3,6 +3,7 @@ const MemberBalanceDeposit = require('../models/MemberBalanceDeposit');
 const User = require('../models/User');
 const Church = require('../models/Church');
 const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 function churchId(req) {
   return req.user?.church;
@@ -157,11 +158,17 @@ async function payMember(req, res) {
 async function listAdminPayments(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const rows = await Payment.find({ church: cid })
-    .populate('user', 'fullName email memberId memberRoleDisplay memberCategory role')
-    .populate('createdBy', 'fullName email')
-    .sort({ paidAt: -1, createdAt: -1 });
-  return res.json(rows);
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [total, rows] = await Promise.all([
+    Payment.countDocuments({ church: cid }),
+    Payment.find({ church: cid })
+      .populate('user', 'fullName email memberId memberRoleDisplay memberCategory role')
+      .populate('createdBy', 'fullName email')
+      .sort({ paidAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 /** Treasurer allocates payment types from a recipient's wallet (same rules as member self-pay). */
@@ -350,33 +357,48 @@ async function listMemberStatementForAdmin(req, res) {
 async function listAdminDepositHistory(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const rows = await MemberBalanceDeposit.find({ church: cid })
-    .populate('member', 'fullName email memberId memberRoleDisplay memberCategory role')
-    .populate('depositedBy', 'fullName email')
-    .sort({ depositedAt: -1, createdAt: -1 })
-    .limit(200);
-  return res.json(rows);
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [total, rows] = await Promise.all([
+    MemberBalanceDeposit.countDocuments({ church: cid }),
+    MemberBalanceDeposit.find({ church: cid })
+      .populate('member', 'fullName email memberId memberRoleDisplay memberCategory role')
+      .populate('depositedBy', 'fullName email')
+      .sort({ depositedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
-async function listSuperadminPayments(_req, res) {
-  const rows = await Payment.find({})
-    .populate('church', 'name')
-    .populate('user', 'fullName email memberId memberRoleDisplay memberCategory role')
-    .populate('createdBy', 'fullName email')
-    .sort({ paidAt: -1, createdAt: -1 })
-    .limit(1000);
-  return res.json(rows);
+async function listSuperadminPayments(req, res) {
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [total, rows] = await Promise.all([
+    Payment.countDocuments({}),
+    Payment.find({})
+      .populate('church', 'name')
+      .populate('user', 'fullName email memberId memberRoleDisplay memberCategory role')
+      .populate('createdBy', 'fullName email')
+      .sort({ paidAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 /** Platform-wide treasurer deposits (all congregations). */
-async function listSuperadminDepositHistory(_req, res) {
-  const rows = await MemberBalanceDeposit.find({})
-    .populate('church', 'name')
-    .populate('member', 'fullName email memberId memberRoleDisplay memberCategory role')
-    .populate('depositedBy', 'fullName email')
-    .sort({ depositedAt: -1, createdAt: -1 })
-    .limit(500);
-  return res.json(rows);
+async function listSuperadminDepositHistory(req, res) {
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [total, rows] = await Promise.all([
+    MemberBalanceDeposit.countDocuments({}),
+    MemberBalanceDeposit.find({})
+      .populate('church', 'name')
+      .populate('member', 'fullName email memberId memberRoleDisplay memberCategory role')
+      .populate('depositedBy', 'fullName email')
+      .sort({ depositedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 module.exports = {

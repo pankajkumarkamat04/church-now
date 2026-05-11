@@ -1,5 +1,6 @@
 const Event = require('../models/Event');
 const { assertChurchById } = require('../utils/assertChurch');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 function slugify(text) {
   return String(text || '')
@@ -47,11 +48,13 @@ async function listPublicGlobal(req, res) {
 async function listAdmin(req, res) {
   try {
     const id = churchId(req);
-    if (!id) {
-      return res.status(400).json({ message: 'No church assigned' });
-    }
-    const events = await Event.find({ church: id }).sort({ startsAt: -1, createdAt: -1 });
-    return res.json(events);
+    if (!id) return res.status(400).json({ message: 'No church assigned' });
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const [total, events] = await Promise.all([
+      Event.countDocuments({ church: id }),
+      Event.find({ church: id }).sort({ startsAt: -1, createdAt: -1 }).skip(skip).limit(limit),
+    ]);
+    return res.json(paginatedResponse(events, total, page, limit));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list events' });
@@ -167,12 +170,14 @@ async function listSuperadmin(req, res) {
   try {
     const cid = req.params.churchId;
     await assertChurchById(cid);
-    const events = await Event.find({ church: cid }).sort({ startsAt: -1, createdAt: -1 });
-    return res.json(events);
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const [total, events] = await Promise.all([
+      Event.countDocuments({ church: cid }),
+      Event.find({ church: cid }).sort({ startsAt: -1, createdAt: -1 }).skip(skip).limit(limit),
+    ]);
+    return res.json(paginatedResponse(events, total, page, limit));
   } catch (err) {
-    if (err.status === 404) {
-      return res.status(404).json({ message: err.message });
-    }
+    if (err.status === 404) return res.status(404).json({ message: err.message });
     console.error(err);
     return res.status(500).json({ message: 'Failed to list events' });
   }

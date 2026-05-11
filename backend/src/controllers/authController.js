@@ -14,6 +14,7 @@ const {
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
 const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
+const { getConferenceLeadershipSummaryForMe } = require('../utils/conferenceLeaderAccess');
 
 const CHURCH_FIELDS =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
@@ -230,9 +231,11 @@ async function login(req, res) {
       sub: user._id.toString(),
       role: user.role,
     });
+    const profile = await attachCouncilNamesToProfile(toProfileResponse(user));
+    const leadership = await getConferenceLeadershipSummaryForMe(user._id);
     return res.json({
       token,
-      user: await attachCouncilNamesToProfile(toProfileResponse(user)),
+      user: { ...profile, ...leadership },
     });
   } catch (err) {
     console.error(err);
@@ -249,7 +252,9 @@ async function me(req, res) {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    return res.json(await attachCouncilNamesToProfile(toProfileResponse(user)));
+    const profile = await attachCouncilNamesToProfile(toProfileResponse(user));
+    const leadership = await getConferenceLeadershipSummaryForMe(user._id);
+    return res.json({ ...profile, ...leadership });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load profile' });

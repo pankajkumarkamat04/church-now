@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pencil, Shield, Trash2, UserCog } from 'lucide-react';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
 
 type UserRow = AuthUser & { id: string };
 
@@ -26,6 +27,8 @@ export default function SuperadminUsersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'MEMBER' | 'ADMIN'>('ALL');
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
@@ -48,15 +51,18 @@ export default function SuperadminUsersListPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const query = new URLSearchParams({ role: roleFilter });
+    const query = new URLSearchParams({ role: roleFilter, page: String(page), limit: '20' });
     if (conferenceId) query.set('conferenceId', conferenceId);
     if (churchId) query.set('churchId', churchId);
     if (councilId) query.set('councilId', councilId);
     if (isActiveFilter) query.set('isActive', isActiveFilter);
     if (badgeFilter) query.set('memberBadgeType', badgeFilter);
-    const u = await apiFetch<UserRow[]>(`/api/superadmin/users?${query.toString()}`, { token });
-    setUsers(u);
-  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter, badgeFilter]);
+    const res = await apiFetch<{ data: UserRow[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/superadmin/users?${query.toString()}`, { token }
+    );
+    setUsers(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+  }, [token, roleFilter, conferenceId, churchId, councilId, isActiveFilter, badgeFilter, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -73,17 +79,18 @@ export default function SuperadminUsersListPage() {
   useEffect(() => {
     async function loadReferences() {
       if (!token || user?.role !== 'SUPERADMIN') return;
-      const [conferenceRows, churchRows, councilRows] = await Promise.all([
-        apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
-          token,
-        }),
+      const [conferenceRowsRaw, churchRows, councilRows] = await Promise.all([
+        apiFetch<Array<{ _id: string; name: string; conferenceId?: string }> | Paginated<{ _id: string; name: string; conferenceId?: string }>>(
+          '/api/superadmin/conferences?limit=500',
+          { token }
+        ),
         apiFetch<Array<{ _id: string; name: string; conference?: string | { _id: string } | null }>>(
           '/api/superadmin/sub-churches',
           { token }
         ),
         apiFetch<Array<{ _id: string; name: string }>>('/api/superadmin/councils', { token }),
       ]);
-      setConferences(conferenceRows);
+      setConferences(unwrapPaginatedArray(conferenceRowsRaw));
       setChurches(churchRows);
       setCouncils(councilRows);
     }
@@ -158,7 +165,7 @@ export default function SuperadminUsersListPage() {
           <label className="mb-1 block text-xs font-medium text-neutral-600">Role</label>
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as 'ALL' | 'MEMBER' | 'ADMIN')}
+            onChange={(e) => { setRoleFilter(e.target.value as 'ALL' | 'MEMBER' | 'ADMIN'); setPage(1); }}
             className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
           >
             <option value="ALL">All</option>
@@ -173,6 +180,7 @@ export default function SuperadminUsersListPage() {
             onChange={(e) => {
               setConferenceId(e.target.value);
               setChurchId('');
+              setPage(1);
             }}
             className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
           >
@@ -264,6 +272,7 @@ export default function SuperadminUsersListPage() {
               setCouncilId('');
               setIsActiveFilter('');
               setBadgeFilter('');
+              setPage(1);
             }}
             className="text-xs font-medium text-violet-700 hover:text-violet-900"
           >
@@ -412,6 +421,14 @@ export default function SuperadminUsersListPage() {
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No users yet.</p>
         ) : null}
       </div>
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        className="mt-2"
+      />
     </div>
   );
 }

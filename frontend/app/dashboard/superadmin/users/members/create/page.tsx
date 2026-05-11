@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch, type Gender } from '@/lib/api';
+import { apiFetch, type Gender, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -62,11 +62,12 @@ export default function SuperadminMemberCreatePage() {
   useEffect(() => {
     async function loadReferences() {
       if (!token || user?.role !== 'SUPERADMIN') return;
-      const [conferenceRows, churchRows, councilRows] = await Promise.all([
-        apiFetch<Conference[]>('/api/superadmin/conferences', { token }),
+      const [conferenceRaw, churchRows, councilRows] = await Promise.all([
+        apiFetch<Conference[] | Paginated<Conference>>('/api/superadmin/conferences?limit=500', { token }),
         apiFetch<Church[]>('/api/superadmin/sub-churches', { token }),
         apiFetch<Council[]>('/api/superadmin/councils', { token }),
       ]);
+      const conferenceRows = unwrapPaginatedArray(conferenceRaw);
       setConferences(conferenceRows);
       setChurches(churchRows);
       setCouncils(councilRows);

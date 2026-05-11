@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
@@ -27,12 +30,15 @@ export default function SuperadminExpenseApprovalsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ExpenseRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
 
   const load = useCallback(async () => {
     if (!token) return;
-    const data = await apiFetch<ExpenseRow[]>('/api/superadmin/expenses?approvalStatus=PENDING', { token });
-    setRows(data);
-  }, [token]);
+    const res = await apiFetch<{ data: ExpenseRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/expenses?approvalStatus=PENDING&page=${page}&limit=${PAGE_SIZE}`, { token });
+    setRows(res.data ?? []);
+    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? PAGE_SIZE });
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -96,6 +102,7 @@ export default function SuperadminExpenseApprovalsPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No pending approvals.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
     </div>
   );
 }

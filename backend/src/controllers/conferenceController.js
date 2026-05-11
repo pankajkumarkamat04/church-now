@@ -1,8 +1,7 @@
 const Conference = require('../models/Conference');
 const Church = require('../models/Church');
 const User = require('../models/User');
-const PastorTerm = require('../models/PastorTerm');
-const { ACTIVE_PASTOR_TERM_STATUSES } = require('../utils/memberRoleSync');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 const CONFERENCE_LEADERSHIP_KEYS = [
   'superintendent',
@@ -19,8 +18,39 @@ const CONFERENCE_LEADERSHIP_KEYS = [
 
 const CONFERENCE_LEADERSHIP_POPULATE = CONFERENCE_LEADERSHIP_KEYS.map((key) => ({
   path: `localLeadership.${key}`,
-  select: 'email fullName firstName surname memberId',
+  select: 'email fullName firstName surname memberId memberCategory',
 }));
+
+/** Supt / vice supt / conference ministers — congregation pastors only */
+const PASTOR_ONLY_LEADERSHIP_KEYS = new Set([
+  'superintendent',
+  'viceSuperintendent',
+  'conferenceMinister1',
+  'conferenceMinister2',
+]);
+
+/** Moderator through treasurers — lay members only (not pastor category) */
+const LAY_MEMBER_LEADERSHIP_KEYS = new Set([
+  'moderator',
+  'viceModerator',
+  'secretary',
+  'viceSecretary',
+  'treasurer',
+  'viceTreasurer',
+]);
+
+const LEADERSHIP_KEY_LABEL = {
+  superintendent: 'Substantive superintendent',
+  viceSuperintendent: 'Vice superintendent',
+  moderator: 'Moderator',
+  viceModerator: 'Vice moderator',
+  secretary: 'Secretary',
+  viceSecretary: 'Vice secretary',
+  treasurer: 'Treasurer',
+  viceTreasurer: 'Vice treasurer',
+  conferenceMinister1: 'Conference minister (1)',
+  conferenceMinister2: 'Conference minister (2)',
+};
 
 function toIdOrNull(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -51,33 +81,53 @@ async function validateConferenceLeadership(conferenceId, leadershipInput) {
   const conferenceChurchIds = await Church.find({ conference: conferenceId }).distinct('_id');
   const validCount = await User.countDocuments({
     _id: { $in: allIds },
-    role: 'MEMBER',
-    church: { $in: conferenceChurchIds },
+    role: { $in: ['MEMBER', 'ADMIN'] },
+    $or: [{ church: { $in: conferenceChurchIds } }, { adminChurches: { $in: conferenceChurchIds } }],
   });
   if (validCount !== allIds.length) {
-    const e = new Error('Conference leaders must be members within this conference');
+    const e = new Error(
+      'Conference leaders must belong to this conference (member or admin linked to a congregation in it)'
+    );
     e.statusCode = 400;
     throw e;
   }
 
-  const ministerIds = [leadership.conferenceMinister1, leadership.conferenceMinister2]
-    .filter(Boolean)
-    .map(String);
-  if (ministerIds.length > 0) {
-    const pastorTerms = await PastorTerm.find({
-      church: { $in: conferenceChurchIds },
-      status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
-      pastor: { $in: ministerIds },
-    })
-      .select('pastor')
-      .lean();
-    const spiritualSet = new Set(pastorTerms.map((t) => String(t.pastor)));
-    if (ministerIds.some((id) => !spiritualSet.has(id))) {
-      const e = new Error('Conference minister roles can only be assigned to Spiritual leader/Pastor members');
+  const users = await User.find({ _id: { $in: allIds } })
+    .select('_id memberCategory')
+    .lean();
+  const userById = new Map(users.map((u) => [String(u._id), u]));
+
+  for (const key of CONFERENCE_LEADERSHIP_KEYS) {
+    const id = leadership[key];
+    if (!id) continue;
+    const u = userById.get(String(id));
+    if (!u) {
+      const e = new Error(`Invalid user for ${LEADERSHIP_KEY_LABEL[key] || key}`);
       e.statusCode = 400;
       throw e;
     }
+    const cat = String(u.memberCategory || 'MEMBER');
+
+    if (PASTOR_ONLY_LEADERSHIP_KEYS.has(key)) {
+      if (cat !== 'PASTOR') {
+        const e = new Error(
+          `${LEADERSHIP_KEY_LABEL[key] || key} must be a pastor (member category must be PASTOR)`
+        );
+        e.statusCode = 400;
+        throw e;
+      }
+    }
+    if (LAY_MEMBER_LEADERSHIP_KEYS.has(key)) {
+      if (cat === 'PASTOR') {
+        const e = new Error(
+          `${LEADERSHIP_KEY_LABEL[key] || key} must be a lay member (not pastor category)`
+        );
+        e.statusCode = 400;
+        throw e;
+      }
+    }
   }
+
   return leadership;
 }
 
@@ -93,9 +143,13 @@ async function generateConferenceId() {
   return `CONF-${year}-${Date.now()}`;
 }
 
-async function listConferences(_req, res) {
-  const rows = await Conference.find({}).populate(CONFERENCE_LEADERSHIP_POPULATE).sort({ name: 1 });
-  return res.json(rows);
+async function listConferences(req, res) {
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [total, rows] = await Promise.all([
+    Conference.countDocuments({}),
+    Conference.find({}).populate(CONFERENCE_LEADERSHIP_POPULATE).sort({ name: 1 }).skip(skip).limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function getConference(req, res) {

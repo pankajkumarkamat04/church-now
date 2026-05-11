@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '../../types';
 
@@ -59,11 +59,11 @@ export default function SuperadminChurchEditPage() {
 
   const loadReferences = useCallback(async () => {
     if (!token || !churchId) return;
-    const confRows = await apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>(
-      '/api/superadmin/conferences',
+    const confRaw = await apiFetch<Array<{ _id: string; name: string; conferenceId?: string }> | Paginated<{ _id: string; name: string; conferenceId?: string }>>(
+      '/api/superadmin/conferences?limit=500',
       { token }
     );
-    setConferences(confRows);
+    setConferences(unwrapPaginatedArray(confRaw));
   }, [token, churchId]);
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Megaphone } from 'lucide-react';
+import { FileText, Megaphone } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
@@ -12,6 +12,7 @@ type AnnouncementRow = {
   message: string;
   scope: 'SYSTEM' | 'CHURCH';
   church?: { name?: string } | null;
+  attachments?: Array<{ url: string; name: string; mimeType?: string; size?: number }>;
   createdBy?: { fullName?: string; email?: string } | null;
   createdByRole?: string;
   createdAt: string;
@@ -76,6 +77,37 @@ export default function MemberAnnouncementsPage() {
               </span>
             </div>
             <p className="whitespace-pre-wrap text-sm text-neutral-700">{row.message}</p>
+            {row.attachments && row.attachments.length > 0 ? (
+              <div className="mt-4 border-t border-neutral-100 pt-4">
+                <p className="mb-2 text-xs font-medium text-neutral-600">Attachments</p>
+                <ul className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  {row.attachments.map((a) => (
+                    <li key={a.url}>
+                      {a.mimeType?.startsWith('image/') ? (
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block rounded-lg border border-neutral-200 bg-neutral-50 p-1"
+                        >
+                          <img src={a.url} alt="" className="max-h-48 max-w-full rounded-md object-contain" />
+                        </a>
+                      ) : (
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-neutral-100"
+                        >
+                          <FileText className="size-4 shrink-0" />
+                          <span className="truncate">{a.name || 'Download'}</span>
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <p className="mt-3 text-xs text-neutral-500">
               By {row.createdBy?.fullName || row.createdBy?.email || 'System'} ({row.createdByRole || '—'}) ·{' '}
               {new Date(row.createdAt).toLocaleString()}

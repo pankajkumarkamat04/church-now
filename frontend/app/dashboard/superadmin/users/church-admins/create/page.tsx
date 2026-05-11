@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '../../../churches/types';
@@ -52,11 +52,11 @@ export default function SuperadminCreateChurchAdminPage() {
       setMemberUserId('');
       return;
     }
-    const rows = await apiFetch<AuthUser[]>(
-      `/api/superadmin/users?role=MEMBER&churchId=${encodeURIComponent(selectedChurchId)}`,
+    const raw = await apiFetch<AuthUser[] | Paginated<AuthUser>>(
+      `/api/superadmin/users?role=MEMBER&churchId=${encodeURIComponent(selectedChurchId)}&limit=500`,
       { token }
     );
-    setMembers(rows);
+    setMembers(unwrapPaginatedArray(raw));
   }, [token, selectedChurchId]);
 
   const loadActivePastor = useCallback(async () => {
@@ -66,10 +66,11 @@ export default function SuperadminCreateChurchAdminPage() {
     }
     setPastorBusy(true);
     try {
-      const terms = await apiFetch<PastorTermApi[]>(
-        `/api/superadmin/pastor-terms?churchId=${encodeURIComponent(selectedChurchId)}`,
+      const termsRaw = await apiFetch<PastorTermApi[] | Paginated<PastorTermApi>>(
+        `/api/superadmin/pastor-terms?churchId=${encodeURIComponent(selectedChurchId)}&limit=100`,
         { token }
       );
+      const terms = unwrapPaginatedArray(termsRaw);
       const activeStatuses = new Set<string>(ACTIVE_PASTOR_TERM_STATUSES);
       const active = terms.find((t) => activeStatuses.has(t.status));
       const pid = active?.pastor

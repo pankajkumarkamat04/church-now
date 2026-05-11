@@ -1,5 +1,6 @@
 const Asset = require('../models/Asset');
 const { ASSET_CATEGORIES, ASSET_STATUSES, OWNERSHIP_TYPES } = Asset;
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 function churchId(req) {
   return req.user?.church;
@@ -86,11 +87,15 @@ async function listAdminAssets(req, res) {
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const category = String(req.query.category || '').trim().toUpperCase();
   const status = String(req.query.status || '').trim().toUpperCase();
+  const { page, limit, skip } = getPaginationParams(req.query);
   const q = { church: cid };
   if (ASSET_CATEGORIES.includes(category)) q.category = category;
   if (ASSET_STATUSES.includes(status)) q.status = status;
-  const rows = await Asset.find(q).sort({ name: 1, createdAt: -1 });
-  return res.json(rows.map(toRow));
+  const [total, rows] = await Promise.all([
+    Asset.countDocuments(q),
+    Asset.find(q).sort({ name: 1, createdAt: -1 }).skip(skip).limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows.map(toRow), total, page, limit));
 }
 
 async function createAdminAsset(req, res) {
@@ -138,12 +143,16 @@ async function listSuperadminAssets(req, res) {
   const churchIdFilter = String(req.query.churchId || '').trim();
   const category = String(req.query.category || '').trim().toUpperCase();
   const status = String(req.query.status || '').trim().toUpperCase();
+  const { page, limit, skip } = getPaginationParams(req.query);
   const q = {};
   if (churchIdFilter) q.church = churchIdFilter;
   if (ASSET_CATEGORIES.includes(category)) q.category = category;
   if (ASSET_STATUSES.includes(status)) q.status = status;
-  const rows = await Asset.find(q).populate('church', 'name').sort({ createdAt: -1, name: 1 }).limit(1500);
-  return res.json(rows.map(toRow));
+  const [total, rows] = await Promise.all([
+    Asset.countDocuments(q),
+    Asset.find(q).populate('church', 'name').sort({ createdAt: -1, name: 1 }).skip(skip).limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows.map(toRow), total, page, limit));
 }
 
 module.exports = {

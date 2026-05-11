@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import { Pagination } from '@/components/ui/Pagination';
 
 type AssetCategory =
   | 'PROPERTY'
@@ -115,6 +116,8 @@ export default function AdminFinanceAssetsPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<AssetRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [form, setForm] = useState<AssetPayload>(initialForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -124,13 +127,15 @@ export default function AdminFinanceAssetsPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
     if (categoryFilter) params.set('category', categoryFilter);
     if (statusFilter) params.set('status', statusFilter);
-    const query = params.toString();
-    const result = await apiFetch<AssetRow[]>(`/api/admin/assets${query ? `?${query}` : ''}`, { token });
-    setRows(result);
-  }, [token, categoryFilter, statusFilter]);
+    const res = await apiFetch<{ data: AssetRow[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/admin/assets?${params.toString()}`, { token }
+    );
+    setRows(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+  }, [token, categoryFilter, statusFilter, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -356,6 +361,7 @@ export default function AdminFinanceAssetsPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No assets found.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
     </div>
   );
 }

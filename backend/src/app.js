@@ -8,6 +8,7 @@ const superadminRoutes = require('./routes/superadminRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const memberRoutes = require('./routes/memberRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const conferencePanelRoutes = require('./routes/conferencePanelRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/superadmin', superadminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/member', memberRoutes);
+app.use('/api/conference-panel', conferencePanelRoutes);
 app.use('/api/public', publicRoutes);
 
 app.use((req, res) => {

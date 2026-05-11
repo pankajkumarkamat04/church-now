@@ -31,17 +31,28 @@ const {
 } = require('../utils/memberRoleSync');
 const { enrichChurchRowsForLocalMinisterList } = require('../utils/churchListLocalMinister');
 const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
-async function listChurches(_req, res) {
+async function listChurches(req, res) {
   try {
-    const churches = await Church.find()
-      .populate('conference', 'name conferenceId')
-      .populate('mainChurch', 'name')
-      .populate(populateLeadershipPaths)
-      .sort({ name: 1 })
-      .lean();
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const filter = {};
+    if (req.query.search) {
+      filter.name = { $regex: req.query.search, $options: 'i' };
+    }
+    const [total, churches] = await Promise.all([
+      Church.countDocuments(filter),
+      Church.find(filter)
+        .populate('conference', 'name conferenceId')
+        .populate('mainChurch', 'name')
+        .populate(populateLeadershipPaths)
+        .sort({ name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
     const enriched = await enrichChurchRowsForLocalMinisterList(churches);
-    return res.json(enriched);
+    return res.json(paginatedResponse(enriched, total, page, limit));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to list churches' });
@@ -478,11 +489,17 @@ async function listUsers(req, res) {
       }
     }
 
-    const users = await User.find(filter)
-      .populate('church', 'name conference')
-      .populate('adminChurches', 'name')
-      .sort({ role: 1, email: 1 })
-      .select('-password');
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .populate('church', 'name conference')
+        .populate('adminChurches', 'name')
+        .sort({ role: 1, email: 1 })
+        .select('-password')
+        .skip(skip)
+        .limit(limit),
+    ]);
 
     const churchIds = [
       ...new Set(
@@ -498,11 +515,14 @@ async function listUsers(req, res) {
     const churchById = Object.fromEntries(churchDocs.map((c) => [String(c._id), c]));
 
     return res.json(
-      users.map((u) => {
-        const cid = u.church && u.church._id ? u.church._id : u.church;
-        const lean = cid ? churchById[String(cid)] : null;
-        return toUserListItem(u, lean);
-      })
+      paginatedResponse(
+        users.map((u) => {
+          const cid = u.church && u.church._id ? u.church._id : u.church;
+          const lean = cid ? churchById[String(cid)] : null;
+          return toUserListItem(u, lean);
+        }),
+        total, page, limit
+      )
     );
   } catch (err) {
     console.error(err);
@@ -944,6 +964,66 @@ async function createMemberUser(req, res) {
   }
 }
 
+async function listPendingApprovals(req, res) {
+  try {
+    const churchFilter = String(req.query.churchId || '').trim();
+    const q = { role: 'MEMBER', approvalStatus: 'PENDING' };
+    if (churchFilter) q.church = churchFilter;
+    const members = await User.find(q)
+      .sort({ createdAt: 1 })
+      .select('-password')
+      .populate('church', 'name conference');
+    return res.json(
+      members.map((m) => {
+        const obj = m.toObject ? m.toObject() : m;
+        return {
+          id: String(obj._id),
+          _id: String(obj._id),
+          fullName: obj.fullName || `${obj.firstName || ''} ${obj.surname || ''}`.trim(),
+          email: obj.email,
+          contactPhone: obj.contactPhone || '',
+          memberId: obj.memberId || '',
+          memberCategory: obj.memberCategory || 'MEMBER',
+          memberBadgeType: obj.memberBadgeType || 'NON_BADGED',
+          registrationSource: obj.registrationSource || 'SYSTEM',
+          createdAt: obj.createdAt,
+          church: obj.church,
+          approvalStatus: obj.approvalStatus,
+        };
+      })
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to list pending approvals' });
+  }
+}
+
+async function approvePendingMember(req, res) {
+  try {
+    const member = await User.findOne({ _id: req.params.memberId, role: 'MEMBER', approvalStatus: 'PENDING' });
+    if (!member) return res.status(404).json({ message: 'Pending member not found' });
+    member.approvalStatus = 'APPROVED';
+    if (member.isActive === false) member.isActive = true;
+    await member.save();
+    return res.json({ id: member._id, approvalStatus: member.approvalStatus });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to approve member' });
+  }
+}
+
+async function rejectPendingMember(req, res) {
+  try {
+    const member = await User.findOne({ _id: req.params.memberId, role: 'MEMBER', approvalStatus: 'PENDING' });
+    if (!member) return res.status(404).json({ message: 'Pending member not found' });
+    await User.deleteOne({ _id: member._id });
+    return res.json({ message: 'Registration rejected and removed.' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to reject member' });
+  }
+}
+
 module.exports = {
   listCouncils,
   listCouncilMembers,
@@ -962,4 +1042,7 @@ module.exports = {
   createChurchAdmin,
   createSuperadminUser,
   createMemberUser,
+  listPendingApprovals,
+  approvePendingMember,
+  rejectPendingMember,
 };

@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import { Pagination } from '@/components/ui/Pagination';
 
 type ExpenseRow = {
   _id: string;
@@ -33,6 +34,8 @@ export default function SuperadminFinanceExpensesPage() {
   const router = useRouter();
   const { churches } = useSuperadminChurches();
   const [rows, setRows] = useState<ExpenseRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [conferences, setConferences] = useState<ConferenceRow[]>([]);
   const [filterConference, setFilterConference] = useState('');
   const [filterChurch, setFilterChurch] = useState('');
@@ -41,17 +44,19 @@ export default function SuperadminFinanceExpensesPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
     if (filterChurch) {
       params.set('churchId', filterChurch);
     } else if (filterConference) {
       params.set('conferenceId', filterConference);
     }
     if (filterApprovalStatus) params.set('approvalStatus', filterApprovalStatus);
-    const q = params.toString() ? `?${params.toString()}` : '';
-    const data = await apiFetch<ExpenseRow[]>(`/api/superadmin/expenses${q}`, { token });
-    setRows(data);
-  }, [token, filterChurch, filterConference, filterApprovalStatus]);
+    const res = await apiFetch<{ data: ExpenseRow[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/superadmin/expenses?${params.toString()}`, { token }
+    );
+    setRows(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+  }, [token, filterChurch, filterConference, filterApprovalStatus, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -59,8 +64,8 @@ export default function SuperadminFinanceExpensesPage() {
 
   useEffect(() => {
     if (!token || !user || user.role !== 'SUPERADMIN') return;
-    apiFetch<ConferenceRow[]>('/api/superadmin/conferences', { token })
-      .then((data) => setConferences(data))
+    apiFetch<ConferenceRow[] | Paginated<ConferenceRow>>('/api/superadmin/conferences?limit=500', { token })
+      .then((raw) => setConferences(unwrapPaginatedArray(raw)))
       .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load conferences'));
   }, [token, user]);
 
@@ -109,6 +114,7 @@ export default function SuperadminFinanceExpensesPage() {
             onChange={(e) => {
               setFilterConference(e.target.value);
               setFilterChurch('');
+              setPage(1);
             }}
             className="w-full max-w-md rounded-lg border border-neutral-300 px-3 py-2 text-sm"
           >
@@ -125,7 +131,7 @@ export default function SuperadminFinanceExpensesPage() {
           <label className="mb-1 block text-xs font-medium text-neutral-600">Filter by church</label>
           <select
             value={filterChurch}
-            onChange={(e) => setFilterChurch(e.target.value)}
+            onChange={(e) => { setFilterChurch(e.target.value); setPage(1); }}
             className="w-full max-w-md rounded-lg border border-neutral-300 px-3 py-2 text-sm"
           >
             <option value="">All churches</option>
@@ -237,6 +243,7 @@ export default function SuperadminFinanceExpensesPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No expenses yet.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
     </div>
   );
 }

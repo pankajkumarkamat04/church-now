@@ -2,19 +2,35 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { FileText, ImageIcon, Loader2, Paperclip, X } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+type AttachmentMeta = { url: string; name: string; mimeType: string; size: number };
 
 type AnnouncementRow = {
   _id: string;
   title: string;
   message: string;
+  attachments?: AttachmentMeta[];
   targetRoles?: string[];
   targetUsers?: Array<{ _id: string; fullName?: string; email?: string; memberId?: string }>;
   createdBy?: { fullName?: string; email?: string };
   createdAt: string;
 };
+
+const MAX_ATTACHMENTS = 10;
+
+async function uploadAnnouncementFile(file: File, token: string) {
+  const fd = new FormData();
+  fd.append('file', file);
+  return apiFetch<{ url: string; size: number; mimeType: string }>('/api/admin/media/announcement-upload', {
+    method: 'POST',
+    token,
+    body: fd,
+  });
+}
 
 const TARGET_ROLES = ['ADMIN', 'MEMBER', 'TREASURER', 'VICE_TREASURER', 'SECRETARY', 'VICE_SECRETARY', 'DEACON', 'VICE_DEACON'];
 const field =
@@ -24,23 +40,30 @@ export default function AdminAnnouncementsPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<AnnouncementRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [members, setMembers] = useState<Array<AuthUser & { id: string }>>([]);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
   const [targetUserIds, setTargetUserIds] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
+  const [uploadBusy, setUploadBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
-    const [announcements, memberRows] = await Promise.all([
-      apiFetch<AnnouncementRow[]>('/api/admin/announcements', { token }),
-      apiFetch<Array<AuthUser & { id: string }>>('/api/admin/members', { token }),
+    const [annRes, memberRes] = await Promise.all([
+      apiFetch<{ data: AnnouncementRow[]; total: number; page: number; limit: number; totalPages: number }>(
+        `/api/admin/announcements?page=${page}&limit=20`, { token }
+      ),
+      apiFetch<{ data: Array<AuthUser & { id: string }> }>('/api/admin/members?limit=200', { token }),
     ]);
-    setRows(announcements);
-    setMembers(memberRows);
-  }, [token]);
+    setRows(annRes.data);
+    setMeta({ total: annRes.total, totalPages: annRes.totalPages, limit: annRes.limit });
+    setMembers(memberRes.data);
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -66,6 +89,33 @@ export default function AdminAnnouncementsPage() {
     setTargetUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  async function onAttachmentPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length || !token) return;
+    setUploadBusy(true);
+    setErr(null);
+    try {
+      for (const file of Array.from(files)) {
+        if (attachments.length >= MAX_ATTACHMENTS) break;
+        const res = await uploadAnnouncementFile(file, token);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            url: res.url,
+            name: file.name,
+            mimeType: res.mimeType || file.type || '',
+            size: res.size,
+          },
+        ]);
+      }
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : 'Upload failed');
+    } finally {
+      setUploadBusy(false);
+      e.target.value = '';
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
@@ -75,12 +125,19 @@ export default function AdminAnnouncementsPage() {
       await apiFetch('/api/admin/announcements', {
         method: 'POST',
         token,
-        body: JSON.stringify({ title, message, targetRoles, targetUserIds }),
+        body: JSON.stringify({
+          title,
+          message,
+          targetRoles,
+          targetUserIds,
+          attachments: attachments.length ? attachments : undefined,
+        }),
       });
       setTitle('');
       setMessage('');
       setTargetRoles([]);
       setTargetUserIds([]);
+      setAttachments([]);
       await load();
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Failed to create announcement');
@@ -110,6 +167,42 @@ export default function AdminAnnouncementsPage() {
             <label className="mb-1 block text-xs font-medium text-neutral-600">Message</label>
             <textarea className={field} required rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
           </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Attachments (PDF or images)</label>
+            <p className="mb-2 text-xs text-neutral-500">Stored in your church media library. Up to {MAX_ATTACHMENTS} files, 15 MB each.</p>
+            <input
+              type="file"
+              accept="image/*,.pdf,application/pdf"
+              multiple
+              disabled={uploadBusy || attachments.length >= MAX_ATTACHMENTS}
+              onChange={(e) => void onAttachmentPick(e)}
+              className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-sky-800 hover:file:bg-sky-100"
+            />
+            {attachments.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {attachments.map((a) => (
+                  <li
+                    key={a.url}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm"
+                  >
+                    <span className="flex min-w-0 items-center gap-2 text-neutral-800">
+                      {a.mimeType.startsWith('image/') ? <ImageIcon className="size-4 shrink-0 text-sky-600" /> : <FileText className="size-4 shrink-0 text-sky-600" />}
+                      <span className="truncate">{a.name}</span>
+                      <span className="shrink-0 text-xs text-neutral-500">({Math.round(a.size / 1024)} KB)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments((prev) => prev.filter((x) => x.url !== a.url))}
+                      className="shrink-0 rounded p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800"
+                      aria-label="Remove"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <div>
             <label className="mb-2 block text-xs font-medium text-neutral-600">Target roles (optional)</label>
             <div className="space-y-1 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm">
@@ -135,8 +228,8 @@ export default function AdminAnnouncementsPage() {
           </div>
         </div>
         <div className="mt-4">
-          <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60">
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+          <button type="submit" disabled={busy || uploadBusy} className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60">
+            {busy || uploadBusy ? <Loader2 className="size-4 animate-spin" /> : null}
             Create announcement
           </button>
         </div>
@@ -147,6 +240,7 @@ export default function AdminAnnouncementsPage() {
           <thead className="bg-neutral-50 text-neutral-600">
             <tr>
               <th className="px-4 py-2 font-medium">Title</th>
+              <th className="px-4 py-2 font-medium">Files</th>
               <th className="px-4 py-2 font-medium">Audience</th>
               <th className="px-4 py-2 font-medium">Created by</th>
               <th className="px-4 py-2 font-medium">Date</th>
@@ -160,6 +254,16 @@ export default function AdminAnnouncementsPage() {
                   <p className="line-clamp-2 text-xs text-neutral-600">{r.message}</p>
                 </td>
                 <td className="px-4 py-2 text-xs text-neutral-700">
+                  {r.attachments?.length ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Paperclip className="size-3.5 text-neutral-500" />
+                      {r.attachments.length}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="px-4 py-2 text-xs text-neutral-700">
                   Roles: {r.targetRoles?.length ? r.targetRoles.join(', ') : 'All'}<br />
                   Members: {r.targetUsers?.length || 0}
                 </td>
@@ -171,6 +275,7 @@ export default function AdminAnnouncementsPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No announcements yet.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
     </div>
   );
 }

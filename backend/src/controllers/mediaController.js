@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const multer = require('multer');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 const MEDIA_ROOT = path.join(process.cwd(), 'uploads', 'media');
 
@@ -55,6 +56,20 @@ const upload = multer({
   },
 });
 
+/** PDF + images for announcements (stored under same media paths as gallery uploads). */
+const announcementUpload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const m = file.mimetype || '';
+    if (m.startsWith('image/') || m === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF and image files are allowed'));
+    }
+  },
+});
+
 function toMediaResponse(req, file) {
   const host = `${req.protocol}://${req.get('host')}`;
   const folder = file.folder ? `${file.folder}/` : '';
@@ -70,23 +85,19 @@ function toMediaResponse(req, file) {
 async function list(req, res) {
   await fs.mkdir(MEDIA_ROOT, { recursive: true });
   const dirents = await fs.readdir(MEDIA_ROOT, { withFileTypes: true });
-  const files = [];
+  const allFiles = [];
 
   for (const d of dirents) {
     if (!d.isFile()) continue;
     const filePath = path.join(MEDIA_ROOT, d.name);
     const stat = await fs.stat(filePath);
-    files.push({
-      name: d.name,
-      size: stat.size,
-      mimeType: '',
-      uploadedAt: stat.mtime.toISOString(),
-    });
+    allFiles.push({ name: d.name, size: stat.size, mimeType: '', uploadedAt: stat.mtime.toISOString() });
   }
 
-  files.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-  const limit = Math.min(Number(req.query.limit) || 100, 300);
-  return res.json(files.slice(0, limit).map((f) => toMediaResponse(req, f)));
+  allFiles.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const pageFiles = allFiles.slice(skip, skip + limit);
+  return res.json(paginatedResponse(pageFiles.map((f) => toMediaResponse(req, f)), allFiles.length, page, limit));
 }
 
 async function uploadOne(req, res) {
@@ -146,8 +157,9 @@ async function listAdmin(req, res) {
   }
 
   files.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-  const limit = Math.min(Number(req.query.limit) || 100, 300);
-  return res.json(files.slice(0, limit).map((f) => toMediaResponse(req, f)));
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const pageFiles = files.slice(skip, skip + limit);
+  return res.json(paginatedResponse(pageFiles.map((f) => toMediaResponse(req, f)), files.length, page, limit));
 }
 
 async function uploadAdmin(req, res) {
@@ -177,6 +189,14 @@ async function uploadAdmin(req, res) {
   );
 }
 
+async function uploadAnnouncementAdmin(req, res) {
+  return uploadAdmin(req, res);
+}
+
+async function uploadAnnouncementSuperadmin(req, res) {
+  return uploadOne(req, res);
+}
+
 async function removeAdmin(req, res) {
   const churchId = req.user?.church;
   if (!churchId) {
@@ -200,10 +220,13 @@ async function removeAdmin(req, res) {
 
 module.exports = {
   upload,
+  announcementUpload,
   list,
   uploadOne,
   remove,
   listAdmin,
   uploadAdmin,
+  uploadAnnouncementAdmin,
+  uploadAnnouncementSuperadmin,
   removeAdmin,
 };

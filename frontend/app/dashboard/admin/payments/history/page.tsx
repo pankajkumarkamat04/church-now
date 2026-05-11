@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeDisplayCurrencyInput } from '@/lib/currency';
 import { PAYMENT_OPTIONS, amountsByPaymentOption } from '@/lib/payments';
+import { Pagination } from '@/components/ui/Pagination';
 import {
   churchRoleLabel,
   memberStatementHref,
@@ -18,18 +19,28 @@ export default function AdminPaymentsHistoryPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [payPage, setPayPage] = useState(1);
+  const [payMeta, setPayMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [depositHistory, setDepositHistory] = useState<DepositHistoryRow[]>([]);
+  const [depPage, setDepPage] = useState(1);
+  const [depMeta, setDepMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
-    const [payments, deposits] = await Promise.all([
-      apiFetch<PaymentRow[]>('/api/admin/payments', { token }),
-      apiFetch<DepositHistoryRow[]>('/api/admin/payments/deposits', { token }),
+    const [payRes, depRes] = await Promise.all([
+      apiFetch<{ data: PaymentRow[]; total: number; page: number; limit: number; totalPages: number }>(
+        `/api/admin/payments?page=${payPage}&limit=20`, { token }
+      ),
+      apiFetch<{ data: DepositHistoryRow[]; total: number; page: number; limit: number; totalPages: number }>(
+        `/api/admin/payments/deposits?page=${depPage}&limit=20`, { token }
+      ),
     ]);
-    setRows(payments);
-    setDepositHistory(deposits);
-  }, [token]);
+    setRows(payRes.data);
+    setPayMeta({ total: payRes.total, totalPages: payRes.totalPages, limit: payRes.limit });
+    setDepositHistory(depRes.data);
+    setDepMeta({ total: depRes.total, totalPages: depRes.totalPages, limit: depRes.limit });
+  }, [token, payPage, depPage]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -115,6 +126,7 @@ export default function AdminPaymentsHistoryPage() {
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No deposit history yet.</p>
         ) : null}
       </div>
+      <Pagination page={depPage} totalPages={depMeta.totalPages} total={depMeta.total} limit={depMeta.limit} onPageChange={setDepPage} className="mt-2" />
 
       <h3 className="mt-8 text-sm font-semibold text-neutral-800">Payments</h3>
       <p className="mt-1 text-xs text-neutral-500">
@@ -211,6 +223,7 @@ export default function AdminPaymentsHistoryPage() {
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No payments yet.</p> : null}
       </div>
+      <Pagination page={payPage} totalPages={payMeta.totalPages} total={payMeta.total} limit={payMeta.limit} onPageChange={setPayPage} className="mt-2" />
     </>
   );
 }

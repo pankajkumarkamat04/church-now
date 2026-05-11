@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ImagePlus, Loader2, Trash2, Upload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getApiBase } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
 
 type MediaItem = {
   name: string;
@@ -17,6 +18,8 @@ export default function AdminMediaPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<MediaItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [fetching, setFetching] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -27,25 +30,28 @@ export default function AdminMediaPage() {
     }
   }, [loading, user, router]);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
     setFetching(true);
     try {
-      const data = await apiFetch<MediaItem[]>('/api/admin/media?limit=300', { token });
-      setItems(data);
+      const res = await apiFetch<{ data: MediaItem[]; total: number; page: number; limit: number; totalPages: number }>(
+        `/api/admin/media?page=${page}&limit=20`, { token }
+      );
+      setItems(res.data);
+      setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
     } catch (error) {
       setErr(error instanceof Error ? error.message : 'Failed to load media');
     } finally {
       setFetching(false);
     }
-  }
+  }, [token, page]);
 
   useEffect(() => {
     if (user?.role === 'ADMIN' && token) {
       void load();
     }
-  }, [user, token]);
+  }, [user, token, load]);
 
   async function onUpload(file: File) {
     if (!token) return;
@@ -162,6 +168,7 @@ export default function AdminMediaPage() {
           ) : null}
         </div>
       )}
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
     </div>
   );
 }

@@ -76,16 +76,37 @@ function collectUserIdsFromCouncils(councils) {
   return ids;
 }
 
+/** Every distinct user id referenced as church leadership (single roles, committee, councils). */
+function collectAllLeadershipUserIds(normalizedLeadership, normalizedCouncils) {
+  const ids = [
+    ...collectUserIdsFromLeadership(normalizedLeadership),
+    ...collectUserIdsFromCouncils(normalizedCouncils || []),
+  ];
+  return [...new Set(ids.map(String))];
+}
+
+/** Single-role slots + councils only — committee members do not receive auto admin. */
+function collectLeadershipUserIdsForAdminSync(normalizedLeadership, normalizedCouncils) {
+  const ids = [];
+  for (const key of SINGLE_ROLE_KEYS) {
+    if (normalizedLeadership[key]) ids.push(normalizedLeadership[key]);
+  }
+  ids.push(...collectUserIdsFromCouncils(normalizedCouncils || []));
+  return [...new Set(ids.map(String))];
+}
+
 async function assertUsersAreMembersOfChurch(churchId, userIds) {
   const unique = [...new Set(userIds.map(String))];
   if (unique.length === 0) return;
   const count = await User.countDocuments({
     _id: { $in: unique },
-    church: churchId,
-    role: 'MEMBER',
+    role: { $in: ['MEMBER', 'ADMIN'] },
+    $or: [{ church: churchId }, { adminChurches: churchId }],
   });
   if (count !== unique.length) {
-    const err = new Error('Leaders must be members of this congregation (role MEMBER at this church)');
+    const err = new Error(
+      'Leaders must belong to this congregation (MEMBER or ADMIN with access to this church)'
+    );
     err.statusCode = 400;
     throw err;
   }
@@ -172,4 +193,6 @@ module.exports = {
   validateChurchLeadershipPayload,
   populateLeadershipPaths,
   SINGLE_ROLE_KEYS,
+  collectAllLeadershipUserIds,
+  collectLeadershipUserIdsForAdminSync,
 };

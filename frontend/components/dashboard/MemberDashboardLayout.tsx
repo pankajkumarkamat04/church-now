@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Briefcase,
   CircleUserRound,
+  Landmark,
   X,
   CreditCard,
   Layers,
@@ -58,6 +59,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const financeRecordsActive = pathname === '/dashboard/member/finance';
   const councilsActive = pathname === '/dashboard/member/councils';
   const announcementsActive = pathname === '/dashboard/member/announcements';
+  const conferenceLeaderActive = pathname.startsWith('/dashboard/conference-leader');
 
   const itemClass = (active: boolean) =>
     `group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
@@ -73,6 +75,16 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
     { href: '/dashboard/member/payments', label: 'Payments', icon: CreditCard, active: paymentsActive },
     { href: '/dashboard/member/councils', label: 'Councils', icon: Layers, active: councilsActive },
     { href: '/dashboard/member/announcements', label: 'Announcements', icon: Megaphone, active: announcementsActive },
+    ...(user.isConferenceLeader
+      ? [
+          {
+            href: '/dashboard/conference-leader',
+            label: 'Conference leader',
+            icon: Landmark,
+            active: conferenceLeaderActive,
+          },
+        ]
+      : []),
   ];
 
   const sidebarContent = (
@@ -85,7 +97,17 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
             textClassName="truncate text-sm font-semibold text-neutral-900"
           />
         </div>
-        <p className="truncate text-sm font-semibold text-neutral-900">{user.fullName || 'Member'}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-sm font-semibold text-neutral-900">{user.fullName || 'Member'}</p>
+          {user.isChurchCommitteeMember ? (
+            <span
+              className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80"
+              title="Church committee member"
+            >
+              Committee
+            </span>
+          ) : null}
+        </div>
         <p className="truncate text-xs text-neutral-500">{user.email}</p>
       </div>
       <div className="mb-2 px-1">

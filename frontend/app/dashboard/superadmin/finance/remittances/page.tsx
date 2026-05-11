@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Pagination } from '@/components/ui/Pagination';
+
+const HISTORY_PAGE_SIZE = 50;
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
@@ -68,6 +71,9 @@ export default function SuperadminRemittancesPage() {
   const [churchData, setChurchData] = useState<ChurchPayload | null>(null);
   const [schoolData, setSchoolData] = useState<SchoolPayload | null>(null);
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
+  const [histPage, setHistPage] = useState(1);
+  const histTotalPages = Math.max(1, Math.ceil(historyRows.length / HISTORY_PAGE_SIZE));
+  const pagedHistory = useMemo(() => historyRows.slice((histPage - 1) * HISTORY_PAGE_SIZE, histPage * HISTORY_PAGE_SIZE), [historyRows, histPage]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -1166,7 +1172,7 @@ export default function SuperadminRemittancesPage() {
       ) : (
         <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="space-y-3 p-3 md:hidden">
-            {historyRows.map((row) => (
+            {pagedHistory.map((row) => (
               <div key={row.id} className="rounded-lg border border-neutral-200 bg-white p-3">
                 <p className="text-xs text-neutral-600">{row.at ? new Date(row.at).toLocaleString() : '—'}</p>
                 <p className="mt-1 text-sm font-semibold text-neutral-900">{row.scope} · {row.action}</p>
@@ -1193,7 +1199,7 @@ export default function SuperadminRemittancesPage() {
               </tr>
             </thead>
             <tbody>
-              {historyRows.map((row) => (
+              {pagedHistory.map((row) => (
                 <tr key={row.id} className="border-t border-neutral-100">
                   <td className="px-3 py-2 text-xs text-neutral-700">
                     {row.at ? new Date(row.at).toLocaleString() : '—'}
@@ -1211,6 +1217,7 @@ export default function SuperadminRemittancesPage() {
           {historyRows.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-neutral-500">No history rows yet.</p>
           ) : null}
+          <Pagination page={histPage} totalPages={histTotalPages} total={historyRows.length} limit={HISTORY_PAGE_SIZE} onPageChange={setHistPage} />
         </div>
       )}
     </div>

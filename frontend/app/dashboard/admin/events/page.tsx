@@ -5,6 +5,7 @@ import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
 
 type EventRow = {
   _id: string;
@@ -26,6 +27,8 @@ export default function AdminEventsPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<EventRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [startsAt, setStartsAt] = useState('');
@@ -41,9 +44,12 @@ export default function AdminEventsPage() {
 
   const load = useCallback(async () => {
     if (!token) return;
-    const r = await apiFetch<EventRow[]>('/api/admin/events', { token });
-    setRows(r);
-  }, [token]);
+    const res = await apiFetch<{ data: EventRow[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/admin/events?page=${page}&limit=20`, { token }
+    );
+    setRows(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) router.replace('/login');
@@ -157,6 +163,7 @@ export default function AdminEventsPage() {
           </table>
           {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No events yet.</p> : null}
         </div>
+        <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-1" />
         <form onSubmit={onSubmit} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm space-y-3">
           <p className="text-sm font-semibold text-neutral-900">{editingId ? 'Edit event' : 'Add event'}</p>
           <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" required />

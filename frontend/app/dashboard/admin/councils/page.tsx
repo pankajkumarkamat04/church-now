@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type CouncilRow = { _id: string; name: string };
 
@@ -14,6 +17,7 @@ export default function AdminCouncilsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<CouncilRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -30,6 +34,9 @@ export default function AdminCouncilsPage() {
     load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load councils'));
   }, [token, user]);
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const paged = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
+
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
@@ -43,7 +50,7 @@ export default function AdminCouncilsPage() {
         </p>
         <div className="mt-5 rounded-xl border border-neutral-200">
           <div className="space-y-3 p-3 md:hidden">
-            {rows.map((row) => (
+            {paged.map((row) => (
               <div key={row._id} className="rounded-lg border border-neutral-200 bg-white p-3">
                 <p className="text-sm font-semibold text-neutral-900">{row.name}</p>
                 <Link
@@ -64,7 +71,7 @@ export default function AdminCouncilsPage() {
               </tr>
             </thead>
             <tbody className="text-neutral-800">
-              {rows.map((row) => (
+              {paged.map((row) => (
                 <tr key={row._id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{row.name}</td>
                   <td className="px-4 py-3 text-right">
@@ -83,6 +90,7 @@ export default function AdminCouncilsPage() {
           {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No councils yet.</p> : null}
         </div>
         {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
+        <Pagination page={page} totalPages={totalPages} total={rows.length} limit={PAGE_SIZE} onPageChange={setPage} />
       </div>
     </div>
   );

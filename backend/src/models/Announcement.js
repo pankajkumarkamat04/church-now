@@ -13,6 +13,16 @@ const ANNOUNCEMENT_TARGET_ROLES = [
   'VICE_DEACON',
 ];
 
+const attachmentSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    name: { type: String, required: true },
+    mimeType: { type: String, default: '' },
+    size: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const announcementSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 180 },
@@ -21,6 +31,7 @@ const announcementSchema = new mongoose.Schema(
     church: { type: mongoose.Schema.Types.ObjectId, ref: 'Church', default: null, index: true },
     targetRoles: [{ type: String, enum: ANNOUNCEMENT_TARGET_ROLES }],
     targetUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    attachments: { type: [attachmentSchema], default: [] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     createdByRole: { type: String, required: true, trim: true, maxlength: 24 },
     isActive: { type: Boolean, default: true, index: true },

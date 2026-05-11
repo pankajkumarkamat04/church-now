@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pagination } from '@/components/ui/Pagination';
+
+const TX_PAGE_SIZE = 50;
 import { useRouter } from 'next/navigation';
 import { FileDown, Loader2, Table2 } from 'lucide-react';
 import {
@@ -27,7 +30,7 @@ import {
   type PublicCurrencyRates,
   usdToDisplayAmount,
 } from '@/lib/currency';
-import { PAYMENT_OPTIONS, type PaymentOption } from '@/lib/payments';
+import { PAYMENT_OPTION_LABELS, PAYMENT_OPTIONS, type PaymentOption } from '@/lib/payments';
 import {
   downloadFinanceReportPdf,
   downloadFinanceReportSpreadsheet,
@@ -157,6 +160,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [txPage, setTxPage] = useState(1);
   const [kindToggles, setKindToggles] = useState<Record<string, boolean>>({
     PAYMENT: true,
     EXPENSE: true,
@@ -221,7 +225,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   }, [user, token, variant]);
 
   const filteredRows = useMemo(() => {
-    const rows = summary?.transactions || [];
+    const raw = summary?.transactions;
+    const rows = Array.isArray(raw) ? raw : [];
     return rows.filter((r) => {
       if (!kindToggles[r.kind]) return false;
       if (!search.trim()) return true;
@@ -236,6 +241,12 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
       );
     });
   }, [summary, kindToggles, search]);
+
+  const txTotalPages = Math.max(1, Math.ceil(filteredRows.length / TX_PAGE_SIZE));
+  const pagedRows = useMemo(
+    () => filteredRows.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE),
+    [filteredRows, txPage]
+  );
 
   const amountBarData = useMemo(() => {
     const m: Record<string, number> = { PAYMENT: 0, EXPENSE: 0 };
@@ -412,12 +423,24 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     return rounded.toFixed(2);
   }
 
+  function formatDashboardAmount(usdAmount: number) {
+    const v =
+      rates && displayCurrency !== 'USD'
+        ? usdToDisplayAmount(usdAmount, displayCurrency, rates.foreignPerUsd)
+        : usdAmount;
+    return formatUsdAnalysis(v);
+  }
+
   return (
     <div className="w-full min-w-0 max-w-7xl">
       <FinanceSectionNav variant={variant} />
       <div className="mb-6">
-        <p className={`text-xs font-semibold uppercase tracking-wide ${labelClass}`}>Finance</p>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${labelClass}`}>Unified finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Reports</h1>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+          Payment summary covers tithe, building, roof, gazaland, UTC, thanks, music, xmas, and harvest — one ledger for all
+          congregation income lines.
+        </p>
       </div>
 
       <div className="mb-6 space-y-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -498,7 +521,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                 <input
                   type="checkbox"
                   checked={kindToggles[k.id] ?? true}
-                  onChange={(e) => setKindToggles((s) => ({ ...s, [k.id]: e.target.checked }))}
+                  onChange={(e) => { setKindToggles((s) => ({ ...s, [k.id]: e.target.checked })); setTxPage(1); }}
                 />
                 {k.label}
               </label>
@@ -509,7 +532,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
               <label className="mb-1 block text-xs font-medium text-neutral-600">Search</label>
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setTxPage(1); }}
                 placeholder="Party, description, type…"
                 className="w-full min-w-0 sm:min-w-[200px] sm:max-w-xs rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               />
@@ -581,6 +604,55 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
 
           {kindToggles.PAYMENT ? (
             <>
+            <div
+              className={
+                variant === 'admin'
+                  ? 'mb-6 overflow-hidden rounded-xl border-2 border-sky-200 bg-gradient-to-br from-sky-50/90 to-white shadow-sm'
+                  : 'mb-6 overflow-hidden rounded-xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/90 to-white shadow-sm'
+              }
+            >
+              <div
+                className={
+                  variant === 'admin'
+                    ? 'border-b border-sky-100 bg-sky-100/80 px-4 py-3'
+                    : 'border-b border-violet-100 bg-violet-100/80 px-4 py-3'
+                }
+              >
+                <h2 className="text-base font-bold text-neutral-900">Payment summary</h2>
+                <p className="mt-1 text-xs text-neutral-600">
+                  Unified totals by line — tithe, building, roof, gazaland, UTC, thanks, music, xmas, harvest ({displayCurrency}
+                  ).
+                </p>
+              </div>
+              <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {PAYMENT_OPTIONS.map((opt) => (
+                  <div
+                    key={opt}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200/80 bg-white px-3 py-2.5 shadow-sm"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-neutral-900">{PAYMENT_OPTION_LABELS[opt]}</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-400">{opt}</p>
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums text-emerald-900">
+                      {formatDashboardAmount(incomeMatrix.columnTotals[opt])}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div
+                className={
+                  variant === 'admin'
+                    ? 'flex flex-wrap items-center justify-between gap-2 border-t border-sky-100 bg-sky-50/50 px-4 py-3'
+                    : 'flex flex-wrap items-center justify-between gap-2 border-t border-violet-100 bg-violet-50/50 px-4 py-3'
+                }
+              >
+                <span className="text-sm font-bold text-neutral-900">Total unified income ({displayCurrency})</span>
+                <span className="text-lg font-bold tabular-nums text-emerald-950">
+                  {formatDashboardAmount(incomeMatrix.grandTotal)}
+                </span>
+              </div>
+            </div>
             {churchIncomeRows.length > 0 ? (
               <div className="mb-6 overflow-x-auto rounded-xl border border-violet-300 bg-white shadow-sm">
                 <div className="border-b border-violet-100 bg-violet-50 px-4 py-2">
@@ -642,9 +714,10 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                       {PAYMENT_OPTIONS.map((opt) => (
                         <th
                           key={opt}
-                          className="whitespace-nowrap px-1 py-2 text-center text-[11px] font-bold uppercase tracking-tight text-neutral-800"
+                          className="max-w-[96px] px-1 py-2 text-center text-[11px] font-bold leading-tight text-neutral-800"
                         >
-                          {opt}
+                          <span className="block">{PAYMENT_OPTION_LABELS[opt]}</span>
+                          <span className="block font-normal uppercase tracking-tight text-neutral-500">{opt}</span>
                         </th>
                       ))}
                       <th className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right font-bold uppercase text-neutral-900">
@@ -859,7 +932,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRows.map((r) => (
+                  {pagedRows.map((r) => (
                     <tr key={r.id} className="border-t border-neutral-100 hover:bg-neutral-50/80">
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-800">
                         {r.date ? new Date(r.date).toLocaleString() : '—'}
@@ -901,6 +974,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             {filteredRows.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-neutral-500">No rows match the current filters.</p>
             ) : null}
+            <Pagination page={txPage} totalPages={txTotalPages} total={filteredRows.length} limit={TX_PAGE_SIZE} onPageChange={setTxPage} />
           </div>
         </>
       ) : null}

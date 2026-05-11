@@ -1,11 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pencil, Shield, Trash2, UserCog, Users } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type UserRow = AuthUser & { id: string };
 
@@ -18,14 +21,19 @@ export default function SuperadminAdminsPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const paged = useMemo(() => users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [users, page]);
 
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const [admins, superadmins] = await Promise.all([
-      apiFetch<UserRow[]>('/api/superadmin/users?role=ADMIN', { token }),
-      apiFetch<UserRow[]>('/api/superadmin/users?role=SUPERADMIN', { token }),
+    const [adminsRes, superadminsRes] = await Promise.all([
+      apiFetch<{ data: UserRow[] } | UserRow[]>('/api/superadmin/users?role=ADMIN&limit=200', { token }),
+      apiFetch<{ data: UserRow[] } | UserRow[]>('/api/superadmin/users?role=SUPERADMIN&limit=200', { token }),
     ]);
+    const admins = Array.isArray(adminsRes) ? adminsRes : (adminsRes.data ?? []);
+    const superadmins = Array.isArray(superadminsRes) ? superadminsRes : (superadminsRes.data ?? []);
     setUsers([...superadmins, ...admins]);
   }, [token]);
 
@@ -93,7 +101,7 @@ export default function SuperadminAdminsPage() {
 
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="space-y-3 p-3 md:hidden">
-          {users.map((u) => (
+          {paged.map((u) => (
             <div key={u.id} className="rounded-lg border border-neutral-200 bg-white p-3">
               <p className="text-sm font-semibold text-neutral-900">{u.fullName || '—'}</p>
               <p className="mt-1 text-xs text-neutral-600">{u.email}</p>
@@ -142,7 +150,7 @@ export default function SuperadminAdminsPage() {
               </tr>
             </thead>
             <tbody className="text-neutral-800">
-              {users.map((u) => (
+              {paged.map((u) => (
                 <tr key={u.id} className="border-b border-neutral-100 last:border-0">
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3 font-mono text-xs text-neutral-700">
@@ -188,6 +196,7 @@ export default function SuperadminAdminsPage() {
           </table>
         </div>
         {users.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No admins yet.</p> : null}
+        <Pagination page={page} totalPages={totalPages} total={users.length} limit={PAGE_SIZE} onPageChange={setPage} />
       </div>
     </div>
   );

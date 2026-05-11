@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, Layers, Pencil, Plus, Shield, Trash2, UserCog, Users } from 'lucide-react';
+import { Eye, Layers, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChurchLeadershipModal, leadershipSummary } from '@/components/church/ChurchLeadershipModal';
-import { ChurchPastorManageModal } from '@/components/church/ChurchPastorManageModal';
 import { ChurchViewModal } from '@/components/church/ChurchViewModal';
 import { localMinisterFromChurch, withRevMinisterPrefix } from '@/lib/churchLocalMinister';
+import { Pagination } from '@/components/ui/Pagination';
 import type { ChurchRecord } from './types';
 
 const btn =
@@ -19,10 +19,11 @@ export default function SuperadminChurchesListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [churches, setChurches] = useState<ChurchRecord[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [leadershipChurch, setLeadershipChurch] = useState<ChurchRecord | null>(null);
-  const [pastorChurch, setPastorChurch] = useState<ChurchRecord | null>(null);
   const [viewChurch, setViewChurch] = useState<ChurchRecord | null>(null);
 
   function conferenceLabel(row: ChurchRecord) {
@@ -38,13 +39,12 @@ export default function SuperadminChurchesListPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const [mainChurches, subChurches] = await Promise.all([
-      apiFetch<ChurchRecord[]>('/api/superadmin/main-churches', { token }),
-      apiFetch<ChurchRecord[]>('/api/superadmin/sub-churches', { token }),
-    ]);
-    const merged = [...mainChurches, ...subChurches].sort((a, b) => a.name.localeCompare(b.name));
-    setChurches(merged);
-  }, [token]);
+    const res = await apiFetch<{ data: ChurchRecord[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/superadmin/churches?page=${page}&limit=20`, { token }
+    );
+    setChurches(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -154,7 +154,6 @@ export default function SuperadminChurchesListPage() {
                   <button type="button" onClick={() => setViewChurch(c)} className={btn} aria-label="View church details"><Eye className="size-3.5" /></button>
                   <Link href={`/dashboard/superadmin/churches/${c._id}/edit`} className={btn} aria-label="Edit church"><Pencil className="size-3.5" /></Link>
                   <Link href={`/dashboard/superadmin/churches/${c._id}/members`} className={btn} aria-label="Church members"><Users className="size-3.5" /></Link>
-                  <button type="button" onClick={() => setPastorChurch(c)} className={btn} aria-label="Manage pastor assignments"><UserCog className="size-3.5" /></button>
                   <button type="button" onClick={() => setLeadershipChurch(c)} className={btn} aria-label="Edit leadership"><Shield className="size-3.5" /></button>
                   <button type="button" disabled={busyId === c._id} onClick={() => removeChurch(c._id)} className={`${btn} border-red-200 text-red-700 hover:bg-red-50`} aria-label="Delete church"><Trash2 className="size-3.5" /></button>
                 </div>
@@ -246,15 +245,6 @@ export default function SuperadminChurchesListPage() {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => setPastorChurch(c)}
-                          className={btn}
-                          title="Manage pastor assignments"
-                          aria-label="Manage pastor assignments"
-                        >
-                          <UserCog className="size-3.5" aria-hidden />
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => setLeadershipChurch(c)}
                           className={btn}
                           title={leadershipSummary(c)}
@@ -285,6 +275,14 @@ export default function SuperadminChurchesListPage() {
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No churches yet.</p>
         ) : null}
       </div>
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        className="mt-2"
+      />
 
       <ChurchViewModal
         open={Boolean(viewChurch)}
@@ -303,13 +301,6 @@ export default function SuperadminChurchesListPage() {
         onSaved={() => {
           load().catch(() => {});
         }}
-      />
-      <ChurchPastorManageModal
-        open={Boolean(pastorChurch)}
-        onClose={() => setPastorChurch(null)}
-        churchId={pastorChurch?._id || ''}
-        churchName={pastorChurch?.name || ''}
-        token={token}
       />
     </div>
   );

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 type ChurchDetails = {
@@ -55,10 +55,10 @@ export default function AdminDashboardIndexPage() {
       if (!token || user?.role !== 'ADMIN') return;
       const [churchRow, memberRows] = await Promise.all([
         apiFetch<ChurchDetails>('/api/admin/church', { token }),
-        apiFetch<Array<AuthUser & { id: string }>>('/api/admin/members', { token }),
+        apiFetch<AuthUser[] | Paginated<AuthUser>>('/api/admin/members?limit=500', { token }),
       ]);
       setChurch(churchRow);
-      setMembers(memberRows);
+      setMembers(unwrapPaginatedArray(memberRows));
     }
     load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load dashboard'));
   }, [token, user]);

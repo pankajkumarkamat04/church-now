@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
 
@@ -13,8 +13,10 @@ export function useSuperadminChurches() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const c = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
-    setChurches(c);
+    const raw = await apiFetch<ChurchRecord[] | Paginated<ChurchRecord>>('/api/superadmin/churches?limit=500', {
+      token,
+    });
+    setChurches(unwrapPaginatedArray(raw));
   }, [token]);
 
   useEffect(() => {

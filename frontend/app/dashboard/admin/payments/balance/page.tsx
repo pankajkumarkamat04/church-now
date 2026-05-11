@@ -1,9 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 import {
   DISPLAY_CURRENCY_OPTIONS,
   type DisplayCurrency,
@@ -25,6 +28,9 @@ export default function AdminPaymentsBalancePage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [members, setMembers] = useState<MemberBalanceRow[]>([]);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const pagedMembers = useMemo(() => members.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [members, page]);
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [depositCurrency, setDepositCurrency] = useState<DisplayCurrency>('USD');
@@ -190,7 +196,7 @@ export default function AdminPaymentsBalancePage() {
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => {
+            {pagedMembers.map((m) => {
               const usd = Number(m.walletBalance || 0);
               const shown =
                 rates && listDisplay !== 'USD' ? usdToDisplayAmount(usd, listDisplay, rates.foreignPerUsd) : usd;
@@ -221,6 +227,7 @@ export default function AdminPaymentsBalancePage() {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} total={members.length} limit={PAGE_SIZE} onPageChange={setPage} className="mt-4" />
     </>
   );
 }

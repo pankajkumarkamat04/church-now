@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
+import { apiFetch, type AuthUser, type Gender, type MemberAddress, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
 
@@ -68,8 +68,11 @@ export default function SuperadminUserEditPage() {
             ? [u.church._id]
             : [];
       setChurchIds(ids);
-      const allChurches = await apiFetch<ChurchRecord[]>('/api/superadmin/churches', { token });
-      setChurches(allChurches);
+      const allChurchesRaw = await apiFetch<ChurchRecord[] | Paginated<ChurchRecord>>(
+        '/api/superadmin/churches?limit=500',
+        { token }
+      );
+      setChurches(unwrapPaginatedArray(allChurchesRaw));
     }
     if (u.role === 'MEMBER' || isPromotedChurchAdmin) {
       const confId =
@@ -94,14 +97,15 @@ export default function SuperadminUserEditPage() {
       setMembershipDate(u.membershipDate || '');
       setBaptismDate(u.baptismDate || '');
       setAddress(u.address ? { ...emptyAddress, ...u.address } : emptyAddress);
-      const [allConferences, allSubChurches, allCouncils] = await Promise.all([
-        apiFetch<Array<{ _id: string; name: string; conferenceId?: string }>>('/api/superadmin/conferences', {
-          token,
-        }),
+      const [allConferencesRaw, allSubChurches, allCouncils] = await Promise.all([
+        apiFetch<Array<{ _id: string; name: string; conferenceId?: string }> | Paginated<{ _id: string; name: string; conferenceId?: string }>>(
+          '/api/superadmin/conferences?limit=500',
+          { token }
+        ),
         apiFetch<ChurchRecord[]>('/api/superadmin/sub-churches', { token }),
         apiFetch<Array<{ _id: string; name: string }>>('/api/superadmin/councils', { token }),
       ]);
-      setConferences(allConferences);
+      setConferences(unwrapPaginatedArray(allConferencesRaw));
       setChurches(allSubChurches);
       setCouncils(allCouncils);
     }

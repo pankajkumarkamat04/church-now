@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Users, X } from 'lucide-react';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import type { ChurchRecord, LocalLeadership } from '@/app/dashboard/superadmin/churches/types';
 
 const field =
@@ -115,10 +115,11 @@ export function ChurchLeadershipModal({
   const loadMembers = useCallback(async () => {
     if (!token || !churchId) return;
     setLoadErr(null);
-    const rows = await apiFetch<AuthUser[]>(
-      `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}`,
+    const raw = await apiFetch<AuthUser[] | Paginated<AuthUser>>(
+      `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}&limit=500`,
       { token }
     );
+    const rows = unwrapPaginatedArray(raw);
     setSpiritualMemberIds(
       rows
         .filter((u) => String(u.memberRoleDisplay || '').toLowerCase().includes('spiritual'))

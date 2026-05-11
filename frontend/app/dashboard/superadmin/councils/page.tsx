@@ -1,11 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type CouncilRow = { _id: string; name: string };
 
@@ -21,6 +24,9 @@ export default function SuperadminCouncilsPage() {
   const [createName, setCreateName] = useState('');
   const [createBusy, setCreateBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const paged = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [rows, page]);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -126,7 +132,7 @@ export default function SuperadminCouncilsPage() {
             </tr>
           </thead>
           <tbody className="text-neutral-800">
-            {rows.map((row) => (
+            {paged.map((row) => (
               <tr key={row._id} className="border-b border-neutral-100 last:border-0">
                 <td className="px-4 py-3">{row.name}</td>
                 <td className="px-4 py-3">
@@ -154,6 +160,7 @@ export default function SuperadminCouncilsPage() {
           </tbody>
         </table>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No councils yet.</p> : null}
+        <Pagination page={page} totalPages={totalPages} total={rows.length} limit={PAGE_SIZE} onPageChange={setPage} />
       </div>
       {createOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

@@ -1,6 +1,7 @@
 const Expense = require('../models/Expense');
 const Church = require('../models/Church');
 const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 function churchId(req) {
   return req.user?.church;
@@ -69,21 +70,30 @@ async function buildExpensePayload(body) {
 async function listAdminExpenses(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const church = await loadChurchLeadership(cid);
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [church, total, rows] = await Promise.all([
+    loadChurchLeadership(cid),
+    Expense.countDocuments({ church: cid }),
+    Expense.find({ church: cid })
+      .populate('conference', 'name conferenceId')
+      .populate('createdBy', 'email fullName')
+      .populate('approvedBy', 'email fullName')
+      .sort({ expenseDate: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
   const roleSet = toLeadershipRoleSet(church, req.user?._id);
-  const rows = await Expense.find({ church: cid })
-    .populate('conference', 'name conferenceId')
-    .populate('createdBy', 'email fullName')
-    .populate('approvedBy', 'email fullName')
-    .sort({ expenseDate: -1, createdAt: -1 });
   return res.json(
-    rows.map((row) => ({
-      ...(row.toObject ? row.toObject() : row),
-      canCurrentUserInitiate: roleSet.has('VICE_TREASURER'),
-      canCurrentUserVerify: roleSet.has('TREASURER'),
-      canCurrentUserNoticeApprove:
-        roleSet.has('VICE_SECRETARY') || roleSet.has('SECRETARY') || roleSet.has('VICE_DEACON') || roleSet.has('DEACON'),
-    }))
+    paginatedResponse(
+      rows.map((row) => ({
+        ...(row.toObject ? row.toObject() : row),
+        canCurrentUserInitiate: roleSet.has('VICE_TREASURER'),
+        canCurrentUserVerify: roleSet.has('TREASURER'),
+        canCurrentUserNoticeApprove:
+          roleSet.has('VICE_SECRETARY') || roleSet.has('SECRETARY') || roleSet.has('VICE_DEACON') || roleSet.has('DEACON'),
+      })),
+      total, page, limit
+    )
   );
 }
 
@@ -260,6 +270,7 @@ async function listSuperadminExpenses(req, res) {
   const churchFilter = String(req.query.churchId || '').trim();
   const conferenceFilter = String(req.query.conferenceId || '').trim();
   const statusFilter = String(req.query.approvalStatus || '').trim().toUpperCase();
+  const { page, limit, skip } = getPaginationParams(req.query);
   const q = {};
   if (churchFilter) {
     q.church = churchFilter;
@@ -270,13 +281,18 @@ async function listSuperadminExpenses(req, res) {
   if (['PENDING', 'APPROVED', 'REJECTED'].includes(statusFilter)) {
     q.approvalStatus = statusFilter;
   }
-  const rows = await Expense.find(q)
-    .populate('church', 'name')
-    .populate('conference', 'name conferenceId')
-    .populate('createdBy', 'email fullName')
-    .populate('approvedBy', 'email fullName')
-    .sort({ expenseDate: -1, createdAt: -1 });
-  return res.json(rows);
+  const [total, rows] = await Promise.all([
+    Expense.countDocuments(q),
+    Expense.find(q)
+      .populate('church', 'name')
+      .populate('conference', 'name conferenceId')
+      .populate('createdBy', 'email fullName')
+      .populate('approvedBy', 'email fullName')
+      .sort({ expenseDate: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function getSuperadminExpense(req, res) {

@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Building2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 type Conference = { _id: string; name: string; conferenceId?: string; description?: string; isActive: boolean };
 
@@ -15,12 +18,15 @@ export default function SuperadminConferencesPage() {
   const [rows, setRows] = useState<Conference[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
 
   const load = useCallback(async () => {
     if (!token) return;
-    const list = await apiFetch<Conference[]>('/api/superadmin/conferences', { token });
-    setRows(list);
-  }, [token]);
+    const res = await apiFetch<{ data: Conference[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/conferences?page=${page}&limit=${PAGE_SIZE}`, { token });
+    setRows(res.data ?? []);
+    setMeta({ total: res.total ?? 0, totalPages: res.totalPages ?? 1, limit: res.limit ?? PAGE_SIZE });
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -114,6 +120,7 @@ export default function SuperadminConferencesPage() {
         </div>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No conferences yet.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
     </div>
   );
 }

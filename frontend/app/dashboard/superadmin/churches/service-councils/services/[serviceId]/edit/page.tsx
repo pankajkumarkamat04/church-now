@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchMemberRef, ChurchRecord, ServiceCouncil } from '../../../../types';
 
@@ -55,14 +55,14 @@ export default function EditServicePage() {
     const firstMain = mains[0] || null;
     setMainChurch(firstMain);
     if (!firstMain?._id) return;
-    const [serviceCouncils, conferenceRows, churchRows] = await Promise.all([
+    const [serviceCouncils, conferenceRaw, churchRaw] = await Promise.all([
       apiFetch<ServiceCouncil[]>(`/api/superadmin/main-churches/${firstMain._id}/service-councils`, { token }),
-      apiFetch<Conference[]>('/api/superadmin/conferences', { token }),
-      apiFetch<ChurchOption[]>('/api/superadmin/churches', { token }),
+      apiFetch<Conference[] | Paginated<Conference>>('/api/superadmin/conferences?limit=500', { token }),
+      apiFetch<ChurchOption[] | Paginated<ChurchOption>>('/api/superadmin/churches?limit=500', { token }),
     ]);
     setCouncils(serviceCouncils);
-    setConferences(conferenceRows);
-    setChurches(churchRows);
+    setConferences(unwrapPaginatedArray(conferenceRaw));
+    setChurches(unwrapPaginatedArray(churchRaw));
 
     let foundCouncilId = requestedCouncilId;
     let foundService:
@@ -105,16 +105,20 @@ export default function EditServicePage() {
       setMembers([]);
       return;
     }
-    apiFetch<UserListItem[]>(`/api/superadmin/users?churchId=${churchId}&role=MEMBER`, { token })
-      .then((rows) =>
+    apiFetch<UserListItem[] | Paginated<UserListItem>>(
+      `/api/superadmin/users?churchId=${churchId}&role=MEMBER&limit=500`,
+      { token }
+    )
+      .then((raw) => {
+        const rows = unwrapPaginatedArray(raw);
         setMembers(
           rows.map((u) => ({
             _id: u.id,
             fullName: u.fullName,
             email: u.email,
           }))
-        )
-      )
+        );
+      })
       .catch(() => setMembers([]));
   }, [token, churchId]);
 

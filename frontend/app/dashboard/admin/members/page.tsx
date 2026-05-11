@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Eye, Pencil, Plus, UserX } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
 
 type MemberRow = AuthUser & { id: string };
 
@@ -33,6 +34,8 @@ export default function AdminMembersListPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [churchName, setChurchName] = useState('My church');
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilId, setCouncilId] = useState('');
@@ -46,17 +49,20 @@ export default function AdminMembersListPage() {
   const load = useCallback(async () => {
     if (!token) return;
     setErr(null);
-    const query = new URLSearchParams();
+    const query = new URLSearchParams({ page: String(page), limit: '20' });
     if (councilId) query.set('councilId', councilId);
     if (isActiveFilter) query.set('isActive', isActiveFilter);
     if (badgeFilter) query.set('memberBadgeType', badgeFilter);
-    const [m, c] = await Promise.all([
-      apiFetch<MemberRow[]>(`/api/admin/members?${query.toString()}`, { token }),
+    const [res, c] = await Promise.all([
+      apiFetch<{ data: MemberRow[]; total: number; page: number; limit: number; totalPages: number }>(
+        `/api/admin/members?${query.toString()}`, { token }
+      ),
       apiFetch<{ name?: string }>('/api/admin/church', { token }),
     ]);
-    setMembers(m);
+    setMembers(res.data);
+    setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
     setChurchName(c?.name || 'My church');
-  }, [token, councilId, isActiveFilter, badgeFilter]);
+  }, [token, councilId, isActiveFilter, badgeFilter, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN')) {
@@ -364,6 +370,14 @@ export default function AdminMembersListPage() {
           <p className="px-4 py-8 text-center text-sm text-neutral-500">No members yet.</p>
         ) : null}
       </div>
+      <Pagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit}
+        onPageChange={setPage}
+        className="mt-2"
+      />
     </div>
   );
 }

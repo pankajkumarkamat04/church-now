@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { Pagination } from '@/components/ui/Pagination';
+
+const PAGE_SIZE = 20;
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
@@ -36,6 +39,8 @@ export default function SuperadminPastorTermsPage() {
   const [transferToByTerm, setTransferToByTerm] = useState<Record<string, string>>({});
   const [busyTermId, setBusyTermId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -44,23 +49,20 @@ export default function SuperadminPastorTermsPage() {
   useEffect(() => {
     async function load() {
       if (!token || user?.role !== 'SUPERADMIN') return;
-      const [churchRows, pastorRows] = await Promise.all([
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (selectedChurchId) params.set('churchId', selectedChurchId);
+      const [churchRows, termsRes] = await Promise.all([
         apiFetch<ChurchOption[]>('/api/superadmin/churches', { token }),
-        apiFetch<PastorRow[]>('/api/superadmin/pastor-terms', { token }),
+        apiFetch<{ data: PastorRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/pastor-terms?${params.toString()}`, { token }),
       ]);
       setChurches(churchRows);
-      setRows(pastorRows);
+      setRows(termsRes.data ?? []);
+      setMeta({ total: termsRes.total ?? 0, totalPages: termsRes.totalPages ?? 1, limit: termsRes.limit ?? PAGE_SIZE });
     }
     load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load leader terms'));
-  }, [token, user]);
+  }, [token, user, page, selectedChurchId]);
 
-  const filtered = useMemo(() => {
-    if (!selectedChurchId) return rows;
-    return rows.filter((r) => {
-      const cid = typeof r.church === 'object' && r.church ? r.church._id : '';
-      return cid === selectedChurchId;
-    });
-  }, [rows, selectedChurchId]);
+  const filtered = rows;
 
   async function renew(termId: string) {
     if (!token) return;
@@ -68,8 +70,11 @@ export default function SuperadminPastorTermsPage() {
     setErr(null);
     try {
       await apiFetch(`/api/superadmin/pastor-terms/${termId}/renew`, { method: 'POST', token });
-      const terms = await apiFetch<PastorRow[]>('/api/superadmin/pastor-terms', { token });
-      setRows(terms);
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (selectedChurchId) params.set('churchId', selectedChurchId);
+      const termsRes = await apiFetch<{ data: PastorRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/pastor-terms?${params.toString()}`, { token });
+      setRows(termsRes.data ?? []);
+      setMeta({ total: termsRes.total ?? 0, totalPages: termsRes.totalPages ?? 1, limit: termsRes.limit ?? PAGE_SIZE });
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to renew');
     } finally {
@@ -89,8 +94,11 @@ export default function SuperadminPastorTermsPage() {
         token,
         body: JSON.stringify({ toChurchId }),
       });
-      const terms = await apiFetch<PastorRow[]>('/api/superadmin/pastor-terms', { token });
-      setRows(terms);
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (selectedChurchId) params.set('churchId', selectedChurchId);
+      const termsRes = await apiFetch<{ data: PastorRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/pastor-terms?${params.toString()}`, { token });
+      setRows(termsRes.data ?? []);
+      setMeta({ total: termsRes.total ?? 0, totalPages: termsRes.totalPages ?? 1, limit: termsRes.limit ?? PAGE_SIZE });
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to transfer');
     } finally {
@@ -112,7 +120,7 @@ export default function SuperadminPastorTermsPage() {
         </div>
         <div className="w-full sm:w-80 space-y-2">
           <label className="mb-1 block text-xs font-medium text-neutral-600">Filter by church</label>
-          <select value={selectedChurchId} onChange={(e) => setSelectedChurchId(e.target.value)} className={field}>
+          <select value={selectedChurchId} onChange={(e) => { setSelectedChurchId(e.target.value); setPage(1); }} className={field}>
             <option value="">All churches</option>
             {churches.map((c) => (
               <option key={c._id} value={c._id}>
@@ -188,6 +196,7 @@ export default function SuperadminPastorTermsPage() {
         </table>
         {filtered.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No leader terms found.</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
     </div>
   );
 }

@@ -46,7 +46,7 @@ export default function SuperadminFinanceOverviewPage() {
     <div className="w-full min-w-0 max-w-6xl">
       <FinanceSectionNav variant="superadmin" />
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Unified finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Overview</h1>
       </div>
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}

@@ -2,6 +2,7 @@ const Announcement = require('../models/Announcement');
 const Church = require('../models/Church');
 const User = require('../models/User');
 const { ANNOUNCEMENT_TARGET_ROLES } = require('../models/Announcement');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 const LEADERSHIP_ROLE_TO_FIELD = {
   TREASURER: 'treasurer',
@@ -38,14 +39,41 @@ async function normalizeTargetUsers(inputUserIds, churchId) {
   return ids;
 }
 
+const MAX_ANNOUNCEMENT_ATTACHMENTS = 10;
+
+function normalizeAttachments(input) {
+  const arr = Array.isArray(input) ? input : [];
+  const out = [];
+  for (const a of arr.slice(0, MAX_ANNOUNCEMENT_ATTACHMENTS)) {
+    const url = String(a?.url || '').trim();
+    const name = String(a?.name || '').trim();
+    if (!url || !name) continue;
+    if (!/^https?:\/\//i.test(url)) continue;
+    out.push({
+      url: url.slice(0, 2048),
+      name: name.slice(0, 240),
+      mimeType: String(a?.mimeType || '').slice(0, 120),
+      size: Math.max(0, Math.min(Number(a?.size) || 0, 50 * 1024 * 1024)),
+    });
+  }
+  return out;
+}
+
 async function listAdminAnnouncements(req, res) {
   const churchId = req.user?.church;
   if (!churchId) return res.status(400).json({ message: 'No church assigned' });
-  const rows = await Announcement.find({ scope: 'CHURCH', church: churchId })
-    .populate('createdBy', 'fullName email')
-    .populate('targetUsers', 'fullName email memberId')
-    .sort({ createdAt: -1 });
-  return res.json(rows);
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const q = { scope: 'CHURCH', church: churchId };
+  const [total, rows] = await Promise.all([
+    Announcement.countDocuments(q),
+    Announcement.find(q)
+      .populate('createdBy', 'fullName email')
+      .populate('targetUsers', 'fullName email memberId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function createAdminAnnouncement(req, res) {
@@ -56,6 +84,7 @@ async function createAdminAnnouncement(req, res) {
   if (!title || !message) return res.status(400).json({ message: 'title and message are required' });
   const targetRoles = normalizeTargetRoles(req.body?.targetRoles);
   const targetUsers = await normalizeTargetUsers(req.body?.targetUserIds, churchId);
+  const attachments = normalizeAttachments(req.body?.attachments);
   const row = await Announcement.create({
     title,
     message,
@@ -63,6 +92,7 @@ async function createAdminAnnouncement(req, res) {
     church: churchId,
     targetRoles,
     targetUsers,
+    attachments,
     createdBy: req.user._id,
     createdByRole: req.user.role,
   });
@@ -75,15 +105,21 @@ async function createAdminAnnouncement(req, res) {
 async function listSuperadminAnnouncements(req, res) {
   const churchId = String(req.query?.churchId || '').trim();
   const scope = String(req.query?.scope || '').trim().toUpperCase();
+  const { page, limit, skip } = getPaginationParams(req.query);
   const q = {};
   if (scope === 'SYSTEM' || scope === 'CHURCH') q.scope = scope;
   if (churchId) q.church = churchId;
-  const rows = await Announcement.find(q)
-    .populate('church', 'name')
-    .populate('createdBy', 'fullName email')
-    .populate('targetUsers', 'fullName email memberId')
-    .sort({ createdAt: -1 });
-  return res.json(rows);
+  const [total, rows] = await Promise.all([
+    Announcement.countDocuments(q),
+    Announcement.find(q)
+      .populate('church', 'name')
+      .populate('createdBy', 'fullName email')
+      .populate('targetUsers', 'fullName email memberId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function createSuperadminAnnouncement(req, res) {
@@ -102,6 +138,7 @@ async function createSuperadminAnnouncement(req, res) {
   }
   const targetRoles = normalizeTargetRoles(req.body?.targetRoles);
   const targetUsers = scope === 'CHURCH' ? await normalizeTargetUsers(req.body?.targetUserIds, resolvedChurchId) : [];
+  const attachments = normalizeAttachments(req.body?.attachments);
   const row = await Announcement.create({
     title,
     message,
@@ -109,6 +146,7 @@ async function createSuperadminAnnouncement(req, res) {
     church: resolvedChurchId,
     targetRoles,
     targetUsers,
+    attachments,
     createdBy: req.user._id,
     createdByRole: req.user.role,
   });

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 type MemberRow = {
@@ -33,12 +33,15 @@ export default function SuperadminChurchMembersPage() {
   const load = useCallback(async () => {
     if (!token || !churchId) return;
     setErr(null);
-    const [churchRow, memberRows] = await Promise.all([
+    const [churchRow, memberRaw] = await Promise.all([
       apiFetch<Church>(`/api/superadmin/churches/${churchId}`, { token }),
-      apiFetch<MemberRow[]>(`/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}`, { token }),
+      apiFetch<MemberRow[] | Paginated<MemberRow>>(
+        `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}&limit=500`,
+        { token }
+      ),
     ]);
     setChurch(churchRow);
-    setMembers(memberRows);
+    setMembers(unwrapPaginatedArray(memberRaw));
   }, [token, churchId]);
 
   useEffect(() => {

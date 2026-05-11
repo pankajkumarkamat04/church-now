@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, type AuthUser } from '@/lib/api';
+import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export type SuperadminChurch = {
@@ -30,12 +30,12 @@ export function useSuperadminData() {
     if (!token) return;
     setErr(null);
     const [c, u, co] = await Promise.all([
-      apiFetch<SuperadminChurch[]>('/api/superadmin/churches', { token }),
-      apiFetch<AuthUser[]>('/api/superadmin/users', { token }),
+      apiFetch<SuperadminChurch[] | Paginated<SuperadminChurch>>('/api/superadmin/churches?limit=500', { token }),
+      apiFetch<AuthUser[] | Paginated<AuthUser>>('/api/superadmin/users?limit=500', { token }),
       apiFetch<SuperadminCouncil[]>('/api/superadmin/councils', { token }),
     ]);
-    setChurches(c);
-    setUsers(u);
+    setChurches(unwrapPaginatedArray(c));
+    setUsers(unwrapPaginatedArray(u));
     setCouncils(co);
   }, [token]);
 

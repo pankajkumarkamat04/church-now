@@ -22,6 +22,11 @@ function toProfileResponse(userDoc) {
   delete u.passwordResetExpires;
 
   const ch = u.church && typeof u.church === 'object' ? u.church : null;
+  const ll =
+    ch && ch.localLeadership && typeof ch.localLeadership === 'object' ? ch.localLeadership : {};
+  const committeeRaw = Array.isArray(ll.committeeMembers) ? ll.committeeMembers : [];
+  const isChurchCommitteeMember =
+    u._id != null && committeeRaw.some((cid) => String(cid) === String(u._id));
   const memberRolesFromChurch = ch && u._id ? collectCongregationRoleLabelsForUser(ch, u._id) : [];
   const memberRoleDisplay =
     String(u.memberRoleDisplay || '').trim() ||
@@ -86,6 +91,8 @@ function toProfileResponse(userDoc) {
     memberCategory: u.memberCategory || 'MEMBER',
     memberBadgeType: u.memberBadgeType || 'NON_BADGED',
     memberRolesFromChurch,
+    /** Listed on church leadership committee (badge-only; no auto admin). */
+    isChurchCommitteeMember,
     memberRoleDisplay,
     /** Congregation-unique member number (not the system user id) */
     memberId: u.memberId || '',

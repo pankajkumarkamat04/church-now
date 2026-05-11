@@ -2,6 +2,7 @@ const Church = require('../models/Church');
 const User = require('../models/User');
 const ChurchChangeRequest = require('../models/ChurchChangeRequest');
 const Conference = require('../models/Conference');
+const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
 async function listMyChurchChangeRequests(req, res) {
   const rows = await ChurchChangeRequest.find({ user: req.user._id })
@@ -66,13 +67,19 @@ async function listSuperadminChurchChangeRequests(req, res) {
   if (['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
     filter.status = status;
   }
-  const rows = await ChurchChangeRequest.find(filter)
-    .populate('user', 'fullName email')
-    .populate('fromChurch', 'name')
-    .populate('toChurch', 'name')
-    .populate('reviewedBy', 'fullName email')
-    .sort({ createdAt: -1 });
-  return res.json(rows);
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const [total, rows] = await Promise.all([
+    ChurchChangeRequest.countDocuments(filter),
+    ChurchChangeRequest.find(filter)
+      .populate('user', 'fullName email')
+      .populate('fromChurch', 'name')
+      .populate('toChurch', 'name')
+      .populate('reviewedBy', 'fullName email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+  return res.json(paginatedResponse(rows, total, page, limit));
 }
 
 async function decideChurchChangeRequest(req, res) {

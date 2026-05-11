@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
+import { Pagination } from '@/components/ui/Pagination';
 
 type AssetRow = {
   _id: string;
@@ -25,6 +26,8 @@ export default function SuperadminFinanceAssetsPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [rows, setRows] = useState<AssetRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -32,12 +35,15 @@ export default function SuperadminFinanceAssetsPage() {
     if (!token) return;
     setBusy(true);
     try {
-      const result = await apiFetch<AssetRow[]>('/api/superadmin/assets', { token });
-      setRows(result);
+      const res = await apiFetch<{ data: AssetRow[]; total: number; page: number; limit: number; totalPages: number }>(
+        `/api/superadmin/assets?page=${page}&limit=20`, { token }
+      );
+      setRows(res.data);
+      setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
     } finally {
       setBusy(false);
     }
-  }, [token]);
+  }, [token, page]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -113,6 +119,7 @@ export default function SuperadminFinanceAssetsPage() {
         {!busy && rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No assets found.</p> : null}
         {busy ? <p className="px-4 py-8 text-center text-sm text-neutral-500">Loading assets…</p> : null}
       </div>
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-2" />
     </div>
   );
 }
