@@ -231,6 +231,22 @@ async function updateConference(req, res) {
   return res.json(await Conference.findById(row._id).populate(CONFERENCE_LEADERSHIP_POPULATE));
 }
 
+/** PATCH body: `{ localLeadership: { superintendent?, ... } }` — same validation as full conference update. */
+async function updateConferenceLeadership(req, res) {
+  const row = await Conference.findById(req.params.conferenceId);
+  if (!row) return res.status(404).json({ message: 'Conference not found' });
+  if (req.body?.localLeadership === undefined || typeof req.body.localLeadership !== 'object') {
+    return res.status(400).json({ message: 'localLeadership object is required' });
+  }
+  try {
+    row.localLeadership = await validateConferenceLeadership(row._id, req.body.localLeadership);
+  } catch (e) {
+    return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid conference leadership data' });
+  }
+  await row.save();
+  return res.json(await Conference.findById(row._id).populate(CONFERENCE_LEADERSHIP_POPULATE));
+}
+
 async function removeConference(req, res) {
   const row = await Conference.findById(req.params.conferenceId).select('_id');
   if (!row) return res.status(404).json({ message: 'Conference not found' });
@@ -254,6 +270,7 @@ module.exports = {
   getConference,
   createConference,
   updateConference,
+  updateConferenceLeadership,
   removeConference,
   listPublicConferences,
 };

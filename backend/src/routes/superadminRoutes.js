@@ -90,6 +90,10 @@ router.get('/conferences', asyncHandler(conferenceController.listConferences));
 router.get('/conferences/:conferenceId', asyncHandler(conferenceController.getConference));
 router.post('/conferences', asyncHandler(conferenceController.createConference));
 router.put('/conferences/:conferenceId', asyncHandler(conferenceController.updateConference));
+router.patch(
+  '/conferences/:conferenceId/leadership',
+  asyncHandler(conferenceController.updateConferenceLeadership)
+);
 router.delete('/conferences/:conferenceId', asyncHandler(conferenceController.removeConference));
 
 router.get('/media', asyncHandler(mediaController.list));

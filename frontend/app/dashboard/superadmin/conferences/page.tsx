@@ -3,14 +3,29 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Building2, Loader2, Pencil, Plus, Shield, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
+import {
+  ConferenceLeadershipModal,
+  conferenceLeadershipSummary,
+} from '@/components/conference/ConferenceLeadershipModal';
 
 const PAGE_SIZE = 20;
 
-type Conference = { _id: string; name: string; conferenceId?: string; description?: string; isActive: boolean };
+const actionIconBtn =
+  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
+
+type Conference = {
+  _id: string;
+  name: string;
+  conferenceId?: string;
+  description?: string;
+  isActive: boolean;
+  /** Present when API populates leadership (list uses same shape as GET). */
+  localLeadership?: Record<string, string | { _id?: string } | null | undefined>;
+};
 
 export default function SuperadminConferencesPage() {
   const { user, token, loading } = useAuth();
@@ -18,6 +33,7 @@ export default function SuperadminConferencesPage() {
   const [rows, setRows] = useState<Conference[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
+  const [leadershipConference, setLeadershipConference] = useState<Conference | null>(null);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: PAGE_SIZE });
 
@@ -87,7 +103,7 @@ export default function SuperadminConferencesPage() {
                   <td className="px-4 py-2 text-neutral-600">{r.conferenceId || '—'}</td>
                   <td className="px-4 py-2 text-neutral-600">{r.isActive ? 'Active' : 'Inactive'}</td>
                   <td className="px-4 py-2">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Link
                         href={`/dashboard/superadmin/conferences/${r._id}/edit`}
                         className="inline-flex items-center rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
@@ -95,6 +111,15 @@ export default function SuperadminConferencesPage() {
                         <Pencil className="mr-1 size-3.5" />
                         Edit
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => setLeadershipConference(r)}
+                        className={actionIconBtn}
+                        title={conferenceLeadershipSummary(r)}
+                        aria-label="Edit conference leadership"
+                      >
+                        <Shield className="size-3.5" aria-hidden />
+                      </button>
                       <Link
                         href={`/dashboard/superadmin/conferences/${r._id}/churches`}
                         className="inline-flex items-center rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
@@ -121,6 +146,17 @@ export default function SuperadminConferencesPage() {
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No conferences yet.</p> : null}
       </div>
       <Pagination page={page} totalPages={meta.totalPages} total={meta.total} limit={meta.limit} onPageChange={setPage} className="mt-4" />
+
+      <ConferenceLeadershipModal
+        open={Boolean(leadershipConference)}
+        onClose={() => setLeadershipConference(null)}
+        conferenceId={leadershipConference?._id || ''}
+        conferenceName={leadershipConference?.name || ''}
+        token={token}
+        onSaved={() => {
+          load().catch(() => {});
+        }}
+      />
     </div>
   );
 }
