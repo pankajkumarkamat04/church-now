@@ -30,6 +30,8 @@ type PastorTerm = {
   termStart: string; termEnd: string;
   church?: { _id?: string; name?: string };
   transferredToChurch?: { _id?: string; name?: string };
+  /** User id of the assigned pastor (ref: User); populated in list APIs */
+  pastor?: { _id?: string; fullName?: string; email?: string; memberId?: string } | string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -89,14 +91,21 @@ export default function SuperadminPastorDetailPage() {
     if (!token || !recordId || user?.role !== 'SUPERADMIN') return;
     setPageLoading(true);
     try {
-      const [rec, termRows, churchRows] = await Promise.all([
+      const [rec, termRes, churchRes] = await Promise.all([
         apiFetch<PastorDetail>(`/api/superadmin/pastors/${recordId}`, { token }),
-        apiFetch<PastorTerm[]>('/api/superadmin/pastor-terms', { token }),
-        apiFetch<{ _id: string; name: string }[]>('/api/superadmin/churches', { token }),
+        apiFetch<{ data: PastorTerm[] } | PastorTerm[]>('/api/superadmin/pastor-terms?limit=200', { token }),
+        apiFetch<{ data: { _id: string; name: string }[] } | { _id: string; name: string }[]>('/api/superadmin/churches?limit=500', { token }),
       ]);
+      const termRows = Array.isArray(termRes) ? termRes : (termRes.data ?? []);
+      const churchRows = Array.isArray(churchRes) ? churchRes : (churchRes.data ?? []);
       setPastor(rec);
       const memberId = typeof rec.member === 'object' && rec.member ? rec.member._id : '';
-      setTerms(termRows.filter((t) => t.pastor && (t.pastor as { _id?: string })._id === memberId));
+      const termPastorId = (t: PastorTerm) => {
+        const p = t.pastor;
+        if (p == null || p === '') return '';
+        return typeof p === 'object' ? String(p._id ?? '') : String(p);
+      };
+      setTerms(termRows.filter((t) => memberId && termPastorId(t) === memberId));
       setChurches(churchRows);
 
       // Prefill edit fields
