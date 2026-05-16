@@ -6,6 +6,8 @@ const pastorTermSchema = new mongoose.Schema(
     church: { type: mongoose.Schema.Types.ObjectId, ref: 'Church', required: true, index: true },
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     termNumber: { type: Number, enum: [1, 2], default: 1 },
+    /** Length of each term cycle in years (1 or 4). */
+    termLengthYears: { type: Number, enum: [1, 4], default: 4 },
     termStart: { type: Date, required: true },
     termEnd: { type: Date, required: true },
     status: {

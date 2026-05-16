@@ -41,6 +41,8 @@ const serviceCouncilController = require('../controllers/serviceCouncilControlle
 const announcementController = require('../controllers/announcementController');
 const systemSettingController = require('../controllers/systemSettingController');
 const remittanceController = require('../controllers/remittanceController');
+const churchLogoController = require('../controllers/churchLogoController');
+const passwordAdminController = require('../controllers/passwordAdminController');
 
 const router = express.Router();
 
@@ -154,6 +156,11 @@ router.post('/churches/:churchId/admins', asyncHandler(createChurchAdmin));
 router.get('/churches/:id', asyncHandler(getChurch));
 router.put('/churches/:id', asyncHandler(updateChurch));
 router.delete('/churches/:id', asyncHandler(deleteChurch));
+router.post(
+  '/churches/:churchId/logo',
+  mediaController.upload.single('file'),
+  asyncHandler(churchLogoController.uploadChurchLogo)
+);
 
 router.get('/users', asyncHandler(listUsers));
 router.get('/councils', asyncHandler(listCouncils));
@@ -179,12 +186,14 @@ router.get('/pastor-terms', asyncHandler(pastorController.listSuperadminPastorTe
 router.post('/pastor-terms/assign', asyncHandler(pastorController.assignPastorTerm));
 router.post('/pastor-terms/:termId/renew', asyncHandler(pastorController.renewPastorTerm));
 router.post('/pastor-terms/:termId/transfer', asyncHandler(pastorController.transferPastor));
+router.delete('/pastor-terms/:termId', asyncHandler(pastorController.removeSpiritualLeader));
 router.post('/members', asyncHandler(createMemberUser));
 router.get('/pending-approvals', asyncHandler(listPendingApprovals));
 router.patch('/members/:memberId/approve', asyncHandler(approvePendingMember));
 router.patch('/members/:memberId/reject', asyncHandler(rejectPendingMember));
 router.get('/users/:id', asyncHandler(getUser));
 router.put('/users/:id', asyncHandler(updateUser));
+router.post('/users/:id/reset-password', asyncHandler(passwordAdminController.superadminResetUserPassword));
 router.delete('/users/:id', asyncHandler(deleteUser));
 router.post('/users/superadmin', asyncHandler(createSuperadminUser));
 

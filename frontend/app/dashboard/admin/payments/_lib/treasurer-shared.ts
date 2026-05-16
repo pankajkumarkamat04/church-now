@@ -1,4 +1,5 @@
-import type { PaymentOption } from '@/lib/payments';
+import { PAYMENT_OPTIONS } from '@/lib/payments';
+import { emptyAmountsForCodes } from '@/lib/paymentTypes';
 import type { AuthUser } from '@/lib/api';
 
 export type PaymentRow = {
@@ -79,22 +80,15 @@ export function memberDropdownLabel(m: MemberBalanceRow): string {
   return `${name}${idPart} · ${office} · ${acct}`;
 }
 
-export function emptyAmountsByOption(): Record<PaymentOption, string> {
-  return {
-    TITHE: '',
-    BUILDING: '',
-    ROOF: '',
-    GAZALAND: '',
-    UTC: '',
-    THANKS: '',
-    MUSIC: '',
-    XMAS: '',
-    HARVEST: '',
-  };
+export function emptyAmountsByOption(codes: string[] = [...PAYMENT_OPTIONS]): Record<string, string> {
+  return emptyAmountsForCodes(codes);
 }
 
-export function hasTreasurerPrivileges(user: Pick<AuthUser, 'memberRoleDisplay' | 'memberRolesFromChurch'> | null | undefined): boolean {
+export function hasTreasurerPrivileges(
+  user: Pick<AuthUser, 'memberRoleDisplay' | 'memberRolesFromChurch' | 'canManageTreasury'> | null | undefined
+): boolean {
   if (!user) return false;
+  if (user.canManageTreasury === true) return true;
   const roles = [
     ...(Array.isArray(user.memberRolesFromChurch) ? user.memberRolesFromChurch : []),
     String(user.memberRoleDisplay || ''),

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Pencil, Shield, Trash2, UserCog } from 'lucide-react';
+import { KeyRound, Pencil, Shield, Trash2, UserCog } from 'lucide-react';
+import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
@@ -41,6 +42,7 @@ export default function SuperadminUsersListPage() {
   const [badgeFilter, setBadgeFilter] = useState<'' | 'BADGED' | 'NON_BADGED'>('');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: string; email: string; name: string } | null>(null);
   const roleLabel =
     roleFilter === 'ALL' ? 'member and admin' : roleFilter === 'MEMBER' ? 'member' : 'admin';
   const usersFilterMessage = !conferenceId
@@ -325,6 +327,22 @@ export default function SuperadminUsersListPage() {
                   <Pencil className="mr-1 size-3.5" aria-hidden />
                   Edit
                 </Link>
+                {u.isActive !== false ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setResetTarget({
+                        id: u.id,
+                        email: u.email,
+                        name: u.fullName || '',
+                      })
+                    }
+                    className={btn}
+                  >
+                    <KeyRound className="mr-1 size-3.5" aria-hidden />
+                    Reset password
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   disabled={busyId === u.id || u.id === user.id}
@@ -401,6 +419,22 @@ export default function SuperadminUsersListPage() {
                         <Pencil className="mr-1 size-3.5" aria-hidden />
                         Edit
                       </Link>
+                      {u.isActive !== false ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setResetTarget({
+                              id: u.id,
+                              email: u.email,
+                              name: u.fullName || '',
+                            })
+                          }
+                          className={btn}
+                        >
+                          <KeyRound className="mr-1 size-3.5" aria-hidden />
+                          Reset password
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         disabled={busyId === u.id || u.id === user.id}
@@ -434,6 +468,17 @@ export default function SuperadminUsersListPage() {
         }}
         className="mt-2"
       />
+      {token && resetTarget ? (
+        <ResetUserPasswordModal
+          open
+          onClose={() => setResetTarget(null)}
+          token={token}
+          apiPath={`/api/superadmin/users/${resetTarget.id}/reset-password`}
+          userEmail={resetTarget.email}
+          userName={resetTarget.name}
+          accent="violet"
+        />
+      ) : null}
     </div>
   );
 }

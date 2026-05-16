@@ -1,12 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeDisplayCurrencyInput } from '@/lib/currency';
-import { PAYMENT_OPTIONS, amountsByPaymentOption } from '@/lib/payments';
+import {
+  PAYMENT_OPTION_LABELS,
+  amountsByPaymentOption,
+  labelForPaymentType,
+  paymentColumnCodesFromLines,
+} from '@/lib/payments';
 import { Pagination } from '@/components/ui/Pagination';
 import {
   churchRoleLabel,
@@ -28,6 +33,8 @@ export default function SuperadminPaymentsHistoryPage() {
   const [depPageSize, setDepPageSize] = useState(20);
   const [depMeta, setDepMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
+  const columnCodes = useMemo(() => paymentColumnCodesFromLines(payments), [payments]);
+  const labels = PAYMENT_OPTION_LABELS;
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -161,7 +168,7 @@ export default function SuperadminPaymentsHistoryPage() {
       <div className="mt-2 rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="space-y-3 p-3 md:hidden">
           {payments.map((r) => {
-            const byType = amountsByPaymentOption(r.paymentLines);
+            const byType = amountsByPaymentOption(r.paymentLines, columnCodes);
             return (
               <div key={r._id} className="rounded-lg border border-neutral-200 bg-white p-3">
                 <p className="text-sm font-semibold text-neutral-900">{r.user?.fullName || r.user?.email || '—'}</p>
@@ -170,8 +177,10 @@ export default function SuperadminPaymentsHistoryPage() {
                 <p className="mt-1 text-xs text-neutral-600">Date: {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '—'}</p>
                 <p className="mt-1 text-xs text-neutral-600">Source: {r.source}</p>
                 <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-neutral-700">
-                  {PAYMENT_OPTIONS.map((opt) => (
-                    <p key={opt} className="truncate">{opt}: {byType[opt] > 0 ? byType[opt].toFixed(2) : '—'}</p>
+                  {columnCodes.map((opt) => (
+                    <p key={opt} className="truncate">
+                      {labelForPaymentType(opt, labels)}: {byType[opt] > 0 ? byType[opt].toFixed(2) : '—'}
+                    </p>
                   ))}
                 </div>
                 <p className="mt-2 text-sm font-medium text-neutral-900">USD {r.amount.toFixed(2)}</p>
@@ -184,9 +193,9 @@ export default function SuperadminPaymentsHistoryPage() {
             <tr>
               <th className="sticky left-0 z-10 border-r border-neutral-200 bg-neutral-50 px-4 py-2 font-medium">Church</th>
               <th className="min-w-[12rem] px-4 py-2 font-medium">Member</th>
-              {PAYMENT_OPTIONS.map((opt) => (
+              {columnCodes.map((opt) => (
                 <th key={opt} className="whitespace-nowrap px-2 py-2 text-center text-xs font-medium">
-                  {opt}
+                  {labelForPaymentType(opt, labels)}
                 </th>
               ))}
               <th className="px-4 py-2 font-medium">Total</th>
@@ -200,7 +209,7 @@ export default function SuperadminPaymentsHistoryPage() {
             {payments.map((r) => {
               const churchId =
                 r.church && typeof r.church === 'object' && '_id' in r.church ? String(r.church._id) : '';
-              const byType = amountsByPaymentOption(r.paymentLines);
+              const byType = amountsByPaymentOption(r.paymentLines, columnCodes);
               return (
                 <tr key={r._id} className="border-t border-neutral-100">
                   <td className="sticky left-0 z-10 border-r border-neutral-100 bg-white px-4 py-2">
@@ -220,7 +229,7 @@ export default function SuperadminPaymentsHistoryPage() {
                     <span className="font-medium">{r.user?.fullName || r.user?.email || '—'}</span>
                     <span className="mt-0.5 block text-xs text-neutral-600">{churchRoleLabel(r.user || {})}</span>
                   </td>
-                  {PAYMENT_OPTIONS.map((opt) => {
+                  {columnCodes.map((opt) => {
                     const v = byType[opt];
                     return (
                       <td key={opt} className="whitespace-nowrap px-2 py-2 text-right font-mono text-xs text-neutral-800">

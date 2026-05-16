@@ -68,6 +68,7 @@ const serviceCouncilSchema = new mongoose.Schema(
 const churchSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+    logoUrl: { type: String, trim: true, default: '' },
     churchType: { type: String, enum: ['MAIN', 'SUB'], default: 'MAIN', index: true },
     conference: { type: mongoose.Schema.Types.ObjectId, ref: 'Conference', default: null, index: true },
     mainChurch: { type: mongoose.Schema.Types.ObjectId, ref: 'Church', default: null, index: true },

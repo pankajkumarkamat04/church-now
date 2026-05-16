@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Loader2 } from 'lucide-react';
+import { Eye, KeyRound, Loader2 } from 'lucide-react';
+import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { useParams, useRouter } from 'next/navigation';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ export default function AdminMemberEditPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !memberId) return;
@@ -147,6 +149,16 @@ export default function AdminMemberEditPage() {
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Edit member</h1>
         <p className="mt-1 text-sm text-neutral-600">{profile.email}</p>
+        {profile.isActive !== false && token ? (
+          <button
+            type="button"
+            onClick={() => setResetOpen(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100"
+          >
+            <KeyRound className="size-4" aria-hidden />
+            Reset password
+          </button>
+        ) : null}
         <form className="mt-6 grid gap-4 sm:grid-cols-2" onSubmit={onSubmit}>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
@@ -302,6 +314,17 @@ export default function AdminMemberEditPage() {
           </div>
         </form>
       </div>
+      {token && profile && resetOpen ? (
+        <ResetUserPasswordModal
+          open
+          onClose={() => setResetOpen(false)}
+          token={token}
+          apiPath={`/api/admin/members/${memberId}/reset-password`}
+          userEmail={profile.email}
+          userName={profile.fullName || ''}
+          accent="sky"
+        />
+      ) : null}
     </div>
   );
 }

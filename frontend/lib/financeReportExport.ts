@@ -2,7 +2,13 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import type { FinanceTx } from '@/lib/financeTypes';
-import type { PaymentOption } from '@/lib/payments';
+import { labelForPaymentType } from '@/lib/payments';
+import {
+  brandingContactLine,
+  brandingSpreadsheetRows,
+  loadLogoForPdf,
+  type ReportBranding,
+} from '@/lib/reportBranding';
 
 function safeFileFragment(s: string): string {
   return String(s)
@@ -24,16 +30,18 @@ export type FinanceReportExportInput = {
   periodText: string;
   displayCurrency: string;
   showChurchCol: boolean;
-  paymentOptions: readonly PaymentOption[];
+  branding: ReportBranding;
+  paymentOptions: readonly string[];
+  paymentOptionLabels?: Record<string, string>;
   incomeIncluded: boolean;
   incomeMatrix: {
     rows: Array<{
       party: string;
       churchName: string | null;
-      totals: Record<PaymentOption, number>;
+      totals: Record<string, number>;
       rowTotal: number;
     }>;
-    columnTotals: Record<PaymentOption, number>;
+    columnTotals: Record<string, number>;
     grandTotal: number;
   };
   expenseIncluded: boolean;
@@ -52,13 +60,62 @@ function baseFilename(input: FinanceReportExportInput): string {
   return `finance-report-${safeFileFragment(input.scopeLabel)}-${stamp}`;
 }
 
-export function downloadFinanceReportPdf(input: FinanceReportExportInput): void {
+async function drawBrandingHeader(doc: jsPDF, branding: ReportBranding, margin: number): Promise<number> {
+  let y = 36;
+  const pageW = doc.internal.pageSize.getWidth();
+  let textX = margin;
+  let textStartY = y + 4;
+
+  const logo = await loadLogoForPdf(branding.logoUrl);
+  const logoBox = 52;
+  if (logo && logo.width > 0 && logo.height > 0) {
+    const scale = Math.min(logoBox / logo.width, logoBox / logo.height, 1);
+    const w = logo.width * scale;
+    const h = logo.height * scale;
+    const format = logo.format === 'WEBP' ? 'PNG' : logo.format;
+    try {
+      doc.addImage(logo.dataUrl, format, margin, y, w, h);
+      textX = margin + w + 14;
+    } catch {
+      // Skip logo if jsPDF cannot decode format.
+    }
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(20, 20, 20);
+  doc.text(branding.name, textX, textStartY);
+  textStartY += 16;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(60, 60, 60);
+  for (const line of branding.addressLines) {
+    doc.text(line, textX, textStartY);
+    textStartY += 12;
+  }
+  const contact = brandingContactLine(branding);
+  if (contact) {
+    const wrapped = doc.splitTextToSize(contact, pageW - textX - margin);
+    doc.text(wrapped, textX, textStartY);
+    textStartY += 12 * wrapped.length;
+  }
+
+  y = Math.max(y + logoBox, textStartY) + 10;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, y, pageW - margin, y);
+  y += 16;
+  return y;
+}
+
+export async function downloadFinanceReportPdf(input: FinanceReportExportInput): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const margin = 36;
-  let y = 40;
+  let y = await drawBrandingHeader(doc, input.branding, margin);
 
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(20, 20, 20);
   doc.text('Finance report', margin, y);
   y += 22;
   doc.setFont('helvetica', 'normal');
@@ -69,6 +126,8 @@ export function downloadFinanceReportPdf(input: FinanceReportExportInput): void 
   y += 22;
 
   const opts = input.paymentOptions;
+  const optLabel = (code: string) =>
+    labelForPaymentType(code, input.paymentOptionLabels || {});
 
   if (input.incomeIncluded && input.incomeMatrix.rows.length > 0) {
     doc.setFont('helvetica', 'bold');
@@ -82,7 +141,7 @@ export function downloadFinanceReportPdf(input: FinanceReportExportInput): void 
       [
         'Payer / member',
         ...(input.showChurchCol ? ['Church'] : []),
-        ...opts.map(String),
+        ...opts.map(optLabel),
         'Total USD',
       ],
     ];
@@ -218,7 +277,7 @@ export function downloadFinanceReportPdf(input: FinanceReportExportInput): void 
   }
 
   const totalPages = doc.getNumberOfPages();
-  const footerText = `Generated — ${variantLabel(input.variant)}`;
+  const footerText = `Generated — ${variantLabel(input.variant)} — ${new Date().toLocaleString()}`;
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
     doc.setFontSize(8);
@@ -233,10 +292,17 @@ function variantLabel(v: 'admin' | 'superadmin'): string {
   return v === 'admin' ? 'Church dashboard' : 'Superadmin dashboard';
 }
 
+function prependBranding(aoa: (string | number)[][], branding: ReportBranding): (string | number)[][] {
+  return [...brandingSpreadsheetRows(branding), ...aoa];
+}
+
 export function downloadFinanceReportSpreadsheet(input: FinanceReportExportInput): void {
   const wb = XLSX.utils.book_new();
+  const { branding } = input;
 
   const opts = input.paymentOptions;
+  const optLabel = (code: string) =>
+    labelForPaymentType(code, input.paymentOptionLabels || {});
 
   if (input.incomeIncluded) {
     const aoa: (string | number)[][] = [
@@ -244,7 +310,7 @@ export function downloadFinanceReportSpreadsheet(input: FinanceReportExportInput
       ['Scope:', input.scopeLabel, '', ''],
       ['Period:', input.periodText, '', ''],
       [],
-      ['Payer / member', ...(input.showChurchCol ? ['Church'] : []), ...opts.map(String), 'Total USD'],
+      ['Payer / member', ...(input.showChurchCol ? ['Church'] : []), ...opts.map(optLabel), 'Total USD'],
     ];
     for (const row of input.incomeMatrix.rows) {
       aoa.push([
@@ -270,7 +336,7 @@ export function downloadFinanceReportSpreadsheet(input: FinanceReportExportInput
           : '',
       ]);
     }
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const ws = XLSX.utils.aoa_to_sheet(prependBranding(aoa, branding));
     XLSX.utils.book_append_sheet(wb, ws, 'Income USD');
   }
 
@@ -282,7 +348,7 @@ export function downloadFinanceReportSpreadsheet(input: FinanceReportExportInput
     if (input.expenditureByCategory.rows.length > 0) {
       aoa.push(['Total expenditure USD', Math.round(input.expenditureByCategory.totalUsd * 100) / 100]);
     }
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const ws = XLSX.utils.aoa_to_sheet(prependBranding(aoa, branding));
     XLSX.utils.book_append_sheet(wb, ws, 'Expenditure USD');
   }
 
@@ -297,7 +363,7 @@ export function downloadFinanceReportSpreadsheet(input: FinanceReportExportInput
         Math.round(v.net * 100) / 100,
       ]);
     }
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Totals');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(prependBranding(aoa, branding)), 'Totals');
   }
 
   const txHead = [
@@ -329,7 +395,7 @@ export function downloadFinanceReportSpreadsheet(input: FinanceReportExportInput
       r.reference,
     ]);
   }
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(txBody), 'Transactions');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(prependBranding(txBody, branding)), 'Transactions');
 
   XLSX.writeFile(wb, `${baseFilename(input)}.xlsx`);
 }

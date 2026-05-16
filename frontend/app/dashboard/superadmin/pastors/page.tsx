@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
@@ -57,9 +57,10 @@ type PastorRecordRow = {
   credentials?: { ordinationDate?: string; denomination?: string; qualifications?: string[] };
 };
 
-export default function SuperadminPastorsPage() {
+function SuperadminPastorsPageInner() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [churches, setChurches] = useState<ChurchOption[]>([]);
   const [selectedChurchId, setSelectedChurchId] = useState('');
   const [rows, setRows] = useState<PastorRecordRow[]>([]);
@@ -85,6 +86,11 @@ export default function SuperadminPastorsPage() {
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
   }, [loading, user, router]);
+
+  useEffect(() => {
+    const churchId = searchParams.get('churchId');
+    if (churchId) setSelectedChurchId(churchId);
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -352,5 +358,13 @@ export default function SuperadminPastorsPage() {
         className="mt-4"
       />
     </div>
+  );
+}
+
+export default function SuperadminPastorsPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-neutral-500">Loading…</div>}>
+      <SuperadminPastorsPageInner />
+    </Suspense>
   );
 }

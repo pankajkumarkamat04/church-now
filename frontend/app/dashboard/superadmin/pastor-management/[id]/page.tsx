@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
+import { pastorTermCycleLabel, pastorTermLengthLabel } from '@/lib/pastorTerms';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ type PastorDetail = {
 };
 
 type PastorTerm = {
-  _id: string; status: string; termNumber: number;
+  _id: string; status: string; termNumber: number; termLengthYears?: number;
   termStart: string; termEnd: string;
   church?: { _id?: string; name?: string };
   transferredToChurch?: { _id?: string; name?: string };
@@ -87,17 +88,35 @@ export default function SuperadminPastorDetailPage() {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
   }, [loading, user, router]);
 
+  useEffect(() => {
+    if (!recordId) return;
+    if (
+      recordId.startsWith('term_') ||
+      recordId.startsWith('leadership_') ||
+      recordId.startsWith('category_')
+    ) {
+      router.replace('/dashboard/superadmin/pastor-management?tab=terms');
+    }
+  }, [recordId, router]);
+
   async function load() {
     if (!token || !recordId || user?.role !== 'SUPERADMIN') return;
+    if (
+      recordId.startsWith('term_') ||
+      recordId.startsWith('leadership_') ||
+      recordId.startsWith('category_')
+    ) {
+      return;
+    }
     setPageLoading(true);
     try {
       const [rec, termRes, churchRes] = await Promise.all([
         apiFetch<PastorDetail>(`/api/superadmin/pastors/${recordId}`, { token }),
-        apiFetch<{ data: PastorTerm[] } | PastorTerm[]>('/api/superadmin/pastor-terms?limit=200', { token }),
-        apiFetch<{ data: { _id: string; name: string }[] } | { _id: string; name: string }[]>('/api/superadmin/churches?limit=500', { token }),
+        apiFetch<PastorTerm[] | Paginated<PastorTerm>>('/api/superadmin/pastor-terms?limit=200', { token }),
+        apiFetch<{ _id: string; name: string }[] | Paginated<{ _id: string; name: string }>>('/api/superadmin/churches?limit=500', { token }),
       ]);
-      const termRows = Array.isArray(termRes) ? termRes : (termRes.data ?? []);
-      const churchRows = Array.isArray(churchRes) ? churchRes : (churchRes.data ?? []);
+      const termRows = unwrapPaginatedArray(termRes);
+      const churchRows = unwrapPaginatedArray(churchRes);
       setPastor(rec);
       const memberId = typeof rec.member === 'object' && rec.member ? rec.member._id : '';
       const termPastorId = (t: PastorTerm) => {
@@ -379,7 +398,7 @@ export default function SuperadminPastorDetailPage() {
                       <div>
                         <p className="font-medium text-neutral-900 dark:text-neutral-100">{tChurchName}</p>
                         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                          Term {t.termNumber}/2 · {fmtDate(t.termStart)} – {fmtDate(t.termEnd)}
+                          {pastorTermCycleLabel(t.termNumber, t.termLengthYears)} · {pastorTermLengthLabel(t.termLengthYears)} · {fmtDate(t.termStart)} – {fmtDate(t.termEnd)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -494,7 +513,7 @@ export default function SuperadminPastorDetailPage() {
               {activeTerm && (
                 <div className="mt-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
                   <p>Active term: {fmtDate(activeTerm.termStart)} – {fmtDate(activeTerm.termEnd)}</p>
-                  <p>Term {activeTerm.termNumber}/2 · <span className={`font-medium ${activeTerm.status === 'TRANSFER_REQUIRED' ? 'text-amber-600' : 'text-emerald-600'}`}>{activeTerm.status.replace('_', ' ')}</span></p>
+                  <p>{pastorTermCycleLabel(activeTerm.termNumber, activeTerm.termLengthYears)} · {pastorTermLengthLabel(activeTerm.termLengthYears)} · <span className={`font-medium ${activeTerm.status === 'TRANSFER_REQUIRED' ? 'text-amber-600' : 'text-emerald-600'}`}>{activeTerm.status.replace('_', ' ')}</span></p>
                 </div>
               )}
             </div>

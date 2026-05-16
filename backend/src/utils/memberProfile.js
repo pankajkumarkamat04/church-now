@@ -11,6 +11,7 @@ function normalizeMemberBadgeType(raw) {
 }
 const GlobalCouncil = require('../models/GlobalCouncil');
 const { collectCongregationRoleLabelsForUser } = require('./churchMemberRoles');
+const { isTreasurerOrViceTreasurer } = require('./treasurerAccess');
 
 /**
  * Safe JSON shape for member / profile responses (no secrets).
@@ -31,6 +32,19 @@ function toProfileResponse(userDoc) {
   const memberRoleDisplay =
     String(u.memberRoleDisplay || '').trim() ||
     (memberRolesFromChurch.length > 0 ? memberRolesFromChurch.join(', ') : u.memberCategory || 'MEMBER');
+
+  let canManageTreasury = false;
+  if (u._id) {
+    if (ch && isTreasurerOrViceTreasurer(ch, u._id)) canManageTreasury = true;
+    if (!canManageTreasury && Array.isArray(u.adminChurches)) {
+      for (const ac of u.adminChurches) {
+        if (ac && typeof ac === 'object' && isTreasurerOrViceTreasurer(ac, u._id)) {
+          canManageTreasury = true;
+          break;
+        }
+      }
+    }
+  }
 
   const canAccessMemberPortal =
     u.role === 'MEMBER' ||
@@ -94,6 +108,8 @@ function toProfileResponse(userDoc) {
     /** Listed on church leadership committee (badge-only; no auto admin). */
     isChurchCommitteeMember,
     memberRoleDisplay,
+    /** Assigned as church treasurer or vice treasurer in local leadership. */
+    canManageTreasury,
     /** Congregation-unique member number (not the system user id) */
     memberId: u.memberId || '',
     canAccessMemberPortal,

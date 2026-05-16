@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, Pencil } from 'lucide-react';
+import { KeyRound, Loader2, Pencil } from 'lucide-react';
+import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { normalizeDisplayCurrencyInput } from '@/lib/currency';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +54,7 @@ export default function AdminMemberViewPage() {
   const [statementErr, setStatementErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loadBusy, setLoadBusy] = useState(true);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !memberId) return;
@@ -138,6 +140,16 @@ export default function AdminMemberViewPage() {
               Church admin
             </span>
           )}
+          {profile.isActive !== false && token ? (
+            <button
+              type="button"
+              onClick={() => setResetOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-800 shadow-sm hover:bg-sky-50"
+            >
+              <KeyRound className="size-4" aria-hidden />
+              Reset password
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -297,6 +309,17 @@ export default function AdminMemberViewPage() {
           </div>
         </section>
       </div>
+      {token && profile && resetOpen ? (
+        <ResetUserPasswordModal
+          open
+          onClose={() => setResetOpen(false)}
+          token={token}
+          apiPath={`/api/admin/members/${memberId}/reset-password`}
+          userEmail={profile.email}
+          userName={profile.fullName || profile.name || ''}
+          accent="sky"
+        />
+      ) : null}
     </div>
   );
 }

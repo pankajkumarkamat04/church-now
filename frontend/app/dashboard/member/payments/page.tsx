@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { PAYMENT_OPTIONS, type PaymentOption } from '@/lib/payments';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+import { emptyAmountsForCodes, useMemberPaymentTypes } from '@/lib/paymentTypes';
 import {
   DISPLAY_CURRENCY_OPTIONS,
   type DisplayCurrency,
@@ -19,7 +19,7 @@ import {
 
 type PaymentRow = {
   _id: string;
-  paymentLines?: Array<{ paymentType: PaymentOption; amount: number }>;
+  paymentLines?: Array<{ paymentType: string; amount: number }>;
   amount: number;
   currency: string;
   displayCurrency?: string;
@@ -37,22 +37,18 @@ export default function MemberPaymentsPage() {
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [rates, setRates] = useState<PublicCurrencyRates | null>(null);
   const [ratesErr, setRatesErr] = useState<string | null>(null);
-  const [amountsByOption, setAmountsByOption] = useState<Record<PaymentOption, string>>(() => ({
-    TITHE: '',
-    BUILDING: '',
-    ROOF: '',
-    GAZALAND: '',
-    UTC: '',
-    THANKS: '',
-    MUSIC: '',
-    XMAS: '',
-    HARVEST: '',
-  }));
+  const { codes, labels, loading: typesLoading } = useMemberPaymentTypes(token);
+  const [amountsByOption, setAmountsByOption] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
   const [balance, setBalance] = useState(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const totalPreview = PAYMENT_OPTIONS.reduce((sum, option) => {
+
+  useEffect(() => {
+    if (codes.length) setAmountsByOption(emptyAmountsForCodes(codes));
+  }, [codes.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totalPreview = codes.reduce((sum, option) => {
     const value = Number(amountsByOption[option] || '0');
     return sum + (Number.isFinite(value) && value > 0 ? value : 0);
   }, 0);
@@ -107,13 +103,13 @@ export default function MemberPaymentsPage() {
     setErr(null);
     setBusy(true);
     try {
-      const normalizedAmounts = PAYMENT_OPTIONS.reduce(
+      const normalizedAmounts = codes.reduce(
         (acc, option) => {
           const value = Number(amountsByOption[option] || '0');
           acc[option] = Number.isFinite(value) && value > 0 ? value : 0;
           return acc;
         },
-        {} as Record<PaymentOption, number>
+        {} as Record<string, number>
       );
       const hasAtLeastOneAmount = Object.values(normalizedAmounts).some((v) => v > 0);
       if (!hasAtLeastOneAmount) {
@@ -139,17 +135,7 @@ export default function MemberPaymentsPage() {
           note,
         }),
       });
-      setAmountsByOption({
-        TITHE: '',
-        BUILDING: '',
-        ROOF: '',
-        GAZALAND: '',
-        UTC: '',
-        THANKS: '',
-        MUSIC: '',
-        XMAS: '',
-        HARVEST: '',
-      });
+      setAmountsByOption(emptyAmountsForCodes(codes));
       setNote('');
       await load();
     } catch (error) {
@@ -184,9 +170,14 @@ export default function MemberPaymentsPage() {
         </p>
       </div>
       <form className="mt-6 grid gap-4 rounded-xl border border-neutral-200 bg-white p-5 md:grid-cols-2" onSubmit={onPay}>
-        {PAYMENT_OPTIONS.map((opt) => (
+        {typesLoading ? (
+          <p className="md:col-span-2 text-sm text-neutral-500">
+            <Loader2 className="inline size-4 animate-spin" /> Loading categories…
+          </p>
+        ) : null}
+        {codes.map((opt) => (
           <div key={opt}>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">{opt}</label>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">{labels[opt] || opt}</label>
             <input
               type="number"
               min="0"

@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const User = require('../models/User');
 const Church = require('../models/Church');
 const Conference = require('../models/Conference');
@@ -19,12 +18,10 @@ const { getConferenceLeadershipSummaryForMe } = require('../utils/conferenceLead
 const CHURCH_FIELDS =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
 
+const { hashResetToken, issuePasswordResetLink, validateNewPassword } = require('../utils/passwordReset');
+
 const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
-
-function hashResetToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
 
 /**
  * POST /api/auth/register — self-serve member signup for an existing church.
@@ -274,18 +271,13 @@ async function requestPasswordReset(req, res) {
   const user = await User.findOne({ email: normalized });
 
   if (user && user.isActive) {
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = hashResetToken(rawToken);
-    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
-    await user.save({ validateBeforeSave: false });
-
-    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const resetPath = `/reset-password?email=${encodeURIComponent(normalized)}&token=${rawToken}`;
-    const resetLink = `${frontendBase.replace(/\/$/, '')}${resetPath}`;
+    const { resetLink } = await issuePasswordResetLink(user);
+    const rawTokenMatch = resetLink.match(/[?&]token=([^&]+)/);
+    const rawToken = rawTokenMatch ? rawTokenMatch[1] : undefined;
 
     return res.json({
       message: GENERIC_FORGOT_MESSAGE,
-      ...(process.env.PASSWORD_RESET_RETURN_TOKEN === 'true'
+      ...(process.env.PASSWORD_RESET_RETURN_TOKEN === 'true' && rawToken
         ? { resetToken: rawToken, resetLink }
         : {}),
     });
@@ -302,8 +294,9 @@ async function resetPassword(req, res) {
   if (!email || !token || !password) {
     return res.status(400).json({ message: 'Email, token, and new password are required' });
   }
-  if (typeof password !== 'string' || password.length < 6) {
-    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  const passwordErr = validateNewPassword(password);
+  if (passwordErr) {
+    return res.status(400).json({ message: passwordErr });
   }
 
   const user = await User.findOne({ email: email.toLowerCase().trim() }).select(

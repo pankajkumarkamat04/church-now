@@ -2,20 +2,50 @@
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { PastorAssignModal } from './PastorAssignModal';
+import {
+  RemoveSpiritualLeaderModal,
+  type SpiritualLeaderRemoveTarget,
+} from './RemoveSpiritualLeaderModal';
+import { MAX_PASTOR_TERM_CYCLES, pastorTermCycleLabel, pastorTermLengthLabel } from '@/lib/pastorTerms';
 
 type PastorTerm = {
   _id: string;
+  _leadershipOnly?: boolean;
   pastor?: { fullName?: string; email?: string; memberId?: string };
   church?: { _id?: string; name?: string };
   termNumber: number;
-  termEnd: string;
-  status: 'ASSIGNED' | 'RENEWED' | 'TRANSFER_REQUIRED' | 'TRANSFERRED';
+  termLengthYears?: number | null;
+  termStart?: string | null;
+  termEnd?: string | null;
+  status: 'ASSIGNED' | 'RENEWED' | 'TRANSFER_REQUIRED' | 'TRANSFERRED' | 'LEADERSHIP_ONLY';
 };
+
+function isLeadershipOnlyRow(row: PastorTerm): boolean {
+  return Boolean(row._leadershipOnly) || row.status === 'LEADERSHIP_ONLY';
+}
+
+function buildRemoveTarget(row: PastorTerm, churchId: string, churchName: string): SpiritualLeaderRemoveTarget {
+  return {
+    id: row._id,
+    leadershipOnly: isLeadershipOnlyRow(row),
+    churchId,
+    churchName,
+    pastorName: row.pastor?.fullName || row.pastor?.email || '—',
+    pastorEmail: row.pastor?.email,
+    memberId: row.pastor?.memberId,
+    termNumber: row.termNumber,
+    termLengthYears: row.termLengthYears,
+    termStart: row.termStart ?? null,
+    termEnd: row.termEnd ?? null,
+    status: row.status,
+  };
+}
 const ACTIVE_STATUSES: PastorTerm['status'][] = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
 
-function isWithinRenewWindow(termEnd: string): boolean {
+function isWithinRenewWindow(termEnd?: string | null): boolean {
+  if (!termEnd) return false;
   const end = new Date(termEnd);
   if (Number.isNaN(end.getTime())) return false;
   const now = new Date();
@@ -40,17 +70,22 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
   const [assignOpen, setAssignOpen] = useState(false);
   const [transferToByTerm, setTransferToByTerm] = useState<Record<string, string>>({});
   const [busyTermId, setBusyTermId] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<SpiritualLeaderRemoveTarget | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const hasActivePastor = rows.some((r) => ACTIVE_STATUSES.includes(r.status));
+  const hasActivePastor = rows.some((r) => ACTIVE_STATUSES.includes(r.status) || isLeadershipOnlyRow(r));
 
   async function load() {
     if (!token || !churchId) return;
-    const [terms, allChurches] = await Promise.all([
-      apiFetch<PastorTerm[]>(`/api/superadmin/pastor-terms?churchId=${encodeURIComponent(churchId)}`, { token }),
-      apiFetch<ChurchOption[]>('/api/superadmin/churches', { token }),
+    const [termsRaw, allChurchesRaw] = await Promise.all([
+      apiFetch<PastorTerm[] | Paginated<PastorTerm>>(
+        `/api/superadmin/pastor-terms?churchId=${encodeURIComponent(churchId)}&limit=200`,
+        { token }
+      ),
+      apiFetch<ChurchOption[] | Paginated<ChurchOption>>('/api/superadmin/churches?limit=500', { token }),
     ]);
-    setRows(terms);
-    setChurches(allChurches);
+    setRows(unwrapPaginatedArray(termsRaw));
+    setChurches(unwrapPaginatedArray(allChurchesRaw));
   }
 
   useEffect(() => {
@@ -92,6 +127,24 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
     }
   }
 
+  async function confirmRemove() {
+    if (!token || !removeTarget) return;
+    setRemoveBusy(true);
+    setErr(null);
+    try {
+      await apiFetch(`/api/superadmin/pastor-terms/${encodeURIComponent(removeTarget.id)}`, {
+        method: 'DELETE',
+        token,
+      });
+      setRemoveTarget(null);
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to remove spiritual leader');
+    } finally {
+      setRemoveBusy(false);
+    }
+  }
+
   if (!open) return null;
 
   return (
@@ -124,60 +177,88 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
                   <th className="px-4 py-3 font-medium">Pastor</th>
                   <th className="px-4 py-3 font-medium">Member ID</th>
                   <th className="px-4 py-3 font-medium">Term</th>
+                  <th className="px-4 py-3 font-medium">Length</th>
                   <th className="px-4 py-3 font-medium">Ends</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-neutral-800">
-                {rows.map((row) => (
-                  <tr key={row._id} className="border-b border-neutral-100 last:border-0">
-                    <td className="px-4 py-3">{row.pastor?.fullName || row.pastor?.email || '—'}</td>
-                    <td className="px-4 py-3">{row.pastor?.memberId || '—'}</td>
-                    <td className="px-4 py-3">{row.termNumber}/2</td>
-                    <td className="px-4 py-3">{new Date(row.termEnd).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">{row.status}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => renew(row._id)}
-                          disabled={
-                            busyTermId === row._id ||
-                            row.termNumber >= 2 ||
-                            row.status === 'TRANSFER_REQUIRED' ||
-                            !isWithinRenewWindow(row.termEnd)
-                          }
-                          className="rounded-lg border border-violet-300 px-2 py-1 text-xs font-medium text-violet-800 disabled:opacity-50"
-                        >
-                          Renew
-                        </button>
-                        <select
-                          value={transferToByTerm[row._id] || ''}
-                          onChange={(e) => setTransferToByTerm((prev) => ({ ...prev, [row._id]: e.target.value }))}
-                          className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs"
-                        >
-                          <option value="">Transfer church</option>
-                          {churches
-                            .filter((c) => c._id !== churchId)
-                            .map((c) => (
-                              <option key={c._id} value={c._id}>
-                                {c.name}
-                              </option>
-                            ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => transfer(row._id)}
-                          disabled={busyTermId === row._id || !transferToByTerm[row._id]}
-                          className="rounded-lg border border-amber-300 px-2 py-1 text-xs font-medium text-amber-800 disabled:opacity-50"
-                        >
-                          Transfer
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((row) => {
+                  const leadershipOnly = isLeadershipOnlyRow(row);
+                  return (
+                    <tr
+                      key={row._id}
+                      className={`border-b border-neutral-100 last:border-0 ${leadershipOnly ? 'bg-amber-50/50' : ''}`}
+                    >
+                      <td className="px-4 py-3">{row.pastor?.fullName || row.pastor?.email || '—'}</td>
+                      <td className="px-4 py-3">{row.pastor?.memberId || '—'}</td>
+                      <td className="px-4 py-3">
+                        {leadershipOnly ? '—' : pastorTermCycleLabel(row.termNumber, row.termLengthYears)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {leadershipOnly ? 'No term yet' : pastorTermLengthLabel(row.termLengthYears)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {leadershipOnly || !row.termEnd ? '—' : new Date(row.termEnd).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        {leadershipOnly ? 'Church leadership' : row.status.replace(/_/g, ' ')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end flex-wrap gap-2">
+                          {!leadershipOnly ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => renew(row._id)}
+                                disabled={
+                                  busyTermId === row._id ||
+                                  row.termNumber >= MAX_PASTOR_TERM_CYCLES ||
+                                  row.status === 'TRANSFER_REQUIRED' ||
+                                  !isWithinRenewWindow(row.termEnd)
+                                }
+                                className="rounded-lg border border-violet-300 px-2 py-1 text-xs font-medium text-violet-800 disabled:opacity-50"
+                              >
+                                Renew
+                              </button>
+                              <select
+                                value={transferToByTerm[row._id] || ''}
+                                onChange={(e) => setTransferToByTerm((prev) => ({ ...prev, [row._id]: e.target.value }))}
+                                className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs"
+                              >
+                                <option value="">Transfer church</option>
+                                {churches
+                                  .filter((c) => c._id !== churchId)
+                                  .map((c) => (
+                                    <option key={c._id} value={c._id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => transfer(row._id)}
+                                disabled={busyTermId === row._id || !transferToByTerm[row._id]}
+                                className="rounded-lg border border-amber-300 px-2 py-1 text-xs font-medium text-amber-800 disabled:opacity-50"
+                              >
+                                Transfer
+                              </button>
+                            </>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setRemoveTarget(buildRemoveTarget(row, churchId, churchName))}
+                            disabled={busyTermId === row._id}
+                            className="rounded-lg border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-neutral-500">No pastor assignments yet.</p> : null}
@@ -193,6 +274,15 @@ export function ChurchPastorManageModal({ open, onClose, token, churchId, church
         onSaved={() => {
           load().catch(() => {});
         }}
+      />
+      <RemoveSpiritualLeaderModal
+        open={!!removeTarget}
+        target={removeTarget}
+        busy={removeBusy}
+        onClose={() => {
+          if (!removeBusy) setRemoveTarget(null);
+        }}
+        onConfirm={() => void confirmRemove()}
       />
     </div>
   );

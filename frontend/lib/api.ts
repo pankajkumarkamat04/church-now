@@ -64,6 +64,8 @@ export type AuthUser = {
   isChurchCommitteeMember?: boolean;
   /** Preferred label for lists: congregation offices or memberCategory fallback. */
   memberRoleDisplay?: string;
+  /** True when user is church treasurer or vice treasurer (from local leadership). */
+  canManageTreasury?: boolean;
   /** Congregation-unique member number (members and admins promoted from members). */
   memberId?: string;
   /** True for MEMBER, or ADMIN promoted from a member (home church + member id). Drives default portal. */

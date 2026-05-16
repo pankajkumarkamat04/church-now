@@ -5,6 +5,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const { getProfile, updateProfile, getMyChurchInfo, getMyCouncils } = require('../controllers/memberController');
 const churchChangeController = require('../controllers/churchChangeController');
 const paymentController = require('../controllers/paymentController');
+const paymentTypeController = require('../controllers/paymentTypeController');
 const announcementController = require('../controllers/announcementController');
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.get('/profile', asyncHandler(getProfile));
 router.put('/profile', asyncHandler(updateProfile));
 router.get('/church', asyncHandler(getMyChurchInfo));
 router.get('/councils', asyncHandler(getMyCouncils));
+router.get('/payment-types', asyncHandler(paymentTypeController.listMemberPaymentTypes));
 router.get('/payments', asyncHandler(paymentController.listMemberPayments));
 router.get('/payments/balance', asyncHandler(paymentController.getMemberPaymentBalance));
 router.post('/payments/pay', asyncHandler(paymentController.payMember));

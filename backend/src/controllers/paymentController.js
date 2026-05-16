@@ -1,9 +1,15 @@
 const { Payment, PAYMENT_OPTIONS } = require('../models/Payment');
 const MemberBalanceDeposit = require('../models/MemberBalanceDeposit');
 const User = require('../models/User');
-const Church = require('../models/Church');
 const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
+const { ensureTreasurerAccess } = require('../utils/treasurerAccess');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
+const {
+  getActivePaymentTypeCodes,
+  normalizeAmountsByOption,
+  validatePaymentLineTypes,
+  normalizeCode,
+} = require('../utils/paymentTypes');
 
 function churchId(req) {
   return req.user?.church;
@@ -21,57 +27,15 @@ function churchPeopleFilter(churchId) {
 }
 
 function normalizeOption(option) {
-  return String(option || '')
-    .trim()
-    .toUpperCase();
+  return normalizeCode(option);
 }
 
-async function loadChurchTreasuryLeadership(churchIdValue) {
-  if (!churchIdValue) return null;
-  return Church.findById(churchIdValue).select('localLeadership.treasurer localLeadership.viceTreasurer').lean();
-}
-
-function isTreasurerOrViceTreasurer(church, userId) {
-  const uid = String(userId || '');
-  if (!uid || !church?.localLeadership) return false;
-  const { treasurer, viceTreasurer } = church.localLeadership;
-  return String(treasurer || '') === uid || String(viceTreasurer || '') === uid;
-}
-
-async function ensureTreasurerAccess(req, res) {
-  const cid = churchId(req);
-  if (!cid) {
-    res.status(400).json({ message: 'No church assigned' });
-    return false;
-  }
-  const church = await loadChurchTreasuryLeadership(cid);
-  if (!isTreasurerOrViceTreasurer(church, req.user?._id)) {
-    res.status(403).json({ message: 'Only treasurer or vice treasurer can add balance or make payment on behalf' });
-    return false;
-  }
-  return true;
-}
-
-function validatePayload({ amount, paymentType, paymentOption }) {
+function validatePayloadAmount({ amount }) {
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     return 'Valid amount is required';
   }
-  const normalizedOption = normalizeOption(paymentType || paymentOption);
-  if (!PAYMENT_OPTIONS.includes(normalizedOption)) {
-    return `paymentType must be one of: ${PAYMENT_OPTIONS.join(', ')}`;
-  }
   return null;
-}
-
-function normalizeAmountsByOption(input) {
-  const result = {};
-  for (const option of PAYMENT_OPTIONS) {
-    const raw = input && Object.prototype.hasOwnProperty.call(input, option) ? input[option] : 0;
-    const numeric = Number(raw);
-    result[option] = Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
-  }
-  return result;
 }
 
 async function listMemberPayments(req, res) {
@@ -93,14 +57,21 @@ async function payMember(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const payload = req.body || {};
-  const amountsByOption = normalizeAmountsByOption(payload.amountsByOption);
+  const activeCodes = await getActivePaymentTypeCodes(cid);
+  const amountsByOption = normalizeAmountsByOption(payload.amountsByOption, activeCodes);
   const entries = Object.entries(amountsByOption).filter(([, amount]) => amount > 0);
 
   if (entries.length === 0) {
-    const err = validatePayload(payload);
-    if (err) return res.status(400).json({ message: 'Enter at least one payment amount' });
+    const amountErr = validatePayloadAmount(payload);
+    if (amountErr) return res.status(400).json({ message: 'Enter at least one payment amount' });
     entries.push([normalizeOption(payload.paymentType || payload.paymentOption), Number(payload.amount)]);
   }
+
+  const typeErr = validatePaymentLineTypes(
+    entries.map(([paymentType]) => paymentType),
+    activeCodes
+  );
+  if (typeErr) return res.status(400).json({ message: typeErr });
 
   const paidAt = payload.paidAt ? new Date(payload.paidAt) : new Date();
   const display = normalizeDisplayCurrency(payload.displayCurrency ?? payload.currency);
@@ -190,14 +161,21 @@ async function payOnBehalf(req, res) {
     return res.status(404).json({ message: 'Recipient not found in your church' });
   }
 
-  const amountsByOption = normalizeAmountsByOption(payload.amountsByOption);
+  const activeCodes = await getActivePaymentTypeCodes(cid);
+  const amountsByOption = normalizeAmountsByOption(payload.amountsByOption, activeCodes);
   const entries = Object.entries(amountsByOption).filter(([, amount]) => amount > 0);
 
   if (entries.length === 0) {
-    const err = validatePayload(payload);
-    if (err) return res.status(400).json({ message: 'Enter at least one payment amount' });
+    const amountErr = validatePayloadAmount(payload);
+    if (amountErr) return res.status(400).json({ message: 'Enter at least one payment amount' });
     entries.push([normalizeOption(payload.paymentType || payload.paymentOption), Number(payload.amount)]);
   }
+
+  const typeErr = validatePaymentLineTypes(
+    entries.map(([paymentType]) => paymentType),
+    activeCodes
+  );
+  if (typeErr) return res.status(400).json({ message: typeErr });
 
   const paidAt = payload.paidAt ? new Date(payload.paidAt) : new Date();
   const display = normalizeDisplayCurrency(payload.displayCurrency ?? payload.currency);

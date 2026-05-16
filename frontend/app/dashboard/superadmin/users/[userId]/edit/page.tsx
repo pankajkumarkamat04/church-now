@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { KeyRound, Loader2 } from 'lucide-react';
+import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
@@ -51,6 +52,7 @@ export default function SuperadminUserEditPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !userId) return;
@@ -252,6 +254,16 @@ export default function SuperadminUserEditPage() {
           <p className="mt-2 text-sm text-neutral-700">
             Member ID: <span className="font-mono font-semibold text-neutral-900">{row.memberId}</span>
           </p>
+        ) : null}
+        {row.isActive !== false && token ? (
+          <button
+            type="button"
+            onClick={() => setResetOpen(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-900 hover:bg-violet-100"
+          >
+            <KeyRound className="size-4" aria-hidden />
+            Reset password
+          </button>
         ) : null}
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
@@ -517,6 +529,17 @@ export default function SuperadminUserEditPage() {
           </div>
         </form>
       </div>
+      {token && row && resetOpen ? (
+        <ResetUserPasswordModal
+          open
+          onClose={() => setResetOpen(false)}
+          token={token}
+          apiPath={`/api/superadmin/users/${userId}/reset-password`}
+          userEmail={row.email}
+          userName={row.fullName || ''}
+          accent="violet"
+        />
+      ) : null}
     </div>
   );
 }

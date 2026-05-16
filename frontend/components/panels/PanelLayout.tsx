@@ -258,6 +258,7 @@ function superadminPathInGroup(
   if (groupId === 'leadership') {
     return (
       pathname.startsWith('/dashboard/superadmin/pastor-management') ||
+      pathname.startsWith('/dashboard/superadmin/pastor-terms') ||
       pathname.startsWith('/dashboard/superadmin/pastors')
     );
   }

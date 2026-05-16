@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { PAYMENT_OPTIONS, type PaymentOption } from '@/lib/payments';
+import { emptyAmountsForCodes, useAdminPaymentTypes } from '@/lib/paymentTypes';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DISPLAY_CURRENCY_OPTIONS,
@@ -18,7 +18,6 @@ import {
 } from '@/lib/currency';
 import {
   churchRoleLabel,
-  emptyAmountsByOption,
   hasTreasurerPrivileges,
   memberDropdownLabel,
   type MemberBalanceRow,
@@ -32,7 +31,8 @@ export default function AdminPaymentsOnBehalfPage() {
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [rates, setRates] = useState<PublicCurrencyRates | null>(null);
   const [ratesErr, setRatesErr] = useState<string | null>(null);
-  const [amountsByOption, setAmountsByOption] = useState<Record<PaymentOption, string>>(emptyAmountsByOption);
+  const { activeCodes, labels } = useAdminPaymentTypes(token);
+  const [amountsByOption, setAmountsByOption] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -64,7 +64,11 @@ export default function AdminPaymentsOnBehalfPage() {
       ? usdToDisplayAmount(balanceUsd, displayCurrency, rates.foreignPerUsd)
       : balanceUsd;
 
-  const totalPreview = PAYMENT_OPTIONS.reduce((sum, option) => {
+  useEffect(() => {
+    if (activeCodes.length) setAmountsByOption(emptyAmountsForCodes(activeCodes));
+  }, [activeCodes.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totalPreview = activeCodes.reduce((sum, option) => {
     const value = Number(amountsByOption[option] || '0');
     return sum + (Number.isFinite(value) && value > 0 ? value : 0);
   }, 0);
@@ -94,13 +98,13 @@ export default function AdminPaymentsOnBehalfPage() {
     setErr(null);
     setBusy(true);
     try {
-      const normalizedAmounts = PAYMENT_OPTIONS.reduce(
+      const normalizedAmounts = activeCodes.reduce(
         (acc, option) => {
           const value = Number(amountsByOption[option] || '0');
           acc[option] = Number.isFinite(value) && value > 0 ? value : 0;
           return acc;
         },
-        {} as Record<PaymentOption, number>
+        {} as Record<string, number>
       );
       const hasAtLeastOneAmount = Object.values(normalizedAmounts).some((v) => v > 0);
       if (!hasAtLeastOneAmount) {
@@ -188,9 +192,9 @@ export default function AdminPaymentsOnBehalfPage() {
       </div>
 
       <form className="mt-6 grid gap-4 rounded-xl border border-neutral-200 bg-white p-5 md:grid-cols-2" onSubmit={onPay}>
-        {PAYMENT_OPTIONS.map((opt) => (
+        {activeCodes.map((opt) => (
           <div key={opt}>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">{opt}</label>
+            <label className="mb-1 block text-xs font-medium text-neutral-600">{labels[opt] || opt}</label>
             <input
               type="number"
               min="0"

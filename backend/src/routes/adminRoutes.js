@@ -5,6 +5,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const frontendController = require('../controllers/frontendController');
 const eventController = require('../controllers/eventController');
 const paymentController = require('../controllers/paymentController');
+const paymentTypeController = require('../controllers/paymentTypeController');
 const expenseController = require('../controllers/expenseController');
 const financeController = require('../controllers/financeController');
 const assetController = require('../controllers/assetController');
@@ -12,6 +13,8 @@ const pastorController = require('../controllers/pastorController');
 const attendanceController = require('../controllers/attendanceController');
 const mediaController = require('../controllers/mediaController');
 const announcementController = require('../controllers/announcementController');
+const churchLogoController = require('../controllers/churchLogoController');
+const passwordAdminController = require('../controllers/passwordAdminController');
 
 const router = express.Router();
 
@@ -19,6 +22,16 @@ router.use(authenticate, requireRoles('ADMIN'));
 
 router.get('/church', asyncHandler(frontendController.getMyChurch));
 router.put('/church', asyncHandler(frontendController.updateMyChurch));
+router.post(
+  '/church/logo',
+  mediaController.upload.single('file'),
+  asyncHandler((req, res, next) => {
+    const id = req.user?.church ? String(req.user.church) : '';
+    if (!id) return res.status(400).json({ message: 'No church assigned' });
+    req.params.churchId = id;
+    return churchLogoController.uploadChurchLogo(req, res, next);
+  })
+);
 router.get('/members', asyncHandler(frontendController.listMembers));
 router.get('/pending-approvals', asyncHandler(frontendController.listPendingApprovals));
 router.patch('/members/:memberId/reject', asyncHandler(frontendController.rejectMember));
@@ -28,12 +41,19 @@ router.post('/members', asyncHandler(frontendController.createMember));
 router.get('/members/:memberId/statement', asyncHandler(paymentController.listMemberStatementForAdmin));
 router.get('/members/:memberId', asyncHandler(frontendController.getMember));
 router.put('/members/:memberId', asyncHandler(frontendController.updateMember));
+router.post(
+  '/members/:memberId/reset-password',
+  asyncHandler(passwordAdminController.adminResetMemberPassword)
+);
 router.patch('/members/:memberId/deactivate', asyncHandler(frontendController.deactivateMember));
 router.patch('/members/:memberId/approve', asyncHandler(frontendController.approveMember));
 router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembers));
 router.get('/pastors', asyncHandler(pastorController.listPastors));
 router.get('/pastors/:recordId', asyncHandler(pastorController.getPastor));
 router.get('/pastor-terms', asyncHandler(pastorController.listAdminPastorTerms));
+router.post('/pastor-terms/assign', asyncHandler(pastorController.assignPastorTerm));
+router.post('/pastor-terms/:termId/renew', asyncHandler(pastorController.renewPastorTerm));
+router.delete('/pastor-terms/:termId', asyncHandler(pastorController.removeSpiritualLeader));
 router.get('/attendance', asyncHandler(attendanceController.listMonth));
 router.get('/attendance/:dateKey', asyncHandler(attendanceController.getDay));
 router.put('/attendance/:dateKey', asyncHandler(attendanceController.saveDay));
@@ -54,6 +74,10 @@ router.delete('/events/:id', asyncHandler(eventController.remove));
 
 router.get('/announcements', asyncHandler(announcementController.listAdminAnnouncements));
 router.post('/announcements', asyncHandler(announcementController.createAdminAnnouncement));
+router.get('/payment-types', asyncHandler(paymentTypeController.listAdminPaymentTypes));
+router.post('/payment-types', asyncHandler(paymentTypeController.createAdminPaymentType));
+router.patch('/payment-types/:typeId', asyncHandler(paymentTypeController.updateAdminPaymentType));
+router.delete('/payment-types/:typeId', asyncHandler(paymentTypeController.removeAdminPaymentType));
 router.get('/payments', asyncHandler(paymentController.listAdminPayments));
 router.get('/payments/member-balances', asyncHandler(paymentController.listAdminMemberBalances));
 router.get('/payments/deposits', asyncHandler(paymentController.listAdminDepositHistory));

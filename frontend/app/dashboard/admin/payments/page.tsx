@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { HandCoins, History, Wallet } from 'lucide-react';
+import { HandCoins, History, Tags, Wallet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasTreasurerPrivileges } from './_lib/treasurer-shared';
 
@@ -28,6 +28,13 @@ const TILES = [
     description: 'See all deposits and payment allocations for your congregation.',
     icon: History,
     requiresTreasurer: false,
+  },
+  {
+    href: '/dashboard/admin/payments/categories',
+    title: 'Payment types',
+    description: 'Add your own tithes, donations, missions, and other offering categories.',
+    icon: Tags,
+    requiresTreasurer: true,
   },
 ] as const;
 

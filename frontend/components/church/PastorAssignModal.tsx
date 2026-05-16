@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
+import {
+  PASTOR_TERM_LENGTH_OPTIONS,
+  pastorTermRenewalHint,
+  type PastorTermLengthYears,
+} from '@/lib/pastorTerms';
 
 type Props = {
   open: boolean;
@@ -16,6 +21,7 @@ type Props = {
 export function PastorAssignModal({ open, onClose, token, churchId, mode, onSaved }: Props) {
   const [members, setMembers] = useState<AuthUser[]>([]);
   const [pastorUserId, setPastorUserId] = useState('');
+  const [termLengthYears, setTermLengthYears] = useState<PastorTermLengthYears>(4);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -35,6 +41,13 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
       .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
   }, [open, token, churchId, mode]);
 
+  useEffect(() => {
+    if (!open) {
+      setTermLengthYears(4);
+      setErr(null);
+    }
+  }, [open]);
+
   async function onAssign() {
     if (!token || !pastorUserId || !churchId) return;
     setErr(null);
@@ -44,7 +57,11 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
       await apiFetch(assignPath, {
         method: 'POST',
         token,
-        body: JSON.stringify(mode === 'superadmin' ? { churchId, pastorUserId } : { pastorUserId }),
+        body: JSON.stringify(
+          mode === 'superadmin'
+            ? { churchId, pastorUserId, termLengthYears }
+            : { pastorUserId, termLengthYears }
+        ),
       });
       onSaved();
       onClose();
@@ -61,25 +78,37 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
       <div className="w-full max-w-lg rounded-xl border border-neutral-200 bg-white p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-neutral-900">Assign spiritual pastor/leader</h3>
+          <h3 className="text-lg font-semibold text-neutral-900">Assign spiritual pastor / leader</h3>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100">
             <X className="size-4" />
           </button>
         </div>
-        <label className="mb-1 block text-xs font-medium text-neutral-600">Church member/admin</label>
+        <label className="mb-1 block text-xs font-medium text-neutral-600">Church member / admin</label>
         <select
           value={pastorUserId}
           onChange={(e) => setPastorUserId(e.target.value)}
           className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
         >
-          <option value="">Select member/admin</option>
+          <option value="">Select member / admin</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>
               {(m.memberId || '—').toString()} - {m.fullName || m.email}
             </option>
           ))}
         </select>
-        <p className="mt-2 text-xs text-neutral-500">Each assignment is 4 years. One renewal is allowed (max 8 years total).</p>
+        <label className="mb-1 mt-4 block text-xs font-medium text-neutral-600">Term length</label>
+        <select
+          value={termLengthYears}
+          onChange={(e) => setTermLengthYears(Number(e.target.value) === 1 ? 1 : 4)}
+          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+        >
+          {PASTOR_TERM_LENGTH_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs text-neutral-500">{pastorTermRenewalHint(termLengthYears)}</p>
         {err ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm">

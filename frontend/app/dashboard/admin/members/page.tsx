@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Eye, Pencil, Plus, UserX } from 'lucide-react';
+import { CheckCircle2, Eye, KeyRound, Pencil, Plus, UserX } from 'lucide-react';
+import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
@@ -46,6 +47,7 @@ export default function AdminMembersListPage() {
     | 'NON_BADGED'>('');
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: string; email: string; name: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -253,6 +255,11 @@ export default function AdminMembersListPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href={`/dashboard/admin/members/${m.id}`} className={inputBtn}><Eye className="mr-1 size-3.5" />View</Link>
                 {m.role === 'MEMBER' ? <Link href={`/dashboard/admin/members/${m.id}/edit`} className={inputBtn}><Pencil className="mr-1 size-3.5" />Edit</Link> : null}
+                {m.isActive !== false ? (
+                  <button type="button" onClick={() => setResetTarget({ id: m.id, email: m.email, name: m.fullName || m.name || '' })} className={inputBtn}>
+                    <KeyRound className="mr-1 size-3.5" />Reset password
+                  </button>
+                ) : null}
                 {m.role === 'MEMBER' && m.isActive !== false ? <button type="button" disabled={busyId === m.id} onClick={() => deactivate(m.id)} className={`${inputBtn} text-amber-800 border-amber-200 hover:bg-amber-50`}><UserX className="mr-1 size-3.5" />{busyId === m.id ? '…' : 'Deactivate'}</button> : null}
                 {m.role === 'MEMBER' && m.approvalStatus === 'PENDING' ? <button type="button" disabled={busyId === m.id} onClick={() => approve(m.id)} className={`${inputBtn} border-emerald-200 text-emerald-800 hover:bg-emerald-50`}><CheckCircle2 className="mr-1 size-3.5" />{busyId === m.id ? '…' : 'Approve'}</button> : null}
               </div>
@@ -335,9 +342,25 @@ export default function AdminMembersListPage() {
                         </Link>
                       ) : (
                         <span className="inline-flex items-center rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-500">
-                          Promoted admin
+                          Church admin
                         </span>
                       )}
+                      {m.isActive !== false ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setResetTarget({
+                              id: m.id,
+                              email: m.email,
+                              name: m.fullName || m.name || '',
+                            })
+                          }
+                          className={inputBtn}
+                        >
+                          <KeyRound className="mr-1 size-3.5" aria-hidden />
+                          Reset password
+                        </button>
+                      ) : null}
                       {m.role === 'MEMBER' && m.isActive !== false ? (
                         <button
                           type="button"
@@ -383,6 +406,17 @@ export default function AdminMembersListPage() {
         }}
         className="mt-2"
       />
+      {token && resetTarget ? (
+        <ResetUserPasswordModal
+          open
+          onClose={() => setResetTarget(null)}
+          token={token}
+          apiPath={`/api/admin/members/${resetTarget.id}/reset-password`}
+          userEmail={resetTarget.email}
+          userName={resetTarget.name}
+          accent="sky"
+        />
+      ) : null}
     </div>
   );
 }

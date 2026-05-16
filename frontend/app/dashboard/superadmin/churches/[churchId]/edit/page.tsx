@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
+import { apiFetch, getApiBase, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '../../types';
 
@@ -29,6 +29,8 @@ export default function SuperadminChurchEditPage() {
   const [churchType, setChurchType] = useState<'MAIN' | 'SUB'>('MAIN');
   const [conferenceId, setConferenceId] = useState('');
   const [conferences, setConferences] = useState<Array<{ _id: string; name: string; conferenceId?: string }>>([]);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export default function SuperadminChurchEditPage() {
     setCountry(c.country || '');
     setPhone(c.phone || '');
     setEmail(c.email || '');
+    setLogoUrl(c.logoUrl || '');
     setIsActive(c.isActive !== false);
     setChurchType(c.churchType === 'SUB' ? 'SUB' : 'MAIN');
     setConferenceId(
@@ -80,6 +83,30 @@ export default function SuperadminChurchEditPage() {
     }
   }, [user, token, churchId, load, loadReferences]);
 
+  async function uploadLogoFile() {
+    if (!logoFile || !token) return;
+    const body = new FormData();
+    body.append('file', logoFile);
+    const res = await fetch(`${getApiBase()}/api/superadmin/churches/${churchId}/logo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body,
+    });
+    if (!res.ok) {
+      let msg = 'Failed to upload church logo';
+      try {
+        const err = (await res.json()) as { message?: string };
+        if (err?.message) msg = err.message;
+      } catch {
+        // ignore
+      }
+      throw new Error(msg);
+    }
+    const updated = (await res.json()) as ChurchRecord;
+    setLogoUrl(updated.logoUrl || '');
+    setLogoFile(null);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
@@ -106,6 +133,9 @@ export default function SuperadminChurchEditPage() {
           isActive,
         }),
       });
+      if (logoFile) {
+        await uploadLogoFile();
+      }
       router.replace('/dashboard/superadmin/churches');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
@@ -222,6 +252,21 @@ export default function SuperadminChurchEditPage() {
             <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Church logo</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-neutral-700 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-violet-800"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Shown on finance reports and exports. Falls back to system logo if not set.
+              </p>
+              {logoUrl ? (
+                <img src={logoUrl} alt="" className="mt-3 size-16 rounded-lg border border-neutral-200 object-cover" />
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2">

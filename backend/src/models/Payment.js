@@ -16,8 +16,10 @@ const paymentLineSchema = new mongoose.Schema(
   {
     paymentType: {
       type: String,
-      enum: PAYMENT_OPTIONS,
       required: true,
+      trim: true,
+      uppercase: true,
+      maxlength: 32,
     },
     amount: {
       type: Number,

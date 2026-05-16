@@ -1,18 +1,46 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@/components/ui/Pagination';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { PastorAssignModal } from '@/components/church/PastorAssignModal';
+import {
+  RemoveSpiritualLeaderModal,
+  type SpiritualLeaderRemoveTarget,
+} from '@/components/church/RemoveSpiritualLeaderModal';
+import {
+  UpgradeSpiritualLeaderModal,
+  type UpgradeSpiritualLeaderTarget,
+} from '@/components/church/UpgradeSpiritualLeaderModal';
+import type { PastorTermLengthYears } from '@/lib/pastorTerms';
+import {
+  MAX_PASTOR_TERM_CYCLES,
+  pastorTermCycleLabel,
+  pastorTermLengthLabel,
+} from '@/lib/pastorTerms';
 
 const PASTOR_PAGE_DEFAULT = 12;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ChurchOption = { _id: string; name: string; churchType?: 'MAIN' | 'SUB' };
+type ChurchMemberRef = {
+  _id?: string;
+  fullName?: string;
+  email?: string;
+  memberId?: string;
+};
+
+type ChurchOption = {
+  _id: string;
+  name: string;
+  churchType?: 'MAIN' | 'SUB';
+  localLeadership?: {
+    spiritualPastor?: ChurchMemberRef | string | null;
+  };
+};
 type MemberAddress = { line1?: string; line2?: string; city?: string; stateOrProvince?: string; postalCode?: string; country?: string };
 type MemberOption = {
   _id: string; fullName?: string; email?: string; memberId?: string;
@@ -28,12 +56,43 @@ type PastorRecord = {
   credentials?: { ordinationDate?: string; denomination?: string; qualifications?: string[] };
 };
 type PastorTerm = {
-  _id: string; status: 'ASSIGNED' | 'RENEWED' | 'TRANSFER_REQUIRED' | 'TRANSFERRED';
-  termNumber: number; termStart: string; termEnd: string;
+  _id: string;
+  _leadershipOnly?: boolean;
+  _categoryOnly?: boolean;
+  status: 'ASSIGNED' | 'RENEWED' | 'TRANSFER_REQUIRED' | 'TRANSFERRED' | 'LEADERSHIP_ONLY' | 'CATEGORY_ONLY';
+  termNumber: number;
+  termLengthYears?: number | null;
+  termStart?: string | null;
+  termEnd?: string | null;
   church?: { _id?: string; name?: string } | string;
   pastor?: { _id?: string; fullName?: string; email?: string; memberId?: string };
   transferredToChurch?: { _id?: string; name?: string } | string;
 };
+
+function isLeadershipOnlyRow(row: PastorTerm): boolean {
+  return Boolean(row._leadershipOnly) || row.status === 'LEADERSHIP_ONLY';
+}
+
+function isCategoryOnlyRow(row: PastorTerm): boolean {
+  return Boolean(row._categoryOnly) || row.status === 'CATEGORY_ONLY';
+}
+
+function buildRemoveTarget(t: PastorTerm, churches: ChurchOption[]): SpiritualLeaderRemoveTarget {
+  return {
+    id: t._id,
+    leadershipOnly: isLeadershipOnlyRow(t) || isCategoryOnlyRow(t),
+    churchId: churchIdFromRef(t.church, churches),
+    churchName: churchNameFromRef(t.church, churches),
+    pastorName: t.pastor?.fullName || t.pastor?.email || '—',
+    pastorEmail: t.pastor?.email,
+    memberId: t.pastor?.memberId,
+    termNumber: t.termNumber,
+    termLengthYears: t.termLengthYears,
+    termStart: t.termStart ?? null,
+    termEnd: t.termEnd ?? null,
+    status: t.status,
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,12 +110,45 @@ function fmtDate(iso?: string | null) {
 function pastorName(r: PastorRecord) {
   return r.personal?.name || r.personal?.fullName || (typeof r.member === 'object' && r.member ? r.member.fullName : '') || '—';
 }
+function churchIdFromRef(
+  church?: { _id?: string; name?: string } | string | null,
+  churches?: ChurchOption[]
+): string {
+  if (!church) return '';
+  if (typeof church === 'string') return church;
+  if (church._id) return String(church._id);
+  return '';
+}
+
+function churchNameFromRef(
+  church?: { _id?: string; name?: string } | string | null,
+  churches?: ChurchOption[]
+): string {
+  if (!church) return '—';
+  if (typeof church === 'object' && church.name) return church.name;
+  const id = churchIdFromRef(church, churches);
+  if (id && churches?.length) {
+    return churches.find((c) => c._id === id)?.name || '—';
+  }
+  return '—';
+}
+
 function churchName(r: PastorRecord | PastorTerm) {
-  return typeof r.church === 'object' && r.church ? (r.church as { name?: string }).name || '—' : '—';
+  return churchNameFromRef(r.church);
 }
 function churchId(r: PastorRecord | PastorTerm): string {
-  return typeof r.church === 'object' && r.church ? (r.church as { _id?: string })._id || '' : '';
+  return churchIdFromRef(r.church);
 }
+
+function spiritualPastorRef(church: ChurchOption): ChurchMemberRef | null {
+  const sp = church.localLeadership?.spiritualPastor;
+  if (!sp || typeof sp === 'string') {
+    return sp ? { _id: sp } : null;
+  }
+  return sp._id ? sp : null;
+}
+
+const ACTIVE_TERM_STATUSES = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'] as const;
 function isWithinRenewWindow(termEnd: string): boolean {
   const end = new Date(termEnd);
   if (isNaN(end.getTime())) return false;
@@ -71,7 +163,27 @@ const STATUS_BADGE: Record<string, string> = {
   RENEWED: 'bg-sky-100 text-sky-800',
   TRANSFER_REQUIRED: 'bg-amber-100 text-amber-800',
   TRANSFERRED: 'bg-neutral-100 text-neutral-600',
+  LEADERSHIP_ONLY: 'bg-amber-100 text-amber-900',
+  CATEGORY_ONLY: 'bg-violet-100 text-violet-900',
 };
+
+type Tab = 'directory' | 'upgrade' | 'terms' | 'remove';
+
+function parseTabParam(value: string | null): Tab {
+  if (!value) return 'directory';
+  const v = value.toLowerCase();
+  if (v === 'terms' || v === 'pastor-terms' || v === 'leader-terms' || v === 'spiritual-leaders') return 'terms';
+  if (v === 'upgrade' || v === 'upgrade-member') return 'upgrade';
+  if (v === 'remove' || v === 'remove-leader' || v === 'remove-spiritual-leader') return 'remove';
+  if (v === 'directory') return 'directory';
+  return 'directory';
+}
+
+function removableLeaders(terms: PastorTerm[]): PastorTerm[] {
+  return terms.filter(
+    (t) => isLeadershipOnlyRow(t) || isCategoryOnlyRow(t) || t.status !== 'TRANSFERRED'
+  );
+}
 
 // ── Tab: Directory ─────────────────────────────────────────────────────────────
 
@@ -200,15 +312,27 @@ function DirectoryTab({
                 {r.personal?.contactEmail && <p className="truncate"><span className="font-medium">Email:</span> {r.personal.contactEmail}</p>}
                 {r.personal?.contactPhone && <p><span className="font-medium">Phone:</span> {r.personal.contactPhone}</p>}
                 {isTermOnly && (
-                  <p className="text-amber-600 dark:text-amber-400">No detailed profile yet. Create one in <strong>Record Keeping</strong>.</p>
+                  <p className="text-amber-600 dark:text-amber-400">
+                    No detailed profile yet.{' '}
+                    <Link
+                      href={`/dashboard/superadmin/pastors${churchId(r) ? `?churchId=${encodeURIComponent(churchId(r))}` : ''}`}
+                      className="font-semibold underline hover:text-amber-800 dark:hover:text-amber-200"
+                    >
+                      Create one in Record keeping
+                    </Link>
+                    .
+                  </p>
                 )}
                 {!isTermOnly && r.credentials?.denomination && <p><span className="font-medium">Denomination:</span> {r.credentials.denomination}</p>}
               </div>
               <div className="mt-auto flex flex-wrap gap-2 border-t border-neutral-100 dark:border-neutral-800 px-4 py-3">
                 {isTermOnly ? (
-                  <span className="flex-1 rounded-lg bg-amber-100 px-3 py-1.5 text-center text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                    No Profile — Use Record Keeping
-                  </span>
+                  <Link
+                    href={`/dashboard/superadmin/pastors${churchId(r) ? `?churchId=${encodeURIComponent(churchId(r))}` : ''}`}
+                    className="flex-1 rounded-lg bg-amber-100 px-3 py-1.5 text-center text-xs font-medium text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                  >
+                    Create profile (Record keeping)
+                  </Link>
                 ) : (
                   <>
                     <Link href={`/dashboard/superadmin/pastor-management/${r._id}`} className="flex-1 rounded-lg bg-violet-600 px-3 py-1.5 text-center text-xs font-medium text-white hover:bg-violet-500">
@@ -250,12 +374,26 @@ function DirectoryTab({
 
 // ── Tab: Upgrade Member ────────────────────────────────────────────────────────
 
-function UpgradeMemberTab({ churches, token, onRefresh }: { churches: ChurchOption[]; token: string | null; onRefresh: () => void }) {
+function UpgradeMemberTab({
+  churches,
+  token,
+  onRefresh,
+  onRefreshTerms,
+}: {
+  churches: ChurchOption[];
+  token: string | null;
+  onRefresh: () => void;
+  onRefreshTerms: () => void;
+}) {
   const [selectedChurchId, setSelectedChurchId] = useState('');
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [upgradeTarget, setUpgradeTarget] = useState<UpgradeSpiritualLeaderTarget | null>(null);
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const selectedChurchName = churches.find((c) => c._id === selectedChurchId)?.name || '—';
 
   async function loadMembers(cid: string) {
     if (!token || !cid) { setMembers([]); return; }
@@ -270,17 +408,49 @@ function UpgradeMemberTab({ churches, token, onRefresh }: { churches: ChurchOpti
   const existingPastor = members.find((m) => m.memberCategory === 'PASTOR');
   const alreadyHasPastor = Boolean(existingPastor);
 
-  async function upgrade(userId: string, fullName: string) {
-    if (alreadyHasPastor) return;
-    if (!token || !confirm(`Upgrade ${fullName} to PASTOR category? Each church can only have one pastor.`)) return;
-    setBusy(userId); setErr(null); setSuccessMsg(null);
+  function openUpgradeModal(m: MemberOption) {
+    if (alreadyHasPastor || !selectedChurchId) return;
+    setUpgradeTarget({
+      userId: m._id,
+      fullName: m.fullName || m.email || 'Member',
+      email: m.email,
+      memberId: m.memberId,
+      contactPhone: m.contactPhone,
+      dateOfBirth: m.dateOfBirth,
+      gender: m.gender,
+      role: m.role,
+      memberCategory: m.memberCategory,
+    });
+  }
+
+  async function confirmUpgrade(termLengthYears: PastorTermLengthYears) {
+    if (!token || !upgradeTarget || !selectedChurchId) return;
+    setUpgradeBusy(true);
+    setErr(null);
+    setSuccessMsg(null);
     try {
-      await apiFetch(`/api/superadmin/members/${userId}/upgrade-to-pastor`, { method: 'POST', token });
-      setSuccessMsg(`${fullName} has been upgraded to PASTOR category.`);
+      await apiFetch('/api/superadmin/pastor-terms/assign', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({
+          churchId: selectedChurchId,
+          pastorUserId: upgradeTarget.userId,
+          termLengthYears,
+        }),
+      });
+      await apiFetch(`/api/superadmin/members/${upgradeTarget.userId}/upgrade-to-pastor`, { method: 'POST', token });
+      setSuccessMsg(
+        `${upgradeTarget.fullName} is now PASTOR and spiritual leader with a ${termLengthYears === 1 ? '1-year' : '4-year'} term.`
+      );
+      setUpgradeTarget(null);
       await loadMembers(selectedChurchId);
       onRefresh();
-    } catch (e) { setErr(e instanceof Error ? e.message : 'Failed'); }
-    finally { setBusy(null); }
+      onRefreshTerms();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to upgrade and assign term');
+    } finally {
+      setUpgradeBusy(false);
+    }
   }
 
   async function grantAdmin(userId: string, fullName: string) {
@@ -310,7 +480,8 @@ function UpgradeMemberTab({ churches, token, onRefresh }: { churches: ChurchOpti
   return (
     <div className="space-y-4 max-w-4xl">
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
-        <strong>Rules:</strong> Each church can have <strong>only one Pastor</strong>. Upgrading sets the member category to <em>PASTOR</em>.
+        <strong>Rules:</strong> Each church can have <strong>only one spiritual leader</strong>. Upgrading opens a confirmation
+        modal to set <em>PASTOR</em> category and assign a 1-year or 4-year term on Pastors / Spiritual leaders.
         Admin access lets the pastor log in as church admin — <strong>SUPERADMIN cannot be granted</strong>.
       </div>
 
@@ -380,11 +551,14 @@ function UpgradeMemberTab({ churches, token, onRefresh }: { churches: ChurchOpti
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         {!isPastor && (
-                          <button type="button" disabled={busy === m._id || alreadyHasPastor}
-                            onClick={() => upgrade(m._id, m.fullName || m.email || 'Member')}
-                            title={alreadyHasPastor ? 'This church already has a pastor' : 'Set as Pastor'}
-                            className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">
-                            {busy === m._id ? '…' : 'Make Pastor'}
+                          <button
+                            type="button"
+                            disabled={alreadyHasPastor || upgradeBusy}
+                            onClick={() => openUpgradeModal(m)}
+                            title={alreadyHasPastor ? 'This church already has a pastor' : 'Upgrade and assign spiritual leader term'}
+                            className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Make Pastor
                           </button>
                         )}
                         {isPastor && (
@@ -414,6 +588,17 @@ function UpgradeMemberTab({ churches, token, onRefresh }: { churches: ChurchOpti
       {selectedChurchId && members.length === 0 && (
         <p className="py-8 text-center text-sm text-neutral-500">No members found for this church.</p>
       )}
+
+      <UpgradeSpiritualLeaderModal
+        open={!!upgradeTarget}
+        churchName={selectedChurchName}
+        target={upgradeTarget}
+        busy={upgradeBusy}
+        onClose={() => {
+          if (!upgradeBusy) setUpgradeTarget(null);
+        }}
+        onConfirm={(termLengthYears) => void confirmUpgrade(termLengthYears)}
+      />
     </div>
   );
 }
@@ -421,11 +606,19 @@ function UpgradeMemberTab({ churches, token, onRefresh }: { churches: ChurchOpti
 // ── Tab: Terms ─────────────────────────────────────────────────────────────────
 
 function TermsTab({
-  terms, churches, token, onRefreshTerms, assignOpen, setAssignOpen,
+  terms,
+  churches,
+  token,
+  onRefreshTerms,
+  setAssignOpen,
+  setAssignChurchId,
 }: {
-  terms: PastorTerm[]; churches: ChurchOption[];
-  token: string | null; onRefreshTerms: () => void;
-  assignOpen: boolean; setAssignOpen: (v: boolean) => void;
+  terms: PastorTerm[];
+  churches: ChurchOption[];
+  token: string | null;
+  onRefreshTerms: () => void;
+  setAssignOpen: (v: boolean) => void;
+  setAssignChurchId: (id: string) => void;
 }) {
   const [churchFilter, setChurchFilter] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -436,11 +629,14 @@ function TermsTab({
 
   const filtered = useMemo(() => {
     if (!churchFilter) return terms;
-    return terms.filter((t) => {
-      const cid = typeof t.church === 'object' && t.church ? (t.church as { _id?: string })._id : '';
-      return cid === churchFilter;
-    });
-  }, [terms, churchFilter]);
+    return terms.filter((t) => churchIdFromRef(t.church, churches) === churchFilter);
+  }, [terms, churchFilter, churches]);
+
+  const leadershipOnlyCount = useMemo(
+    () => terms.filter((t) => isLeadershipOnlyRow(t)).length,
+    [terms]
+  );
+  const termRecordCount = terms.length - leadershipOnlyCount;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
@@ -469,11 +665,27 @@ function TermsTab({
     finally { setBusyId(null); }
   }
 
-  const activeStatuses = ['ASSIGNED', 'RENEWED', 'TRANSFER_REQUIRED'];
-  const churchHasActive = (cid: string) => terms.some((t) => {
-    const tid = typeof t.church === 'object' && t.church ? (t.church as { _id?: string })._id : '';
-    return tid === cid && activeStatuses.includes(t.status);
-  });
+  const churchHasActive = (cid: string) =>
+    terms.some(
+      (t) =>
+        churchIdFromRef(t.church, churches) === cid &&
+        (ACTIVE_TERM_STATUSES.includes(t.status as (typeof ACTIVE_TERM_STATUSES)[number]) ||
+          isLeadershipOnlyRow(t))
+    );
+
+  function openAssignModal() {
+    if (!churchFilter) {
+      setErr('Select a church in the filter first, then assign a term.');
+      return;
+    }
+    if (churchHasActive(churchFilter)) {
+      setErr('This church already has an active term. Renew or transfer the current leader first.');
+      return;
+    }
+    setErr(null);
+    setAssignChurchId(churchFilter);
+    setAssignOpen(true);
+  }
 
   return (
     <div className="space-y-4">
@@ -484,14 +696,18 @@ function TermsTab({
           <option value="">All churches</option>
           {churches.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
         </select>
-        <button type="button" onClick={() => setAssignOpen(true)} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500">
-          + Assign Spiritual Leader
+        <button type="button" onClick={openAssignModal} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500">
+          + Assign term (1 or 4 years)
         </button>
       </div>
+      <p className="text-xs text-neutral-500">
+        Leaders set only in church leadership (no term dates yet) show as &quot;Church leadership&quot;. Use Create term to add a 1-year or 4-year term.
+      </p>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Total Terms', value: terms.length, color: 'text-neutral-700' },
+          { label: 'Term records', value: termRecordCount, color: 'text-neutral-700' },
+          { label: 'Leadership only', value: leadershipOnlyCount, color: 'text-amber-700' },
           { label: 'Active', value: terms.filter((t) => ['ASSIGNED', 'RENEWED'].includes(t.status)).length, color: 'text-emerald-700' },
           { label: 'Transfer Required', value: terms.filter((t) => t.status === 'TRANSFER_REQUIRED').length, color: 'text-amber-700' },
           { label: 'Transferred', value: terms.filter((t) => t.status === 'TRANSFERRED').length, color: 'text-neutral-400' },
@@ -511,6 +727,7 @@ function TermsTab({
               <th className="px-4 py-3 font-medium">Pastor / Leader</th>
               <th className="px-4 py-3 font-medium">Member ID</th>
               <th className="px-4 py-3 font-medium">Term</th>
+              <th className="px-4 py-3 font-medium">Length</th>
               <th className="px-4 py-3 font-medium">Start</th>
               <th className="px-4 py-3 font-medium">End</th>
               <th className="px-4 py-3 font-medium">Status</th>
@@ -519,21 +736,66 @@ function TermsTab({
           </thead>
           <tbody className="text-neutral-800 dark:text-neutral-200">
             {paged.map((t) => {
-              const cid = typeof t.church === 'object' && t.church ? (t.church as { _id?: string })._id || '' : '';
-              const cname = typeof t.church === 'object' && t.church ? (t.church as { name?: string }).name || '—' : '—';
-              const canRenew = (t.status === 'ASSIGNED' || t.status === 'RENEWED') && t.termNumber < 2 && isWithinRenewWindow(t.termEnd);
-              const canTransfer = t.status !== 'TRANSFERRED';
+              const cid = churchIdFromRef(t.church, churches);
+              const cname = churchNameFromRef(t.church, churches);
+
+              if (isLeadershipOnlyRow(t) || isCategoryOnlyRow(t)) {
+                const categoryOnly = isCategoryOnlyRow(t);
+                return (
+                  <tr key={t._id} className={`border-b last:border-0 ${categoryOnly ? 'border-violet-100 bg-violet-50/50 dark:border-violet-900/30 dark:bg-violet-950/20' : 'border-amber-100 bg-amber-50/50 dark:border-amber-900/30 dark:bg-amber-950/20'}`}>
+                    <td className="px-4 py-3 font-medium">{cname}</td>
+                    <td className="px-4 py-3">{t.pastor?.fullName || t.pastor?.email || '—'}</td>
+                    <td className="px-4 py-3 text-neutral-500">{t.pastor?.memberId || '—'}</td>
+                    <td className="px-4 py-3 text-amber-800">—</td>
+                    <td className="px-4 py-3 text-amber-800">No term yet</td>
+                    <td className="px-4 py-3 text-neutral-500">—</td>
+                    <td className="px-4 py-3 text-neutral-500">—</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          categoryOnly ? STATUS_BADGE.CATEGORY_ONLY : STATUS_BADGE.LEADERSHIP_ONLY
+                        }`}
+                      >
+                        {categoryOnly ? 'PASTOR category' : 'Church leadership'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-sky-300 px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50"
+                          onClick={() => {
+                            setChurchFilter(cid);
+                            setAssignChurchId(cid);
+                            setAssignOpen(true);
+                          }}
+                        >
+                          Create term
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              const canRenew =
+                (t.status === 'ASSIGNED' || t.status === 'RENEWED') &&
+                t.termNumber < MAX_PASTOR_TERM_CYCLES &&
+                !!t.termEnd &&
+                isWithinRenewWindow(t.termEnd);
+              const canTransfer = t.status !== 'TRANSFERRED' && !isLeadershipOnlyRow(t);
               return (
                 <tr key={t._id} className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
                   <td className="px-4 py-3 font-medium">{cname}</td>
                   <td className="px-4 py-3">{t.pastor?.fullName || '—'}</td>
                   <td className="px-4 py-3 text-neutral-500">{t.pastor?.memberId || '—'}</td>
-                  <td className="px-4 py-3">{t.termNumber}/2</td>
+                  <td className="px-4 py-3">{pastorTermCycleLabel(t.termNumber, t.termLengthYears)}</td>
+                  <td className="px-4 py-3 text-neutral-500">{pastorTermLengthLabel(t.termLengthYears)}</td>
                   <td className="px-4 py-3 text-neutral-500">{fmtDate(t.termStart)}</td>
                   <td className="px-4 py-3 text-neutral-500">{fmtDate(t.termEnd)}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[t.status] || 'bg-neutral-100 text-neutral-600'}`}>
-                      {t.status.replace('_', ' ')}
+                      {t.status.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -582,20 +844,228 @@ function TermsTab({
   );
 }
 
+// ── Tab: Remove spiritual leader ─────────────────────────────────────────────
+
+function RemoveLeadersTab({
+  terms,
+  churches,
+  token,
+  onRefreshTerms,
+}: {
+  terms: PastorTerm[];
+  churches: ChurchOption[];
+  token: string | null;
+  onRefreshTerms: () => void;
+}) {
+  const [churchFilter, setChurchFilter] = useState('');
+  const [removeTarget, setRemoveTarget] = useState<SpiritualLeaderRemoveTarget | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PASTOR_PAGE_DEFAULT);
+
+  const leaders = useMemo(() => removableLeaders(terms), [terms]);
+
+  const filtered = useMemo(() => {
+    if (!churchFilter) return leaders;
+    return leaders.filter((t) => churchIdFromRef(t.church, churches) === churchFilter);
+  }, [leaders, churchFilter, churches]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
+
+  async function confirmRemove() {
+    if (!token || !removeTarget) return;
+    setRemoveBusy(true);
+    setErr(null);
+    try {
+      await apiFetch(`/api/superadmin/pastor-terms/${encodeURIComponent(removeTarget.id)}`, {
+        method: 'DELETE',
+        token,
+      });
+      setRemoveTarget(null);
+      onRefreshTerms();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to remove spiritual leader');
+    } finally {
+      setRemoveBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
+        <p className="text-sm font-medium text-red-900 dark:text-red-200">Remove a spiritual leader</p>
+        <p className="mt-1 text-xs text-red-800/90 dark:text-red-300/90">
+          Select a leader below and click Remove leader. You will see full church and term details before confirming.
+          This clears the spiritual pastor role and deletes the term record when applicable.
+        </p>
+      </div>
+
+      {err && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{err}</p>}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={churchFilter}
+          onChange={(e) => {
+            setChurchFilter(e.target.value);
+            setPage(1);
+          }}
+          className={`w-56 ${field}`}
+        >
+          <option value="">All churches</option>
+          {churches.map((c) => (
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          {filtered.length} leader{filtered.length === 1 ? '' : 's'} can be removed
+        </p>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+              <th className="px-4 py-3 font-medium">Church</th>
+              <th className="px-4 py-3 font-medium">Pastor / Leader</th>
+              <th className="px-4 py-3 font-medium">Member ID</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Type</th>
+              <th className="px-4 py-3 font-medium">Term details</th>
+              <th className="px-4 py-3 text-right font-medium">Remove</th>
+            </tr>
+          </thead>
+          <tbody className="text-neutral-800 dark:text-neutral-200">
+            {paged.map((t) => {
+              const cname = churchNameFromRef(t.church, churches);
+              const leadershipOnly = isLeadershipOnlyRow(t);
+              const categoryOnly = isCategoryOnlyRow(t);
+              return (
+                <tr
+                  key={t._id}
+                  className={`border-b border-neutral-100 last:border-0 dark:border-neutral-800 ${leadershipOnly || categoryOnly ? 'bg-amber-50/40 dark:bg-amber-950/20' : ''}`}
+                >
+                  <td className="px-4 py-3 font-medium">{cname}</td>
+                  <td className="px-4 py-3">{t.pastor?.fullName || t.pastor?.email || '—'}</td>
+                  <td className="px-4 py-3 text-neutral-500">{t.pastor?.memberId || '—'}</td>
+                  <td className="px-4 py-3 text-neutral-500">{t.pastor?.email || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        leadershipOnly
+                          ? STATUS_BADGE.LEADERSHIP_ONLY
+                          : categoryOnly
+                            ? STATUS_BADGE.CATEGORY_ONLY
+                            : STATUS_BADGE[t.status] || 'bg-neutral-100 text-neutral-600'
+                      }`}
+                    >
+                      {leadershipOnly
+                        ? 'Church leadership'
+                        : categoryOnly
+                          ? 'PASTOR category'
+                          : t.status.replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-500">
+                    {leadershipOnly ? (
+                      'No formal term — leadership only'
+                    ) : categoryOnly ? (
+                      'PASTOR category — assign a term on Pastors / Spiritual leaders'
+                    ) : (
+                      <>
+                        {pastorTermCycleLabel(t.termNumber, t.termLengthYears)} · {pastorTermLengthLabel(t.termLengthYears)}
+                        <br />
+                        <span className="text-xs">
+                          {fmtDate(t.termStart)} – {fmtDate(t.termEnd)}
+                        </span>
+                      </>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setRemoveTarget(buildRemoveTarget(t, churches))}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                    >
+                      Remove leader
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <p className="px-4 py-10 text-center text-sm text-neutral-500">
+            No active spiritual leaders to remove. Assign leaders on the Pastors / Spiritual leaders tab first.
+          </p>
+        )}
+      </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        limit={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => {
+          setPageSize(n);
+          setPage(1);
+        }}
+        className="mt-4"
+      />
+
+      <RemoveSpiritualLeaderModal
+        open={!!removeTarget}
+        target={removeTarget}
+        busy={removeBusy}
+        onClose={() => {
+          if (!removeBusy) setRemoveTarget(null);
+        }}
+        onConfirm={() => void confirmRemove()}
+      />
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-type Tab = 'directory' | 'upgrade' | 'terms';
-
-export default function SuperadminPastorManagementPage() {
+function SuperadminPastorManagementPageInner() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('directory');
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => parseTabParam(searchParams.get('tab')));
   const [churches, setChurches] = useState<ChurchOption[]>([]);
   const [records, setRecords] = useState<PastorRecord[]>([]);
   const [terms, setTerms] = useState<PastorTerm[]>([]);
   const [selectedChurchId, setSelectedChurchId] = useState('');
+  const [assignChurchId, setAssignChurchId] = useState('');
   const [assignOpen, setAssignOpen] = useState(false);
   const [pageErr, setPageErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const raw = searchParams.get('tab');
+    if (raw === 'record-keeping' || raw === 'records') {
+      router.replace('/dashboard/superadmin/pastors');
+      return;
+    }
+    setTab(parseTabParam(raw));
+  }, [searchParams, router]);
+
+  const selectTab = useCallback(
+    (next: Tab) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === 'directory') params.delete('tab');
+      else params.set('tab', next);
+      const qs = params.toString();
+      router.replace(`/dashboard/superadmin/pastor-management${qs ? `?${qs}` : ''}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
@@ -612,8 +1082,8 @@ export default function SuperadminPastorManagementPage() {
   async function loadTerms() {
     if (!token || user?.role !== 'SUPERADMIN') return;
     try {
-      const res = await apiFetch<{ data: PastorTerm[] } | PastorTerm[]>('/api/superadmin/pastor-terms?limit=200', { token });
-      setTerms(Array.isArray(res) ? res : (res.data ?? []));
+      const res = await apiFetch<PastorTerm[] | Paginated<PastorTerm>>('/api/superadmin/pastor-terms?limit=200', { token });
+      setTerms(unwrapPaginatedArray(res));
     } catch { /* ignore */ }
   }
 
@@ -622,13 +1092,13 @@ export default function SuperadminPastorManagementPage() {
       if (!token || user?.role !== 'SUPERADMIN') return;
       try {
         const [churchRes, pastorRes, termRes] = await Promise.all([
-          apiFetch<{ data: ChurchOption[] } | ChurchOption[]>('/api/superadmin/churches?limit=500', { token }),
-          apiFetch<{ data: PastorRecord[] } | PastorRecord[]>('/api/superadmin/pastors?limit=200', { token }),
-          apiFetch<{ data: PastorTerm[] } | PastorTerm[]>('/api/superadmin/pastor-terms?limit=200', { token }),
+          apiFetch<ChurchOption[] | Paginated<ChurchOption>>('/api/superadmin/churches?limit=500', { token }),
+          apiFetch<PastorRecord[] | Paginated<PastorRecord>>('/api/superadmin/pastors?limit=200', { token }),
+          apiFetch<PastorTerm[] | Paginated<PastorTerm>>('/api/superadmin/pastor-terms?limit=200', { token }),
         ]);
-        setChurches(Array.isArray(churchRes) ? churchRes : (churchRes.data ?? []));
-        setRecords(Array.isArray(pastorRes) ? pastorRes : (pastorRes.data ?? []));
-        setTerms(Array.isArray(termRes) ? termRes : (termRes.data ?? []));
+        setChurches(unwrapPaginatedArray(churchRes));
+        setRecords(unwrapPaginatedArray(pastorRes));
+        setTerms(unwrapPaginatedArray(termRes));
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to load';
         setPageErr(msg);
@@ -637,12 +1107,19 @@ export default function SuperadminPastorManagementPage() {
     init();
   }, [token, user]);
 
+  useEffect(() => {
+    if ((tab === 'remove' || tab === 'terms') && token && user?.role === 'SUPERADMIN') {
+      void loadTerms();
+    }
+  }, [tab, token, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'directory', label: 'Pastor Directory' },
     { id: 'upgrade', label: 'Upgrade Member' },
-    { id: 'terms', label: 'Leader Terms' },
+    { id: 'terms', label: 'Pastors / Spiritual leaders' },
+    { id: 'remove', label: 'Remove spiritual leader' },
   ];
 
   return (
@@ -654,7 +1131,7 @@ export default function SuperadminPastorManagementPage() {
           Pastor Management
         </h1>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Manage all pastors, spiritual leaders, and reverends across all churches.
+          Manage pastors and spiritual leaders. Assign a 1-year or 4-year term (one renewal allowed per assignment).
         </p>
       </div>
 
@@ -663,7 +1140,7 @@ export default function SuperadminPastorManagementPage() {
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-neutral-200 bg-neutral-100 p-1 dark:bg-neutral-800 dark:border-neutral-700 w-fit">
         {TABS.map((t) => (
-          <button key={t.id} type="button" onClick={() => setTab(t.id)}
+          <button key={t.id} type="button" onClick={() => selectTab(t.id)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === t.id ? 'bg-white text-violet-700 shadow-sm dark:bg-neutral-900 dark:text-violet-300' : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'}`}>
             {t.label}
           </button>
@@ -676,22 +1153,48 @@ export default function SuperadminPastorManagementPage() {
           token={token} onRefresh={() => void loadRecords()} />
       )}
       {tab === 'upgrade' && (
-        <UpgradeMemberTab churches={churches} token={token} onRefresh={() => void loadRecords()} />
+        <UpgradeMemberTab
+          churches={churches}
+          token={token}
+          onRefresh={() => void loadRecords()}
+          onRefreshTerms={() => void loadTerms()}
+        />
       )}
       {tab === 'terms' && (
-        <TermsTab terms={terms} churches={churches} token={token}
+        <TermsTab
+          terms={terms}
+          churches={churches}
+          token={token}
           onRefreshTerms={() => void loadTerms()}
-          assignOpen={assignOpen} setAssignOpen={setAssignOpen} />
+          setAssignOpen={setAssignOpen}
+          setAssignChurchId={setAssignChurchId}
+        />
+      )}
+      {tab === 'remove' && (
+        <RemoveLeadersTab
+          terms={terms}
+          churches={churches}
+          token={token}
+          onRefreshTerms={() => void loadTerms()}
+        />
       )}
 
       <PastorAssignModal
         open={assignOpen}
         onClose={() => setAssignOpen(false)}
         token={token}
-        churchId={selectedChurchId}
+        churchId={assignChurchId || selectedChurchId}
         mode="superadmin"
         onSaved={() => void loadTerms()}
       />
     </div>
+  );
+}
+
+export default function SuperadminPastorManagementPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-neutral-500">Loading…</div>}>
+      <SuperadminPastorManagementPageInner />
+    </Suspense>
   );
 }

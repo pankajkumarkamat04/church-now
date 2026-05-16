@@ -18,6 +18,12 @@ import {
 } from 'recharts';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSystemSettings } from '@/contexts/SystemSettingsContext';
+import {
+  churchToReportBranding,
+  systemToReportBranding,
+  type ChurchBrandingSource,
+} from '@/lib/reportBranding';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
 import {
   DISPLAY_CURRENCY_OPTIONS,
@@ -27,7 +33,8 @@ import {
   type PublicCurrencyRates,
   usdToDisplayAmount,
 } from '@/lib/currency';
-import { PAYMENT_OPTION_LABELS, PAYMENT_OPTIONS, type PaymentOption } from '@/lib/payments';
+import { labelForPaymentType, PAYMENT_OPTION_LABELS, PAYMENT_OPTIONS } from '@/lib/payments';
+import { paymentTypeLabelsMap, useAdminPaymentTypes } from '@/lib/paymentTypes';
 import {
   downloadFinanceReportPdf,
   downloadFinanceReportSpreadsheet,
@@ -40,21 +47,36 @@ export type { FinanceTx } from '@/lib/financeTypes';
 
 const TX_PAGE_DEFAULT = 50;
 
-function emptyPaymentOptionTotals(): Record<PaymentOption, number> {
-  return Object.fromEntries(PAYMENT_OPTIONS.map((k) => [k, 0])) as Record<PaymentOption, number>;
+function emptyPaymentOptionTotals(codes: string[]): Record<string, number> {
+  return Object.fromEntries(codes.map((k) => [k, 0]));
 }
 
 function addBreakdownToTotals(
-  totals: Record<PaymentOption, number>,
+  totals: Record<string, number>,
   breakdown: Array<{ paymentType: string; amount: number }> | null | undefined
 ) {
   if (!breakdown?.length) return;
   for (const line of breakdown) {
     const key = String(line.paymentType || '').trim().toUpperCase();
-    if (key && key in totals) {
-      totals[key as PaymentOption] += Number(line.amount) || 0;
+    if (!key) continue;
+    if (!(key in totals)) totals[key] = 0;
+    totals[key] += Number(line.amount) || 0;
+  }
+}
+
+function paymentCodesFromTransactions(
+  rows: FinanceTx[],
+  defaults: readonly string[] = PAYMENT_OPTIONS
+): string[] {
+  const set = new Set<string>(defaults);
+  for (const r of rows) {
+    if (r.kind !== 'PAYMENT') continue;
+    for (const line of r.paymentLineBreakdown || []) {
+      const code = String(line.paymentType || '').trim().toUpperCase();
+      if (code) set.add(code);
     }
   }
+  return [...set];
 }
 
 type Summary = {
@@ -152,6 +174,7 @@ function exportScopeLabel(
 
 export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const { user, token, loading } = useAuth();
+  const { settings } = useSystemSettings();
   const router = useRouter();
   const [churchId, setChurchId] = useState('');
   const [from, setFrom] = useState('');
@@ -169,6 +192,9 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   const [search, setSearch] = useState('');
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('USD');
   const [rates, setRates] = useState<PublicCurrencyRates | null>(null);
+  const [adminChurch, setAdminChurch] = useState<ChurchBrandingSource | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
+  const { types: adminPaymentTypes } = useAdminPaymentTypes(variant === 'admin' ? token : null);
 
   const btnClass =
     variant === 'admin'
@@ -208,6 +234,13 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
   }, []);
 
   useEffect(() => {
+    if (variant !== 'admin' || !token) return;
+    apiFetch<ChurchBrandingSource>('/api/admin/church', { token })
+      .then(setAdminChurch)
+      .catch(() => setAdminChurch(null));
+  }, [variant, token]);
+
+  useEffect(() => {
     if (variant === 'admin' && (!user || user.role !== 'ADMIN')) {
       router.replace('/login');
     }
@@ -242,6 +275,22 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
       );
     });
   }, [summary, kindToggles, search]);
+
+  const paymentColumnCodes = useMemo(() => {
+    if (variant === 'admin') {
+      return adminPaymentTypes.length
+        ? adminPaymentTypes.map((t) => t.code)
+        : [...PAYMENT_OPTIONS];
+    }
+    return paymentCodesFromTransactions(filteredRows);
+  }, [variant, adminPaymentTypes, filteredRows]);
+
+  const paymentTypeLabels = useMemo(() => {
+    if (variant === 'admin' && adminPaymentTypes.length) {
+      return paymentTypeLabelsMap(adminPaymentTypes);
+    }
+    return { ...PAYMENT_OPTION_LABELS } as Record<string, string>;
+  }, [variant, adminPaymentTypes]);
 
   const txTotalPages = Math.max(1, Math.ceil(filteredRows.length / txPageSize));
   const pagedRows = useMemo(
@@ -304,12 +353,12 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
 
   const incomeMatrix = useMemo(() => {
     if (!kindToggles.PAYMENT) {
-      return { rows: [], columnTotals: emptyPaymentOptionTotals(), grandTotal: 0 };
+      return { rows: [], columnTotals: emptyPaymentOptionTotals(paymentColumnCodes), grandTotal: 0 };
     }
     const payRows = (filteredRows || []).filter((r) => r.kind === 'PAYMENT');
     const byKey = new Map<
       string,
-      { party: string; churchName: string | null; totals: Record<PaymentOption, number> }
+      { party: string; churchName: string | null; totals: Record<string, number> }
     >();
     for (const r of payRows) {
       const ck =
@@ -320,7 +369,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
         byKey.set(ck, {
           party: String(r.party || '').trim() || '—',
           churchName: r.churchName || null,
-          totals: emptyPaymentOptionTotals(),
+          totals: emptyPaymentOptionTotals(paymentColumnCodes),
         });
       }
       const agg = byKey.get(ck)!;
@@ -337,21 +386,21 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
 
     const rows = sorted.map((row) => {
       let rowTotal = 0;
-      for (const opt of PAYMENT_OPTIONS) rowTotal += row.totals[opt];
+      for (const opt of paymentColumnCodes) rowTotal += row.totals[opt] || 0;
       return { ...row, rowTotal };
     });
 
-    const columnTotals = emptyPaymentOptionTotals();
+    const columnTotals = emptyPaymentOptionTotals(paymentColumnCodes);
     let grandTotal = 0;
     for (const row of rows) {
-      for (const opt of PAYMENT_OPTIONS) {
-        columnTotals[opt] += row.totals[opt];
+      for (const opt of paymentColumnCodes) {
+        columnTotals[opt] += row.totals[opt] || 0;
       }
       grandTotal += row.rowTotal;
     }
 
     return { rows, columnTotals, grandTotal };
-  }, [filteredRows, kindToggles.PAYMENT, variant, showChurchCol]);
+  }, [filteredRows, kindToggles.PAYMENT, variant, showChurchCol, paymentColumnCodes]);
 
   /** Expenditure grouped by expense category (`paymentWay` on expense lines), USD. */
   const expenditureByCategory = useMemo(() => {
@@ -381,6 +430,18 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     [rates, displayCurrency]
   );
 
+  const reportBranding = useMemo(() => {
+    if (variant === 'admin') {
+      return churchToReportBranding(adminChurch, settings);
+    }
+    const scopedId = churchId || summary?.churchId || '';
+    if (scopedId && churches.length) {
+      const match = churches.find((c) => String(c._id) === String(scopedId));
+      if (match) return churchToReportBranding(match, settings);
+    }
+    return systemToReportBranding(settings);
+  }, [variant, adminChurch, settings, churchId, summary?.churchId, churches]);
+
   const financeExportPayload = useMemo((): FinanceReportExportInput | null => {
     if (!summary) return null;
     return {
@@ -389,7 +450,9 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
       periodText: exportPeriodText(summary),
       displayCurrency,
       showChurchCol,
-      paymentOptions: PAYMENT_OPTIONS,
+      branding: reportBranding,
+      paymentOptions: paymentColumnCodes,
+      paymentOptionLabels: paymentTypeLabels,
       incomeIncluded: kindToggles.PAYMENT ?? true,
       incomeMatrix,
       expenseIncluded: kindToggles.EXPENSE ?? true,
@@ -402,6 +465,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     summary,
     variant,
     churches,
+    reportBranding,
     displayCurrency,
     showChurchCol,
     kindToggles.PAYMENT,
@@ -411,6 +475,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
     summaryForDisplay,
     filteredRows,
     getAmountDisplay,
+    paymentColumnCodes,
+    paymentTypeLabels,
   ]);
 
   if (!user || (variant === 'admin' && user.role !== 'ADMIN') || (variant === 'superadmin' && user.role !== 'SUPERADMIN')) {
@@ -558,18 +624,22 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             <button
               type="button"
               className={exportBtnClass}
-              disabled={busy || !financeExportPayload}
+              disabled={busy || exportBusy || !financeExportPayload}
               onClick={() => {
-                if (financeExportPayload) downloadFinanceReportPdf(financeExportPayload);
+                if (!financeExportPayload) return;
+                setExportBusy(true);
+                void downloadFinanceReportPdf(financeExportPayload)
+                  .catch((e) => setErr(e instanceof Error ? e.message : 'PDF export failed'))
+                  .finally(() => setExportBusy(false));
               }}
             >
               <FileDown className="size-3.5 shrink-0" aria-hidden />
-              Download PDF
+              {exportBusy ? 'Preparing PDF…' : 'Download PDF'}
             </button>
             <button
               type="button"
               className={exportBtnClass}
-              disabled={busy || !financeExportPayload}
+              disabled={busy || exportBusy || !financeExportPayload}
               onClick={() => {
                 if (financeExportPayload) downloadFinanceReportSpreadsheet(financeExportPayload);
               }}
@@ -621,22 +691,21 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
               >
                 <h2 className="text-base font-bold text-neutral-900">Payment summary</h2>
                 <p className="mt-1 text-xs text-neutral-600">
-                  Unified totals by line — tithe, building, roof, gazaland, UTC, thanks, music, xmas, harvest ({displayCurrency}
-                  ).
+                  Unified totals by payment category ({displayCurrency}).
                 </p>
               </div>
               <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                {PAYMENT_OPTIONS.map((opt) => (
+                {paymentColumnCodes.map((opt) => (
                   <div
                     key={opt}
                     className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200/80 bg-white px-3 py-2.5 shadow-sm"
                   >
                     <div>
-                      <p className="text-sm font-medium text-neutral-900">{PAYMENT_OPTION_LABELS[opt]}</p>
+                      <p className="text-sm font-medium text-neutral-900">{labelForPaymentType(opt, paymentTypeLabels)}</p>
                       <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-400">{opt}</p>
                     </div>
                     <p className="text-sm font-semibold tabular-nums text-emerald-900">
-                      {formatDashboardAmount(incomeMatrix.columnTotals[opt])}
+                      {formatDashboardAmount(incomeMatrix.columnTotals[opt] || 0)}
                     </p>
                   </div>
                 ))}
@@ -712,12 +781,12 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                           Church
                         </th>
                       ) : null}
-                      {PAYMENT_OPTIONS.map((opt) => (
+                      {paymentColumnCodes.map((opt) => (
                         <th
                           key={opt}
                           className="max-w-[96px] px-1 py-2 text-center text-[11px] font-bold leading-tight text-neutral-800"
                         >
-                          <span className="block">{PAYMENT_OPTION_LABELS[opt]}</span>
+                          <span className="block">{labelForPaymentType(opt, paymentTypeLabels)}</span>
                           <span className="block font-normal uppercase tracking-tight text-neutral-500">{opt}</span>
                         </th>
                       ))}
@@ -741,7 +810,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                           </td>
                         ) : null}
                         {PAYMENT_OPTIONS.map((opt) => {
-                          const v = row.totals[opt];
+                          const v = row.totals[opt] || 0;
                           return (
                             <td key={opt} className="whitespace-nowrap px-1 py-1.5 text-right tabular-nums text-neutral-800">
                               {formatUsdAnalysis(v)}
@@ -766,9 +835,9 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                       >
                         Total income USD
                       </td>
-                      {PAYMENT_OPTIONS.map((opt) => (
+                      {paymentColumnCodes.map((opt) => (
                         <td key={opt} className="whitespace-nowrap px-1 py-2.5 text-right text-sm font-bold tabular-nums">
-                          {formatUsdAnalysis(incomeMatrix.columnTotals[opt])}
+                          {formatUsdAnalysis(incomeMatrix.columnTotals[opt] || 0)}
                         </td>
                       ))}
                       <td className="whitespace-nowrap border-l border-white/20 px-3 py-2.5 text-right text-base font-bold tabular-nums">

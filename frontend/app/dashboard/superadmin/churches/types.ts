@@ -57,6 +57,7 @@ export type ServiceCouncil = {
 export type ChurchRecord = {
   _id: string;
   name: string;
+  logoUrl?: string;
   churchType?: 'MAIN' | 'SUB';
   localLeadership?: LocalLeadership;
   councils?: ChurchCouncil[];
