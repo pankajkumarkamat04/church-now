@@ -202,7 +202,6 @@ function superadminNavGroups(): AdminNavGroup[] {
       children: [
         { href: '/dashboard/superadmin/pastor-management', label: 'Pastor Management', icon: <UserCog className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/pastors', label: 'Record keeping', icon: <Shield className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/pastor-terms', label: 'Leader terms', icon: <Shield className="size-3.5 opacity-70" /> },
       ],
     },
     {
@@ -259,8 +258,7 @@ function superadminPathInGroup(
   if (groupId === 'leadership') {
     return (
       pathname.startsWith('/dashboard/superadmin/pastor-management') ||
-      pathname.startsWith('/dashboard/superadmin/pastors') ||
-      pathname.startsWith('/dashboard/superadmin/pastor-terms')
+      pathname.startsWith('/dashboard/superadmin/pastors')
     );
   }
   if (groupId === 'programs') {

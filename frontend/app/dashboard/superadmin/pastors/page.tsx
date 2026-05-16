@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 import {
@@ -92,10 +92,10 @@ export default function SuperadminPastorsPage() {
       const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
       if (selectedChurchId) params.set('churchId', selectedChurchId);
       const [churchRows, pastorRes] = await Promise.all([
-        apiFetch<ChurchOption[]>('/api/superadmin/churches', { token }),
+        apiFetch<ChurchOption[] | Paginated<ChurchOption>>('/api/superadmin/churches', { token }),
         apiFetch<{ data: PastorRecordRow[]; total: number; totalPages: number; limit: number }>(`/api/superadmin/pastors?${params.toString()}`, { token }),
       ]);
-      setChurches(churchRows);
+      setChurches(unwrapPaginatedArray(churchRows));
       setRows(pastorRes.data ?? []);
       setMeta({ total: pastorRes.total ?? 0, totalPages: pastorRes.totalPages ?? 1, limit: pastorRes.limit ?? pageSize });
     }
