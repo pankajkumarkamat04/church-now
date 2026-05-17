@@ -127,7 +127,7 @@ export default function AdminPaymentsOnBehalfPage() {
           note,
         }),
       });
-      setAmountsByOption(emptyAmountsByOption());
+      setAmountsByOption(emptyAmountsForCodes(activeCodes));
       setNote('');
       await loadMembers();
     } catch (error) {
