@@ -23,6 +23,7 @@ const PastorTerm = require('../models/PastorTerm');
 const Event = require('../models/Event');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { validateNewPassword } = require('../utils/passwordPolicy');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 const {
   syncChurchMemberRoleDisplays,
@@ -800,8 +801,9 @@ async function createChurchAdmin(req, res) {
     const selectedIds = [memberChurchId];
 
     if (password !== undefined && password !== null && String(password).trim() !== '') {
-      if (String(password).length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      const pwdErr = validateNewPassword(String(password).trim());
+      if (pwdErr) {
+        return res.status(400).json({ message: pwdErr });
       }
       member.password = password;
     }
@@ -832,6 +834,10 @@ async function createSuperadminUser(req, res) {
     const { email, password, fullName } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
+    }
+    const pwdErr = validateNewPassword(password);
+    if (pwdErr) {
+      return res.status(400).json({ message: pwdErr });
     }
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
@@ -880,6 +886,10 @@ async function createMemberUser(req, res) {
     } = req.body;
     if (!email || !password || !conferenceId || !churchId) {
       return res.status(400).json({ message: 'email, password, conferenceId and churchId are required' });
+    }
+    const pwdErr = validateNewPassword(password);
+    if (pwdErr) {
+      return res.status(400).json({ message: pwdErr });
     }
     const church = await Church.findOne({ _id: churchId, conference: conferenceId, isActive: true }).select(
       '_id conference'

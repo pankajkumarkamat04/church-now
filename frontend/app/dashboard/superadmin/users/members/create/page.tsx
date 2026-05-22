@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch, type Gender, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { useAuth } from '@/contexts/AuthContext';
 
 const field =
@@ -211,7 +212,8 @@ export default function SuperadminMemberCreatePage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
-              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className={field} />
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className={field} />
+              <PasswordRequirementsHint className="mt-1" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>

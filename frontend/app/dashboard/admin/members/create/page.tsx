@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { useAuth } from '@/contexts/AuthContext';
 
 
@@ -137,11 +138,13 @@ export default function AdminMemberCreatePage() {
             <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
             <PasswordInput
               required
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               className={field}
             />
+            <PasswordRequirementsHint className="mt-1" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>

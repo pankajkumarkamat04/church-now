@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Church, Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { validatePassword } from '@/lib/passwordPolicy';
 import { apiFetch, type Gender } from '@/lib/api';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
@@ -133,6 +135,11 @@ export default function SignupPage() {
     }
     if (!line1.trim() || !city.trim() || !stateOrProvince.trim() || !postalCode.trim() || !country.trim()) {
       setError('Complete your residential address (line 1, city, state/province, postal code, country)');
+      return;
+    }
+    const policyErr = validatePassword(password);
+    if (policyErr) {
+      setError(policyErr);
       return;
     }
     setBusy(true);
@@ -275,12 +282,13 @@ export default function SignupPage() {
             <label className="mb-1 block text-sm font-medium text-neutral-700">Password</label>
             <PasswordInput
               autoComplete="new-password"
-              minLength={6}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               className={inputClass}
             />
+            <PasswordRequirementsHint className="mt-1.5" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">First name</label>

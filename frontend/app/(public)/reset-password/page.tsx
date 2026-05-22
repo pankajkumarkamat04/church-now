@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Church, Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { validatePassword } from '@/lib/passwordPolicy';
 import { apiFetch } from '@/lib/api';
 
 function ResetPasswordForm() {
@@ -29,8 +31,9 @@ function ResetPasswordForm() {
       setError('Passwords do not match');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    const policyErr = validatePassword(password);
+    if (policyErr) {
+      setError(policyErr);
       return;
     }
     setBusy(true);
@@ -105,9 +108,10 @@ function ResetPasswordForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
             />
+            <PasswordRequirementsHint className="mt-1.5" />
           </div>
           <div>
             <label

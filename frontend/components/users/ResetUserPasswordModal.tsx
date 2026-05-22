@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Copy, Loader2, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { validatePassword } from '@/lib/passwordPolicy';
 
 type Mode = 'set' | 'link';
 
@@ -62,8 +64,9 @@ export function ResetUserPasswordModal({
     setResetLink(null);
 
     if (mode === 'set') {
-      if (password.length < 6) {
-        setErr('Password must be at least 6 characters');
+      const policyErr = validatePassword(password);
+      if (policyErr) {
+        setErr(policyErr);
         return;
       }
       if (password !== confirm) {
@@ -181,18 +184,19 @@ export function ResetUserPasswordModal({
                 <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  minLength={6}
+                  minLength={8}
                   required
                   autoComplete="new-password"
                   className={field}
                 />
+                <PasswordRequirementsHint className="mt-1" />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Confirm password</label>
                 <PasswordInput
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  minLength={6}
+                  minLength={8}
                   required
                   autoComplete="new-password"
                   className={field}

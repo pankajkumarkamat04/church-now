@@ -262,6 +262,11 @@ async function createMember(req, res) {
           'Email, password, firstName, surname, idNumber, and contactPhone are required',
       });
     }
+    const { validateNewPassword } = require('../utils/passwordPolicy');
+    const pwdErr = validateNewPassword(password);
+    if (pwdErr) {
+      return res.status(400).json({ message: pwdErr });
+    }
     if (!churchId(req)) {
       return res.status(400).json({ message: 'No church assigned' });
     }

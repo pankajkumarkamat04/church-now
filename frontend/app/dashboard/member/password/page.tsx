@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { apiFetch } from '@/lib/api';
+import { validatePassword } from '@/lib/passwordPolicy';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 const field =
@@ -42,8 +44,9 @@ export default function MemberPasswordPage() {
       setErr('New password and confirmation do not match');
       return;
     }
-    if (newPassword.length < 6) {
-      setErr('New password must be at least 6 characters');
+    const policyErr = validatePassword(newPassword);
+    if (policyErr) {
+      setErr(policyErr);
       return;
     }
 
@@ -111,10 +114,10 @@ export default function MemberPasswordPage() {
               onChange={(e) => setNewPassword(e.target.value)}
               className={field}
               autoComplete="new-password"
-              minLength={6}
+              minLength={8}
               required
             />
-            <p className="mt-1 text-xs text-neutral-500">At least 6 characters.</p>
+            <PasswordRequirementsHint className="mt-1" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600">Confirm new password</label>
@@ -123,7 +126,7 @@ export default function MemberPasswordPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               className={field}
               autoComplete="new-password"
-              minLength={6}
+              minLength={8}
               required
             />
           </div>

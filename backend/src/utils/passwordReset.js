@@ -10,12 +10,7 @@ function buildResetLink(email, rawToken) {
   return `${frontendBase.replace(/\/$/, '')}${resetPath}`;
 }
 
-function validateNewPassword(password) {
-  if (typeof password !== 'string' || password.trim().length < 6) {
-    return 'Password must be at least 6 characters';
-  }
-  return null;
-}
+const { validateNewPassword } = require('./passwordPolicy');
 
 /**
  * @param {import('../models/User')} user — mongoose document

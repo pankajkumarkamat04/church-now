@@ -66,6 +66,10 @@ async function register(req, res) {
           'Email, password, church selection, first name, surname, ID number, and contact phone are required',
       });
     }
+    const passwordErr = validateNewPassword(password);
+    if (passwordErr) {
+      return res.status(400).json({ message: passwordErr });
+    }
     if (!dateOfBirth || String(dateOfBirth).trim() === '') {
       return res.status(400).json({ message: 'Date of birth is required' });
     }
