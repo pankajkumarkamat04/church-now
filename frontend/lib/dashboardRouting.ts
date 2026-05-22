@@ -7,6 +7,16 @@ export const CONFERENCE_LEADER_PANEL_PATH = '/dashboard/conference-leader';
  * True for congregation members, and for church admins who were members (kept home church + member id).
  * Used for member API access and the member UI shell.
  */
+/** Church admins (including promoted members) use the admin dashboard. */
+export function canAccessAdminPortal(user: AuthUser | null | undefined): boolean {
+  return user?.role === 'ADMIN';
+}
+
+/** Promoted member→admin: both member and church admin portals. */
+export function isDualPortalUser(user: AuthUser | null | undefined): boolean {
+  return Boolean(canAccessAdminPortal(user) && canAccessMemberPortal(user));
+}
+
 export function canAccessMemberPortal(user: AuthUser | null | undefined): boolean {
   if (!user) return false;
   if (user.role === 'MEMBER') return true;

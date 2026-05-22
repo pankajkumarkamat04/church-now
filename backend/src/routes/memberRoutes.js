@@ -2,7 +2,13 @@ const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const { requireMemberPortal } = require('../middleware/roles');
 const { asyncHandler } = require('../utils/asyncHandler');
-const { getProfile, updateProfile, getMyChurchInfo, getMyCouncils } = require('../controllers/memberController');
+const {
+  getProfile,
+  updateProfile,
+  changePassword,
+  getMyChurchInfo,
+  getMyCouncils,
+} = require('../controllers/memberController');
 const churchChangeController = require('../controllers/churchChangeController');
 const paymentController = require('../controllers/paymentController');
 const paymentTypeController = require('../controllers/paymentTypeController');
@@ -14,6 +20,7 @@ router.use(authenticate, requireMemberPortal());
 
 router.get('/profile', asyncHandler(getProfile));
 router.put('/profile', asyncHandler(updateProfile));
+router.post('/change-password', asyncHandler(changePassword));
 router.get('/church', asyncHandler(getMyChurchInfo));
 router.get('/councils', asyncHandler(getMyCouncils));
 router.get('/payment-types', asyncHandler(paymentTypeController.listMemberPaymentTypes));

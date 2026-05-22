@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress, type Paginated, unwrapPaginatedArray } from '@/lib/api';
@@ -23,9 +23,16 @@ const emptyAddress: MemberAddress = {
 
 type UserDetail = AuthUser & { id: string };
 
+function safeReturnPath(from: string | null): string | null {
+  if (!from || !from.startsWith('/dashboard/superadmin')) return null;
+  return from;
+}
+
 export default function SuperadminUserEditPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const userId = params.userId as string;
+  const returnTo = safeReturnPath(searchParams.get('from'));
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [row, setRow] = useState<UserDetail | null>(null);
@@ -207,10 +214,12 @@ export default function SuperadminUserEditPage() {
     return null;
   }
 
+  const fallbackBackHref = returnTo || '/dashboard/superadmin/users';
+
   if (loadErr) {
     return (
       <div className="mx-auto w-full min-w-0 max-w-lg">
-        <Link href="/dashboard/superadmin/users" className="text-sm text-violet-700">
+        <Link href={fallbackBackHref} className="text-sm text-violet-700">
           ← Back
         </Link>
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -232,13 +241,25 @@ export default function SuperadminUserEditPage() {
   const isMemberForm =
     row.role === 'MEMBER' || (row.role === 'ADMIN' && String(row.memberId || '').trim() !== '');
   const isPromotedChurchAdmin = row.role === 'ADMIN' && String(row.memberId || '').trim() !== '';
-  const backHref = isLegacyChurchAdmin ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users';
+  const defaultBackHref = isLegacyChurchAdmin ? '/dashboard/superadmin/admins' : '/dashboard/superadmin/users';
+  const backHref = returnTo || defaultBackHref;
+  const viewHref = `/dashboard/superadmin/users/${userId}${
+    returnTo ? `?from=${encodeURIComponent(returnTo)}` : ''
+  }`;
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-4xl">
-      <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">
-        ← Back
-      </Link>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">
+          ← Back
+        </Link>
+        <Link
+          href={viewHref}
+          className="text-sm font-medium text-neutral-600 hover:text-neutral-900"
+        >
+          View profile
+        </Link>
+      </div>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Edit user</h1>
         <p className="mt-1 text-sm text-neutral-600">

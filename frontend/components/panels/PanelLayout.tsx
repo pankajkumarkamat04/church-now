@@ -23,7 +23,9 @@ import {
   X,
 } from 'lucide-react';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+import { PortalToggle } from '@/components/dashboard/PortalToggle';
 import { BrandIdentity } from '@/components/branding/BrandIdentity';
+import { isDualPortalUser } from '@/lib/dashboardRouting';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { AppFooter } from '@/components/layout/AppFooter';
 import type { Role } from '@/lib/api';
@@ -570,6 +572,19 @@ export function PanelLayout({
                     {item.label}
                   </Link>
                 ))}
+
+                {isDualPortalUser(user) ? (
+                  <>
+                    <div className="my-2 border-t border-neutral-100 dark:border-neutral-800" />
+                    <Link
+                      href="/dashboard/member"
+                      className={`${NAV_TOP_LINK} ${isNavActive(pathname, '/dashboard/member', variant) ? meta.navActive : meta.navIdle}`}
+                    >
+                      <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />
+                      Member portal
+                    </Link>
+                  </>
+                ) : null}
               </>
             ) : (
               <>
@@ -673,6 +688,7 @@ export function PanelLayout({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {variant === 'admin' ? <PortalToggle user={user} mode="admin" /> : null}
               <ThemeToggle />
               <span className={`hidden whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 sm:inline-flex sm:text-xs ${meta.rolePill}`}>
                 {variant === 'admin' ? adminChurchRoleLabel : user.role}

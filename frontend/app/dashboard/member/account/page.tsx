@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
@@ -231,6 +232,12 @@ export default function MemberAccountPage() {
           Account details
         </h1>
         <p className="mt-1 text-sm text-neutral-600">Manage your member profile and residential address.</p>
+        <Link
+          href="/dashboard/member/password"
+          className="mt-2 inline-flex text-sm font-medium text-emerald-700 hover:text-emerald-900"
+        >
+          Change password →
+        </Link>
       </div>
 
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">

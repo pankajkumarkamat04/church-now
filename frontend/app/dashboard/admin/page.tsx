@@ -50,14 +50,21 @@ type ChurchDetails = {
   localLeadership?: LocalLeadershipApi;
 };
 
-/** “Chairperson” in UI: main church → president or moderator; sub → deacon or moderator. */
-function chairpersonRef(leadership: LocalLeadershipApi | undefined, churchType?: string): LeadershipUserRef {
+/** Primary local leader: sub-church → deacon; main church → church president. */
+function primaryLocalLeaderRef(
+  leadership: LocalLeadershipApi | undefined,
+  churchType?: string
+): LeadershipUserRef {
   if (!leadership) return undefined;
   const isSub = churchType === 'SUB';
   if (isSub) {
     return leadership.deacon || leadership.moderator || leadership.churchPresident;
   }
   return leadership.churchPresident || leadership.moderator || leadership.spiritualPastor;
+}
+
+function primaryLocalLeaderLabel(churchType?: string): string {
+  return churchType === 'SUB' ? 'Deacon' : 'Church president';
 }
 
 function formatLeadershipPerson(
@@ -157,8 +164,12 @@ export default function AdminDashboardIndexPage() {
     return Math.round((activeMembers / members.length) * 100);
   }, [activeMembers, members.length]);
 
-  const chairDisplay = useMemo(
-    () => formatLeadershipPerson(chairpersonRef(church?.localLeadership, church?.churchType), members),
+  const primaryLeaderDisplay = useMemo(
+    () =>
+      formatLeadershipPerson(
+        primaryLocalLeaderRef(church?.localLeadership, church?.churchType),
+        members
+      ),
     [church?.localLeadership, church?.churchType, members]
   );
   const secretaryDisplay = useMemo(
@@ -275,8 +286,8 @@ export default function AdminDashboardIndexPage() {
           <p className={`mb-4 ${txtTitle}`}>Local Leadership</p>
           <div className="space-y-2 text-sm">
             <div className={shellField}>
-              <p className={txtLabel}>Chairperson</p>
-              <p className={txtValueLead}>{chairDisplay}</p>
+              <p className={txtLabel}>{primaryLocalLeaderLabel(church?.churchType)}</p>
+              <p className={txtValueLead}>{primaryLeaderDisplay}</p>
             </div>
             <div className={shellField}>
               <p className={txtLabel}>Secretary</p>

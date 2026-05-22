@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Briefcase,
   CircleUserRound,
+  KeyRound,
   Landmark,
   X,
   CreditCard,
@@ -18,8 +19,10 @@ import {
 } from 'lucide-react';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import { BrandIdentity } from '@/components/branding/BrandIdentity';
+import { PortalToggle } from '@/components/dashboard/PortalToggle';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { AppFooter } from '@/components/layout/AppFooter';
+import { isDualPortalUser } from '@/lib/dashboardRouting';
 
 export function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -56,6 +59,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const overviewActive = pathname === '/dashboard/member';
   const paymentsActive = pathname === '/dashboard/member/payments';
   const accountActive = pathname === '/dashboard/member/account';
+  const passwordActive = pathname === '/dashboard/member/password';
   const financeRecordsActive = pathname === '/dashboard/member/finance';
   const councilsActive = pathname === '/dashboard/member/councils';
   const announcementsActive = pathname === '/dashboard/member/announcements';
@@ -71,6 +75,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
   const mainMenuItems = [
     { href: '/dashboard/member', label: 'Dashboard', icon: LayoutDashboard, active: overviewActive },
     { href: '/dashboard/member/account', label: 'My Account', icon: CircleUserRound, active: accountActive },
+    { href: '/dashboard/member/password', label: 'Password', icon: KeyRound, active: passwordActive },
     { href: '/dashboard/member/finance', label: 'My Records', icon: Wallet, active: financeRecordsActive },
     { href: '/dashboard/member/payments', label: 'Payments', icon: CreditCard, active: paymentsActive },
     { href: '/dashboard/member/councils', label: 'Councils', icon: Layers, active: councilsActive },
@@ -120,10 +125,10 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
             {item.label}
           </Link>
         ))}
-        {user.role === 'ADMIN' ? (
+        {isDualPortalUser(user) ? (
           <Link href="/dashboard/admin" className={itemClass(pathname.startsWith('/dashboard/admin'))}>
             <Briefcase className="size-4 shrink-0" />
-            Church Admin Panel
+            Church admin portal
           </Link>
         ) : null}
       </nav>
@@ -189,6 +194,7 @@ export function MemberDashboardLayout({ children }: { children: React.ReactNode 
             </Link>
           </div>
           <div className="shrink-0 flex items-center gap-2">
+            <PortalToggle user={user} mode="member" />
             <ThemeToggle />
             <Link
               href="/dashboard/member/account"
