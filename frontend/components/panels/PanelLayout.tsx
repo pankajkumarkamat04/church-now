@@ -29,6 +29,7 @@ import { isDualPortalUser } from '@/lib/dashboardRouting';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { AppFooter } from '@/components/layout/AppFooter';
 import type { Role } from '@/lib/api';
+import { canAccessSuperadminPanel, panelRoleLabel } from '@/lib/superadminPanel';
 
 export type PanelVariant = 'admin' | 'superadmin';
 
@@ -63,9 +64,9 @@ const panelMeta: Record<
       'bg-sky-50 text-sky-800 ring-1 ring-sky-200/60 dark:bg-sky-950/90 dark:text-sky-100 dark:ring-sky-700/50',
   },
   superadmin: {
-    title: 'Superadmin dashboard',
+    title: 'Denomination dashboard',
     tagline: 'Control center',
-    badge: 'Superadmin',
+    badge: 'Panel',
     navActive:
       'bg-violet-50 text-violet-900 border-violet-200 shadow-sm dark:bg-violet-950/90 dark:text-violet-50 dark:border-violet-700 dark:shadow-violet-950/30',
     navIdle:
@@ -379,6 +380,10 @@ export function PanelLayout({
   });
   const required = roleForVariant[variant];
   const meta = panelMeta[variant];
+  const superadminPanelAccess =
+    variant === 'superadmin' && user ? canAccessSuperadminPanel(user.role) : false;
+  const superadminBadge =
+    variant === 'superadmin' && user ? panelRoleLabel(user.role) : meta.badge;
   const adminChurchRoleLabel = variant === 'admin' ? resolveAdminChurchRole(user || {}) : '';
 
   const adminPathFinance =
@@ -392,10 +397,12 @@ export function PanelLayout({
       router.replace('/login');
       return;
     }
-    if (user.role !== required) {
+    if (variant === 'superadmin') {
+      if (!canAccessSuperadminPanel(user.role)) router.replace(getDefaultDashboardPath(user));
+    } else if (user.role !== required) {
       router.replace(getDefaultDashboardPath(user));
     }
-  }, [loading, user, required, router]);
+  }, [loading, user, required, router, variant]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -416,7 +423,7 @@ export function PanelLayout({
     });
   }, [variant, pathname]);
 
-  if (loading || !user || user.role !== required) {
+  if (loading || !user || (variant === 'superadmin' ? !superadminPanelAccess : user.role !== required)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-100 dark:bg-neutral-950">
         <div className="flex flex-col items-center gap-3">
@@ -470,7 +477,7 @@ export function PanelLayout({
               <p className="truncate text-[10px] text-neutral-400 dark:text-neutral-500">{user.email}</p>
             </div>
             <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.badgeStyle}`}>
-              {meta.badge}
+              {variant === 'superadmin' ? superadminBadge : meta.badge}
             </span>
           </div>
 
@@ -697,7 +704,11 @@ export function PanelLayout({
           </div>
         </header>
 
-        <div className="dashboard-content w-full min-w-0 max-w-full flex-1 px-3 py-5 sm:px-6 sm:py-8 lg:px-10">{children}</div>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="dashboard-content mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col justify-center px-3 py-5 sm:px-6 sm:py-8 lg:px-10">
+            {children}
+          </div>
+        </main>
         <AppFooter />
       </div>
     </div>

@@ -1,3 +1,5 @@
+const SUPERADMIN_PANEL_ROLES = ['SUPERADMIN', 'CHURCH_ADMIN'];
+
 function requireRoles(...allowed) {
   return (req, res, next) => {
     if (!req.user) {
@@ -8,6 +10,16 @@ function requireRoles(...allowed) {
     }
     next();
   };
+}
+
+/** Denomination control panel (superadmin + Church Admin pastor). */
+function requireSuperadminPanel() {
+  return requireRoles(...SUPERADMIN_PANEL_ROLES);
+}
+
+/** System superadmin only (e.g. create superadmin accounts). */
+function requireSuperadminOnly() {
+  return requireRoles('SUPERADMIN');
 }
 
 /**
@@ -32,4 +44,10 @@ function requireMemberPortal() {
   };
 }
 
-module.exports = { requireRoles, requireMemberPortal };
+module.exports = {
+  requireRoles,
+  requireMemberPortal,
+  requireSuperadminPanel,
+  requireSuperadminOnly,
+  SUPERADMIN_PANEL_ROLES,
+};

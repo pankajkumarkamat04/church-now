@@ -78,6 +78,8 @@ const statusClass = (status: string) => {
 
 const statusLabel = (status: string) => (status === 'PARTIAL' ? 'PARTIALLY_PAID' : status);
 
+const REMITTANCE_MUTATIONS_ENABLED = false;
+
 type ChurchEntryEdit = {
   remitType: string;
   amount: string;
@@ -279,6 +281,7 @@ export default function RemittanceDetailsPage() {
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"><p className="text-xs text-neutral-500">Total Balance</p><p className="mt-1 text-xl font-semibold text-rose-800">USD {(churchData.lifetimeSummary?.totalBalance ?? churchData.row.mainChurch.balance + churchData.row.conference.balance).toFixed(2)}</p></div>
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"><p className="text-xs text-neutral-500">Payment Status</p><span className={`mt-1 inline-block rounded-full px-2 py-1 text-xs font-medium ${statusClass(churchData.lifetimeSummary?.paymentStatus || churchData.row.paymentStatus || 'PENDING')}`}>{statusLabel(churchData.lifetimeSummary?.paymentStatus || churchData.row.paymentStatus || 'PENDING')}</span></div>
           </div>
+          {REMITTANCE_MUTATIONS_ENABLED ? (
           <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold text-neutral-900">Pay Remit</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -309,6 +312,7 @@ export default function RemittanceDetailsPage() {
               </button>
             </div>
           </div>
+          ) : null}
           <div className="mb-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2"><h2 className="text-sm font-semibold text-neutral-900">Monthly Remittance Status (Due + Paid + Balance)</h2></div>
             <table className="w-full min-w-[980px] text-sm">
@@ -357,7 +361,7 @@ export default function RemittanceDetailsPage() {
                     <tr key={e.id} className="border-t border-neutral-100">
                       <td className="px-3 py-2">{e.monthKey || churchData.monthKey}</td>
                       <td className="px-3 py-2">
-                        {isEditing ? (
+                        {REMITTANCE_MUTATIONS_ENABLED && isEditing ? (
                           <select
                             value={churchEntryEdit.remitType}
                             onChange={(ev) => setChurchEntryEdit((prev) => ({ ...prev, remitType: ev.target.value }))}
@@ -371,7 +375,7 @@ export default function RemittanceDetailsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
-                        {isEditing ? (
+                        {REMITTANCE_MUTATIONS_ENABLED && isEditing ? (
                           <input
                             type="number"
                             min="0"
@@ -385,7 +389,7 @@ export default function RemittanceDetailsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        {isEditing ? (
+                        {REMITTANCE_MUTATIONS_ENABLED && isEditing ? (
                           <input
                             type="date"
                             value={churchEntryEdit.paidAt}
@@ -399,7 +403,7 @@ export default function RemittanceDetailsPage() {
                       <td className="px-3 py-2">{e.createdByName || 'System'}</td>
                       <td className="px-3 py-2">{e.createdAt ? new Date(e.createdAt).toLocaleString() : '—'}</td>
                       <td className="px-3 py-2 text-xs text-neutral-700">
-                        {isEditing ? (
+                        {REMITTANCE_MUTATIONS_ENABLED && isEditing ? (
                           <input
                             type="text"
                             value={churchEntryEdit.note}
@@ -412,33 +416,37 @@ export default function RemittanceDetailsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {isEditing ? (
-                          <div className="flex justify-end gap-2">
+                        {REMITTANCE_MUTATIONS_ENABLED ? (
+                          isEditing ? (
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={saveChurchEntryEdit}
+                                disabled={savingChurchEntry}
+                                className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {savingChurchEntry ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelChurchEntryEdit}
+                                disabled={savingChurchEntry}
+                                className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               type="button"
-                              onClick={saveChurchEntryEdit}
-                              disabled={savingChurchEntry}
-                              className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              onClick={() => startChurchEntryEdit(e)}
+                              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
                             >
-                              {savingChurchEntry ? 'Saving...' : 'Save'}
+                              Edit
                             </button>
-                            <button
-                              type="button"
-                              onClick={cancelChurchEntryEdit}
-                              disabled={savingChurchEntry}
-                              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                          )
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => startChurchEntryEdit(e)}
-                            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
-                          >
-                            Edit
-                          </button>
+                          '—'
                         )}
                       </td>
                     </tr>

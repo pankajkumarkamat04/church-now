@@ -8,6 +8,7 @@ const adminLinks: Array<{ href: string; label: string }> = [
   { href: '/dashboard/admin/finance', label: 'Overview' },
   { href: '/dashboard/admin/finance/reports', label: 'Reports' },
   { href: '/dashboard/admin/payments', label: 'Payments' },
+  { href: '/dashboard/admin/finance/remittances', label: 'Remittances' },
   { href: '/dashboard/admin/finance/expenses', label: 'Expenses' },
   { href: '/dashboard/admin/finance/assets', label: 'Assets' },
 ];

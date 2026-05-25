@@ -9,6 +9,8 @@ import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
 import { Pagination } from '@/components/ui/Pagination';
 
 const HISTORY_PAGE_DEFAULT = 50;
+/** Church groups record remittances; superadmin can only view. */
+const REMITTANCE_MUTATIONS_ENABLED = false;
 
 type ChurchRow = {
   churchId: string;
@@ -402,7 +404,7 @@ export default function SuperadminRemittancesPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Finance</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Remittances</h1>
         <p className="mt-2 text-sm text-neutral-600">
-          Manage monthly church remits and school remits in one place.
+          View monthly church and school remittances. Recording is done by each church group in the admin portal.
         </p>
       </div>
 
@@ -487,6 +489,7 @@ export default function SuperadminRemittancesPage() {
             </button>
           </div>
 
+          {REMITTANCE_MUTATIONS_ENABLED ? (
           <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
             <h2 className="text-base font-semibold text-neutral-900">Record Church Remit</h2>
             <p className="mt-1 text-xs text-neutral-600">Enter how much the church has paid for this month.</p>
@@ -538,6 +541,7 @@ export default function SuperadminRemittancesPage() {
               Record Church Remit
             </button>
           </div>
+          ) : null}
 
           <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="space-y-3 p-3 md:hidden">
@@ -656,6 +660,7 @@ export default function SuperadminRemittancesPage() {
                                   <span className="font-medium text-neutral-800">
                                     {entry.remitType} · USD {entry.amount.toFixed(2)} · {entry.paidAt ? new Date(entry.paidAt).toLocaleDateString() : 'No date'}
                                   </span>
+                                  {REMITTANCE_MUTATIONS_ENABLED ? (
                                   <div className="flex gap-2">
                                     <button
                                       type="button"
@@ -680,6 +685,7 @@ export default function SuperadminRemittancesPage() {
                                       Delete
                                     </button>
                                   </div>
+                                  ) : null}
                                 </div>
                                 <p className="mt-1 text-neutral-600">{entry.note || 'No note'}</p>
                                 {editingChurchEntryId === entry.id ? (
@@ -765,6 +771,7 @@ export default function SuperadminRemittancesPage() {
             </button>
           </div>
 
+          {REMITTANCE_MUTATIONS_ENABLED ? (
           <div className="mb-6 grid gap-4 lg:grid-cols-3">
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
               <h2 className="text-base font-semibold text-neutral-900">Add School</h2>
@@ -940,6 +947,7 @@ export default function SuperadminRemittancesPage() {
               </div>
             </div>
           </div>
+          ) : null}
 
           <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="space-y-3 p-3 md:hidden">
@@ -1022,6 +1030,7 @@ export default function SuperadminRemittancesPage() {
                           >
                             View
                           </button>
+                          {REMITTANCE_MUTATIONS_ENABLED ? (
                           <button
                             type="button"
                             onClick={() => {
@@ -1039,6 +1048,7 @@ export default function SuperadminRemittancesPage() {
                           >
                             Edit
                           </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -1054,6 +1064,8 @@ export default function SuperadminRemittancesPage() {
                                   <span className="text-neutral-700">
                                     {d.label}: {d.paidAmount.toFixed(2)}/{d.dueAmount.toFixed(2)} ({d.status})
                                   </span>
+                                  {REMITTANCE_MUTATIONS_ENABLED ? (
+                                  <>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1077,6 +1089,8 @@ export default function SuperadminRemittancesPage() {
                                   >
                                     Delete Due
                                   </button>
+                                  </>
+                                  ) : null}
                                 </div>
                                 {editingDueId === d.id ? (
                                   <div className="mt-2 grid gap-2 sm:grid-cols-5">
@@ -1133,6 +1147,7 @@ export default function SuperadminRemittancesPage() {
                                   <span className="text-neutral-700">
                                     USD {p.amount.toFixed(2)} on {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : 'No date'} ({p.paymentMethod || 'No method'})
                                   </span>
+                                  {REMITTANCE_MUTATIONS_ENABLED ? (
                                   <button
                                     type="button"
                                     onClick={() => void deletePayment(p.id)}
@@ -1140,6 +1155,7 @@ export default function SuperadminRemittancesPage() {
                                   >
                                     Delete Payment
                                   </button>
+                                  ) : null}
                                 </div>
                               </div>
                             ))}
@@ -1147,7 +1163,7 @@ export default function SuperadminRemittancesPage() {
                         </td>
                       </tr>
                     ) : null}
-                    {editingSchoolId === r.schoolId ? (
+                    {REMITTANCE_MUTATIONS_ENABLED && editingSchoolId === r.schoolId ? (
                       <tr className="border-t border-neutral-100 bg-violet-50/40">
                         <td colSpan={8} className="px-3 py-3">
                           <p className="mb-2 text-xs font-semibold text-violet-800">Edit school details</p>

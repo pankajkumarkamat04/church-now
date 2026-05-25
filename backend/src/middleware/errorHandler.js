@@ -3,6 +3,18 @@
  * Maps common Mongoose / Mongo errors to HTTP responses.
  */
 function errorHandler(err, _req, res, _next) {
+  if (err && (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE')) {
+    const message =
+      err.code === 'LIMIT_FILE_SIZE'
+        ? 'File is too large'
+        : err.message || 'Upload failed';
+    return res.status(400).json({ message });
+  }
+
+  if (err && typeof err.message === 'string' && /only .* allowed/i.test(err.message)) {
+    return res.status(400).json({ message: err.message });
+  }
+
   if (err.name === 'CastError') {
     return res.status(400).json({ message: 'Invalid identifier' });
   }

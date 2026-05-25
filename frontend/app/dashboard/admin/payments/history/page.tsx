@@ -9,6 +9,7 @@ import { normalizeDisplayCurrencyInput } from '@/lib/currency';
 import { amountsByPaymentOption, labelForPaymentType } from '@/lib/payments';
 import { useAdminPaymentTypes } from '@/lib/paymentTypes';
 import { Pagination } from '@/components/ui/Pagination';
+import { TransactionDeletionActions } from '@/components/finance/TransactionDeletionActions';
 import {
   churchRoleLabel,
   memberStatementHref,
@@ -146,7 +147,8 @@ export default function AdminPaymentsHistoryPage() {
 
       <h3 className="mt-8 text-sm font-semibold text-neutral-800">Payments</h3>
       <p className="mt-1 text-xs text-neutral-500">
-        Per-type amounts are USD (same as row total). Scroll horizontally if needed.
+        Per-type amounts are USD (same as row total). Deleting a payment requires treasurer, vice treasurer, and deacon
+        approval.
       </p>
       <div className="mt-2 rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="space-y-3 p-3 md:hidden">
@@ -166,6 +168,15 @@ export default function AdminPaymentsHistoryPage() {
                   ))}
                 </div>
                 <p className="mt-2 text-sm font-medium text-neutral-900">USD {r.amount.toFixed(2)}</p>
+                <div className="mt-2">
+                  <TransactionDeletionActions
+                    token={token}
+                    targetKind="PAYMENT"
+                    targetId={r._id}
+                    pendingDeletion={r.pendingDeletion}
+                    onChanged={load}
+                  />
+                </div>
               </div>
             );
           })}
@@ -225,16 +236,25 @@ export default function AdminPaymentsHistoryPage() {
                   {r.createdBy?.fullName || r.createdBy?.email || (r.source === 'MEMBER' ? 'Member' : '—')}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  {memberStatementHref(r.user?._id) ? (
-                    <Link
-                      href={memberStatementHref(r.user?._id)!}
-                      className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline"
-                    >
-                      View
-                    </Link>
-                  ) : (
-                    <span className="text-xs text-neutral-400">—</span>
-                  )}
+                  <div className="flex flex-col items-end gap-1">
+                    {memberStatementHref(r.user?._id) ? (
+                      <Link
+                        href={memberStatementHref(r.user?._id)!}
+                        className="text-xs font-medium text-sky-700 hover:text-sky-900 hover:underline"
+                      >
+                        View
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-neutral-400">—</span>
+                    )}
+                    <TransactionDeletionActions
+                      token={token}
+                      targetKind="PAYMENT"
+                      targetId={r._id}
+                      pendingDeletion={r.pendingDeletion}
+                      onChanged={load}
+                    />
+                  </div>
                 </td>
               </tr>
             );

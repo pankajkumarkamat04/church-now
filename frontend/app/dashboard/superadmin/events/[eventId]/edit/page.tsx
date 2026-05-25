@@ -233,7 +233,7 @@ export default function SuperadminEditEventPage() {
             <input value={location} onChange={(e) => setLocation(e.target.value)} className={field} />
             </div>
             <div className="md:col-span-2">
-              <FileManagerField label="Image URL" value={imageUrl} onChange={setImageUrl} />
+              <FileManagerField label="Flyer / image / document URL" value={imageUrl} onChange={setImageUrl} />
             </div>
           </div>
           <div className="flex flex-col gap-2">

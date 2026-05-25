@@ -91,7 +91,9 @@ async function updateMainChurch(req, res) {
           : row.localLeadership?.toObject?.() || row.localLeadership || {};
       const councilsSrc =
         req.body.councils !== undefined ? req.body.councils : row.councils?.toObject?.() || row.councils || [];
-      const { leadership, councils } = await validateChurchLeadershipPayload(row._id, leadershipSrc, councilsSrc);
+      const { leadership, councils } = await validateChurchLeadershipPayload(row._id, leadershipSrc, councilsSrc, {
+        churchType: 'MAIN',
+      });
       row.localLeadership = leadership;
       row.councils = councils;
     } catch (e) {

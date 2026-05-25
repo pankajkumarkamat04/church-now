@@ -8,7 +8,7 @@ import type { ChurchRecord, LocalLeadership } from '@/app/dashboard/superadmin/c
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
 
-type MemberOption = { id: string; label: string };
+type MemberOption = { id: string; label: string; memberCategory?: string };
 
 function memberRefId(value: string | { _id?: string } | null | undefined): string {
   if (!value) return '';
@@ -18,6 +18,24 @@ function memberRefId(value: string | { _id?: string } | null | undefined): strin
 function leadershipFromRecord(row: ChurchRecord | null): LocalLeadership {
   if (!row?.localLeadership) return {};
   return row.localLeadership;
+}
+
+function churchNameFromUser(u: AuthUser): string {
+  if (!u.church) return '';
+  if (typeof u.church === 'string') return '';
+  return u.church.name || '';
+}
+
+function mapUserToOption(u: AuthUser, includeChurch = false): MemberOption {
+  const name = (u.fullName || `${u.firstName || ''} ${u.surname || ''}`.trim() || u.email || u.id).trim();
+  const mid = u.memberId ? String(u.memberId) : '';
+  const congregation = includeChurch ? churchNameFromUser(u) : '';
+  const base = mid ? `${mid} — ${name}` : name;
+  return {
+    id: u.id,
+    memberCategory: u.memberCategory,
+    label: congregation ? `${base} (${congregation})` : base,
+  };
 }
 
 const LOCAL_ROLE_LABELS: Record<string, string> = {
@@ -63,7 +81,53 @@ const SUB_LEADERSHIP_KEYS = [
   'viceTreasurer',
 ] as const;
 
+const MAIN_PASTOR_ONLY_KEYS = new Set<string>([
+  'churchPresident',
+  'vicePresident',
+  'superintendent',
+  'viceSuperintendent',
+  'conferenceMinister1',
+  'conferenceMinister2',
+  'minister',
+]);
+
+const MAIN_LAY_KEYS = new Set<string>([
+  'moderator',
+  'viceModerator',
+  'secretary',
+  'viceSecretary',
+  'treasurer',
+  'viceTreasurer',
+]);
+
 const LOCAL_SINGLE_KEYS = [...MAIN_LEADERSHIP_KEYS, ...SUB_LEADERSHIP_KEYS] as const;
+
+function normCat(c?: string) {
+  return String(c || 'MEMBER').toUpperCase();
+}
+
+function memberOptionsForField(
+  key: string,
+  all: MemberOption[],
+  selectedId: string,
+  isMainChurch: boolean
+): MemberOption[] {
+  if (!isMainChurch) {
+    return all;
+  }
+  const filtered = all.filter((m) => {
+    if (!m.id) return true;
+    const cat = normCat(m.memberCategory);
+    if (MAIN_PASTOR_ONLY_KEYS.has(key)) return cat === 'PASTOR';
+    if (MAIN_LAY_KEYS.has(key)) return cat !== 'PASTOR';
+    return true;
+  });
+  const sel = all.find((m) => m.id === selectedId);
+  if (selectedId && sel && !filtered.some((m) => m.id === selectedId)) {
+    return [...filtered, sel];
+  }
+  return filtered;
+}
 
 type ChurchLeadershipModalProps = {
   open: boolean;
@@ -86,8 +150,10 @@ export function ChurchLeadershipModal({
   row,
   onSaved,
 }: ChurchLeadershipModalProps) {
-  const [members, setMembers] = useState<MemberOption[]>([]);
-  const [spiritualMemberIds, setSpiritualMemberIds] = useState<string[]>([]);
+  const isMainChurch = churchType === 'MAIN';
+  const [localMembers, setLocalMembers] = useState<MemberOption[]>([]);
+  const [globalPastors, setGlobalPastors] = useState<MemberOption[]>([]);
+  const [globalLayMembers, setGlobalLayMembers] = useState<MemberOption[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [singleRoles, setSingleRoles] = useState<Record<(typeof LOCAL_SINGLE_KEYS)[number], string>>({
     churchPresident: '',
@@ -110,37 +176,51 @@ export function ChurchLeadershipModal({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const memberSelectOptions = useMemo(() => [{ id: '', label: '— None —' }, ...members], [members]);
+  const allMainOptions = useMemo(() => {
+    const byId = new Map<string, MemberOption>();
+    for (const m of [...globalPastors, ...globalLayMembers]) {
+      if (m.id) byId.set(m.id, m);
+    }
+    return [...byId.values()];
+  }, [globalPastors, globalLayMembers]);
+
+  const committeeOptions = useMemo(
+    () => (isMainChurch ? globalLayMembers : localMembers),
+    [isMainChurch, globalLayMembers, localMembers]
+  );
 
   const loadMembers = useCallback(async () => {
-    if (!token || !churchId) return;
+    if (!token) return;
     setLoadErr(null);
+
+    if (isMainChurch) {
+      const [pastorsRaw, layRaw] = await Promise.all([
+        apiFetch<AuthUser[]>('/api/superadmin/leadership-roster?pool=pastors', { token }),
+        apiFetch<AuthUser[]>('/api/superadmin/leadership-roster?pool=lay', { token }),
+      ]);
+      const pastors = pastorsRaw.map((u) => mapUserToOption(u, true));
+      const lay = layRaw.map((u) => mapUserToOption(u, true));
+      setGlobalPastors(pastors);
+      setGlobalLayMembers(lay);
+      setLocalMembers([]);
+      return;
+    }
+
+    if (!churchId) return;
     const raw = await apiFetch<AuthUser[] | Paginated<AuthUser>>(
-      `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}&limit=500`,
+      `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}&isActive=true&limit=500`,
       { token }
     );
     const rows = unwrapPaginatedArray(raw);
-    setSpiritualMemberIds(
-      rows
-        .filter((u) => String(u.memberRoleDisplay || '').toLowerCase().includes('spiritual'))
-        .map((u) => u.id)
-    );
-    setMembers(
-      rows.map((u) => {
-        const name = (u.fullName || `${u.firstName || ''} ${u.surname || ''}`.trim() || u.email || u.id).trim();
-        const mid = u.memberId ? String(u.memberId) : '';
-        return {
-          id: u.id,
-          label: mid ? `${mid} — ${name}` : name,
-        };
-      })
-    );
-  }, [token, churchId]);
+    setLocalMembers(rows.map((u) => mapUserToOption(u, false)));
+    setGlobalPastors([]);
+    setGlobalLayMembers([]);
+  }, [token, churchId, isMainChurch]);
 
   useEffect(() => {
-    if (!open || !token || !churchId) return;
+    if (!open || !token) return;
     loadMembers().catch((e) => setLoadErr(e instanceof Error ? e.message : 'Failed to load members'));
-  }, [open, token, churchId, loadMembers]);
+  }, [open, token, loadMembers]);
 
   useEffect(() => {
     if (!open || !row) return;
@@ -231,7 +311,9 @@ export function ChurchLeadershipModal({
               {churchName}
             </h2>
             <p className="mt-1 text-sm text-neutral-600">
-              Assign leaders from members of this congregation. Councils are managed from the dedicated Councils pages.
+              {isMainChurch
+                ? 'Main church leaders are chosen from the global roster: pastors (any conference) for minister roles; lay members (any congregation) for moderator, secretary, treasurer, and committee.'
+                : 'Assign leaders from members of this congregation. Councils are managed from the dedicated Councils pages.'}
             </p>
           </div>
           <button
@@ -252,34 +334,38 @@ export function ChurchLeadershipModal({
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-neutral-900">Local church leadership</h3>
             <div className="grid gap-3 sm:grid-cols-2">
-              {(churchType === 'MAIN' ? MAIN_LEADERSHIP_KEYS : SUB_LEADERSHIP_KEYS).map((key) => (
-                <div key={key}>
-                  <label className="mb-1 block text-xs font-medium text-neutral-600">{LOCAL_ROLE_LABELS[key]}</label>
-                  <select
-                    value={singleRoles[key]}
-                    onChange={(e) => setSingleRoles((s) => ({ ...s, [key]: e.target.value }))}
-                    className={field}
-                  >
-                    {(key === 'minister' || key === 'conferenceMinister1' || key === 'conferenceMinister2'
-                      ? memberSelectOptions.filter((m) => !m.id || spiritualMemberIds.includes(m.id))
-                      : memberSelectOptions
-                    ).map((m) => (
-                      <option key={`${key}-${m.id || 'none'}`} value={m.id}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              {(churchType === 'MAIN' ? MAIN_LEADERSHIP_KEYS : SUB_LEADERSHIP_KEYS).map((key) => {
+                const pool = isMainChurch ? allMainOptions : localMembers;
+                const options = memberOptionsForField(key, pool, singleRoles[key], isMainChurch);
+                return (
+                  <div key={key}>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600">{LOCAL_ROLE_LABELS[key]}</label>
+                    <select
+                      value={singleRoles[key]}
+                      onChange={(e) => setSingleRoles((s) => ({ ...s, [key]: e.target.value }))}
+                      className={field}
+                    >
+                      <option value="">— None —</option>
+                      {options.map((m) => (
+                        <option key={`${key}-${m.id || 'none'}`} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
 
             <div>
               <label className="mb-2 block text-xs font-medium text-neutral-600">Committee members (elected)</label>
               <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                {members.length === 0 ? (
-                  <p className="text-sm text-neutral-500">No members at this church yet.</p>
+                {committeeOptions.length === 0 ? (
+                  <p className="text-sm text-neutral-500">
+                    {isMainChurch ? 'No lay members found in the global roster.' : 'No members at this church yet.'}
+                  </p>
                 ) : (
-                  members.map((m) => (
+                  committeeOptions.map((m) => (
                     <label key={m.id} className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
                       <input
                         type="checkbox"
@@ -294,7 +380,6 @@ export function ChurchLeadershipModal({
               </div>
             </div>
           </section>
-
         </div>
 
         <div className="border-t border-neutral-200 bg-neutral-50 px-5 py-3">

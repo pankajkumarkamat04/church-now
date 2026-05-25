@@ -15,6 +15,8 @@ const mediaController = require('../controllers/mediaController');
 const announcementController = require('../controllers/announcementController');
 const churchLogoController = require('../controllers/churchLogoController');
 const passwordAdminController = require('../controllers/passwordAdminController');
+const remittanceController = require('../controllers/remittanceController');
+const transactionDeletionController = require('../controllers/transactionDeletionController');
 
 const router = express.Router();
 
@@ -61,6 +63,11 @@ router.put('/attendance/:dateKey', asyncHandler(attendanceController.saveDay));
 router.get('/media', asyncHandler(mediaController.listAdmin));
 router.post('/media/upload', mediaController.upload.single('file'), asyncHandler(mediaController.uploadAdmin));
 router.post(
+  '/media/flyer-upload',
+  mediaController.flyerUpload.single('file'),
+  asyncHandler(mediaController.uploadFlyerAdmin)
+);
+router.post(
   '/media/announcement-upload',
   mediaController.announcementUpload.single('file'),
   asyncHandler(mediaController.uploadAnnouncementAdmin)
@@ -94,4 +101,20 @@ router.put('/expenses/:expenseId', asyncHandler(expenseController.updateAdminExp
 router.post('/expenses/:expenseId/verify', asyncHandler(expenseController.verifyAdminExpense));
 router.post('/expenses/:expenseId/notice-approval', asyncHandler(expenseController.approveAdminExpenseNotice));
 router.delete('/expenses/:expenseId', asyncHandler(expenseController.removeAdminExpense));
+router.get('/finance/remittances/church', asyncHandler(remittanceController.listAdminChurchRemittances));
+router.get('/finance/remittances/church/details', asyncHandler(remittanceController.getAdminChurchRemittanceDetails));
+router.get('/finance/remittances/audit', asyncHandler(remittanceController.listAdminChurchRemittanceAudit));
+router.post('/finance/remittances/church', asyncHandler(remittanceController.recordAdminChurchRemittance));
+router.patch('/finance/remittances/church/entries/:entryId', asyncHandler(remittanceController.updateAdminChurchRemittanceEntry));
+router.delete('/finance/remittances/church/entries/:entryId', asyncHandler(remittanceController.deleteAdminChurchRemittanceEntry));
+router.get('/transaction-deletions', asyncHandler(transactionDeletionController.listAdminTransactionDeletions));
+router.post('/transaction-deletions', asyncHandler(transactionDeletionController.requestAdminTransactionDeletion));
+router.post(
+  '/transaction-deletions/:requestId/approve',
+  asyncHandler(transactionDeletionController.approveAdminTransactionDeletion)
+);
+router.delete(
+  '/transaction-deletions/:requestId',
+  asyncHandler(transactionDeletionController.cancelAdminTransactionDeletion)
+);
 module.exports = router;

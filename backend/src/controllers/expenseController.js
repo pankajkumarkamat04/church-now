@@ -1,5 +1,10 @@
 const Expense = require('../models/Expense');
 const Church = require('../models/Church');
+const {
+  loadChurchForDeletion,
+  loadPendingDeletionsMap,
+  serializeDeletionRequest,
+} = require('../utils/transactionDeletion');
 const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 
@@ -71,8 +76,10 @@ async function listAdminExpenses(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const { page, limit, skip } = getPaginationParams(req.query);
-  const [church, total, rows] = await Promise.all([
+  const [church, churchForDeletion, pendingMap, total, rows] = await Promise.all([
     loadChurchLeadership(cid),
+    loadChurchForDeletion(cid),
+    loadPendingDeletionsMap(cid),
     Expense.countDocuments({ church: cid }),
     Expense.find({ church: cid })
       .populate('conference', 'name conferenceId')
@@ -85,13 +92,20 @@ async function listAdminExpenses(req, res) {
   const roleSet = toLeadershipRoleSet(church, req.user?._id);
   return res.json(
     paginatedResponse(
-      rows.map((row) => ({
-        ...(row.toObject ? row.toObject() : row),
-        canCurrentUserInitiate: roleSet.has('VICE_TREASURER'),
-        canCurrentUserVerify: roleSet.has('TREASURER'),
-        canCurrentUserNoticeApprove:
-          roleSet.has('VICE_SECRETARY') || roleSet.has('SECRETARY') || roleSet.has('VICE_DEACON') || roleSet.has('DEACON'),
-      })),
+      rows.map((row) => {
+        const obj = row.toObject ? row.toObject() : row;
+        const pending = pendingMap.get(`EXPENSE:${String(obj._id)}`);
+        return {
+          ...obj,
+          canCurrentUserInitiate: roleSet.has('VICE_TREASURER'),
+          canCurrentUserVerify: roleSet.has('TREASURER'),
+          canCurrentUserNoticeApprove:
+            roleSet.has('VICE_SECRETARY') || roleSet.has('SECRETARY') || roleSet.has('VICE_DEACON') || roleSet.has('DEACON'),
+          pendingDeletion: pending
+            ? serializeDeletionRequest(pending, churchForDeletion, req.user?._id)
+            : null,
+        };
+      }),
       total, page, limit
     )
   );
@@ -259,11 +273,10 @@ async function approveAdminExpenseNotice(req, res) {
 }
 
 async function removeAdminExpense(req, res) {
-  const cid = churchId(req);
-  if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const row = await Expense.findOneAndDelete({ _id: req.params.expenseId, church: cid });
-  if (!row) return res.status(404).json({ message: 'Expense not found' });
-  return res.status(204).send();
+  return res.status(403).json({
+    message:
+      'Direct deletion is not allowed. Request deletion and obtain approval from treasurer, vice treasurer, and deacon.',
+  });
 }
 
 async function listSuperadminExpenses(req, res) {

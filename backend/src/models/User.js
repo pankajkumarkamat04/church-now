@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const ROLES = ['SUPERADMIN', 'ADMIN', 'MEMBER'];
+const ROLES = ['SUPERADMIN', 'CHURCH_ADMIN', 'ADMIN', 'MEMBER'];
 const APPROVAL_STATUSES = ['PENDING', 'APPROVED'];
 const REGISTRATION_SOURCES = ['SYSTEM', 'SELF_SIGNUP'];
 
@@ -84,6 +84,13 @@ const userSchema = new mongoose.Schema(
         ref: 'Church',
       },
     ],
+    /** Pastor/minister appointed by main church president as denomination Church Admin. */
+    denominationAdminAppointedAt: { type: Date, default: null },
+    denominationAdminAppointedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     isActive: { type: Boolean, default: true },
     approvalStatus: {
       type: String,

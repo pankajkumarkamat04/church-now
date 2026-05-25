@@ -5,6 +5,11 @@ const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../util
 const { ensureTreasurerAccess } = require('../utils/treasurerAccess');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 const {
+  loadChurchForDeletion,
+  loadPendingDeletionsMap,
+  serializeDeletionRequest,
+} = require('../utils/transactionDeletion');
+const {
   getActivePaymentTypeCodes,
   normalizeAmountsByOption,
   validatePaymentLineTypes,
@@ -130,7 +135,9 @@ async function listAdminPayments(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const { page, limit, skip } = getPaginationParams(req.query);
-  const [total, rows] = await Promise.all([
+  const [churchForDeletion, pendingMap, total, rows] = await Promise.all([
+    loadChurchForDeletion(cid),
+    loadPendingDeletionsMap(cid),
     Payment.countDocuments({ church: cid }),
     Payment.find({ church: cid })
       .populate('user', 'fullName email memberId memberRoleDisplay memberCategory role')
@@ -139,7 +146,17 @@ async function listAdminPayments(req, res) {
       .skip(skip)
       .limit(limit),
   ]);
-  return res.json(paginatedResponse(rows, total, page, limit));
+  const data = rows.map((row) => {
+    const obj = row.toObject ? row.toObject() : row;
+    const pending = pendingMap.get(`PAYMENT:${String(obj._id)}`);
+    return {
+      ...obj,
+      pendingDeletion: pending
+        ? serializeDeletionRequest(pending, churchForDeletion, req.user?._id)
+        : null,
+    };
+  });
+  return res.json(paginatedResponse(data, total, page, limit));
 }
 
 /** Treasurer allocates payment types from a recipient's wallet (same rules as member self-pay). */

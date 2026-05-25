@@ -13,6 +13,7 @@ const churchChangeController = require('../controllers/churchChangeController');
 const paymentController = require('../controllers/paymentController');
 const paymentTypeController = require('../controllers/paymentTypeController');
 const announcementController = require('../controllers/announcementController');
+const denominationAdminController = require('../controllers/denominationAdminController');
 
 const router = express.Router();
 
@@ -30,5 +31,9 @@ router.post('/payments/pay', asyncHandler(paymentController.payMember));
 router.get('/announcements', asyncHandler(announcementController.listMyAnnouncements));
 router.get('/church-change-requests', asyncHandler(churchChangeController.listMyChurchChangeRequests));
 router.post('/church-change-requests', asyncHandler(churchChangeController.createChurchChangeRequest));
+
+router.get('/denomination-admin', asyncHandler(denominationAdminController.getDenominationAdminStatus));
+router.post('/denomination-admin/appoint', asyncHandler(denominationAdminController.appointDenominationAdmin));
+router.delete('/denomination-admin', asyncHandler(denominationAdminController.revokeDenominationAdmin));
 
 module.exports = router;

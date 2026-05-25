@@ -4,12 +4,70 @@ const PastorTerm = require('../models/PastorTerm');
 const User = require('../models/User');
 const Church = require('../models/Church');
 const { syncChurchMemberRoleDisplays, ACTIVE_PASTOR_TERM_STATUSES } = require('../utils/memberRoleSync');
+const { pastorListChurchFilter } = require('../utils/pastorMainChurch');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 const {
   MAX_TERM_CYCLES,
   parseTermLengthYears,
   maxTermsReachedMessage,
 } = require('../utils/pastorTermConfig');
+function hasSuperadminPanelAccess(role) {
+  return role === 'SUPERADMIN' || role === 'CHURCH_ADMIN';
+}
+
+async function resolvePastorForSpiritualAssignment(targetChurchId, pastorUserId) {
+  const church = await Church.findById(targetChurchId).select('churchType localLeadership councils name');
+  if (!church) return { error: { status: 404, message: 'Church not found' } };
+
+  if (church.churchType === 'MAIN') {
+    const pastor = await User.findOne({
+      _id: pastorUserId,
+      role: { $in: ['MEMBER', 'ADMIN'] },
+      memberCategory: 'PASTOR',
+      isActive: true,
+    }).populate('church', 'name churchType');
+    if (!pastor) {
+      return {
+        error: {
+          status: 400,
+          message: 'Main church pastor must be an active PASTOR (minister) from a sub-church congregation',
+        },
+      };
+    }
+    const home = pastor.church;
+    const homeType = home && typeof home === 'object' ? home.churchType : null;
+    const homeId = home && typeof home === 'object' ? String(home._id) : String(home || '');
+    if (homeType !== 'SUB') {
+      return {
+        error: {
+          status: 400,
+          message: 'Main church pastor must belong to a sub-church, not the main church or another congregation type',
+        },
+      };
+    }
+    if (homeId === String(targetChurchId)) {
+      return {
+        error: {
+          status: 400,
+          message: 'Main church pastor cannot be a member of the main church itself',
+        },
+      };
+    }
+    return { pastor, church };
+  }
+
+  const pastor = await User.findOne({
+    _id: pastorUserId,
+    role: { $in: ['MEMBER', 'ADMIN'] },
+    church: targetChurchId,
+    isActive: true,
+  });
+  if (!pastor) {
+    return { error: { status: 400, message: 'Pastor must be an active member of the selected church' } };
+  }
+  return { pastor, church };
+}
+
 const OTHER_LEADERSHIP_ROLE_KEYS = [
   'churchPresident',
   'vicePresident',
@@ -364,8 +422,25 @@ async function createPastor(req, res) {
 async function listEligibleMembersForSuperadmin(req, res) {
   const targetChurchId = String(req.query.churchId || '');
   if (!targetChurchId) return res.status(400).json({ message: 'churchId is required' });
+  const church = await Church.findById(targetChurchId).select('churchType name').lean();
+  if (!church) return res.status(404).json({ message: 'Church not found' });
+
+  if (church.churchType === 'MAIN') {
+    const subChurchIds = await Church.find({ churchType: 'SUB', isActive: { $ne: false } }).distinct('_id');
+    const rows = await User.find({
+      role: { $in: ['MEMBER', 'ADMIN'] },
+      memberCategory: 'PASTOR',
+      isActive: true,
+      church: { $in: subChurchIds },
+    })
+      .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender memberCategory role')
+      .populate('church', 'name churchType')
+      .sort({ fullName: 1, email: 1 });
+    return res.json(rows);
+  }
+
   const rows = await User.find({ role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true })
-    .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender')
+    .select('_id fullName firstName surname email memberId contactPhone address dateOfBirth gender memberCategory role')
     .sort({ fullName: 1, email: 1 });
   return res.json(rows);
 }
@@ -400,7 +475,9 @@ async function createPastorForSuperadmin(req, res) {
 }
 
 async function listPastorsForSuperadmin(req, res) {
-  const churchFilter = req.query.churchId ? { church: req.query.churchId } : {};
+  const churchFilter = await pastorListChurchFilter(
+    req.query.churchId ? String(req.query.churchId) : ''
+  );
   const { page, limit, skip } = getPaginationParams(req.query);
 
   // Fetch formal PastorRecord documents (all, to merge with synthetic before paginating)
@@ -474,21 +551,26 @@ async function listAdminPastorTerms(req, res) {
 }
 
 async function listSuperadminPastorTerms(req, res) {
-  const filter = req.query.churchId ? { church: req.query.churchId } : {};
+  const filter = await pastorListChurchFilter(
+    req.query.churchId ? String(req.query.churchId) : ''
+  );
   return listPastorTermsMerged(req, res, filter);
 }
 
 async function assignPastorTerm(req, res) {
-  const isSuper = req.user.role === 'SUPERADMIN';
-  const targetChurchId = isSuper ? String(req.body.churchId || '') : churchId(req);
+  const isPanel = hasSuperadminPanelAccess(req.user.role);
+  const targetChurchId = isPanel ? String(req.body.churchId || '') : churchId(req);
   const { pastorUserId, termLengthYears: termLengthYearsRaw } = req.body || {};
   if (!targetChurchId || !pastorUserId) {
     return res.status(400).json({ message: 'churchId and pastorUserId are required' });
   }
   const termLengthYears = parseTermLengthYears(termLengthYearsRaw);
 
-  const pastor = await User.findOne({ _id: pastorUserId, role: { $in: ['MEMBER', 'ADMIN'] }, church: targetChurchId, isActive: true });
-  if (!pastor) return res.status(400).json({ message: 'Pastor must be an active member of the selected church' });
+  const resolved = await resolvePastorForSpiritualAssignment(targetChurchId, pastorUserId);
+  if (resolved.error) {
+    return res.status(resolved.error.status).json({ message: resolved.error.message });
+  }
+  const { pastor, church } = resolved;
 
   const existing = await PastorTerm.findOne({
     pastor: pastor._id,
@@ -496,9 +578,6 @@ async function assignPastorTerm(req, res) {
     status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
   }).select('_id');
   if (existing) return res.status(409).json({ message: 'This pastor already has an active assignment in this church' });
-
-  const church = await Church.findById(targetChurchId).select('localLeadership councils');
-  if (!church) return res.status(404).json({ message: 'Church not found' });
 
   const leadershipPastorId = spiritualPastorIdFromChurch(church);
   if (leadershipPastorId && leadershipPastorId !== String(pastor._id)) {
@@ -550,8 +629,8 @@ async function assignPastorTerm(req, res) {
 async function renewPastorTerm(req, res) {
   const row = await PastorTerm.findById(req.params.termId);
   if (!row) return res.status(404).json({ message: 'Pastor assignment not found' });
-  const isSuper = req.user.role === 'SUPERADMIN';
-  if (!isSuper && String(row.church) !== churchId(req)) return res.status(403).json({ message: 'Not allowed' });
+  const isPanel = hasSuperadminPanelAccess(req.user.role);
+  if (!isPanel && String(row.church) !== churchId(req)) return res.status(403).json({ message: 'Not allowed' });
 
   refreshStatus(row);
   const termLengthYears = parseTermLengthYears(row.termLengthYears);
@@ -568,15 +647,24 @@ async function renewPastorTerm(req, res) {
 }
 
 async function transferPastor(req, res) {
-  if (req.user.role !== 'SUPERADMIN') return res.status(403).json({ message: 'Only superadmin can transfer pastors' });
+  if (!hasSuperadminPanelAccess(req.user.role)) {
+    return res.status(403).json({ message: 'Only denomination panel users can transfer pastors' });
+  }
   const row = await PastorTerm.findById(req.params.termId);
   if (!row) return res.status(404).json({ message: 'Pastor assignment not found' });
   const toChurchId = String(req.body.toChurchId || '');
   if (!toChurchId) return res.status(400).json({ message: 'toChurchId is required' });
   if (String(row.church) === toChurchId) return res.status(400).json({ message: 'Target church must be different' });
 
-  const targetChurch = await Church.findOne({ _id: toChurchId, isActive: true }).select('_id');
+  const targetChurch = await Church.findOne({ _id: toChurchId, isActive: true }).select('_id churchType');
   if (!targetChurch) return res.status(400).json({ message: 'Target church not found or inactive' });
+
+  if (targetChurch.churchType === 'MAIN') {
+    const resolved = await resolvePastorForSpiritualAssignment(toChurchId, row.pastor);
+    if (resolved.error) {
+      return res.status(resolved.error.status).json({ message: resolved.error.message });
+    }
+  }
   const targetActiveLeader = await PastorTerm.findOne({
     church: toChurchId,
     status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
@@ -600,8 +688,10 @@ async function transferPastor(req, res) {
 
   const pastor = await User.findById(row.pastor);
   if (!pastor) return res.status(404).json({ message: 'Pastor user not found' });
-  pastor.church = targetChurch._id;
-  await pastor.save();
+  if (targetChurch.churchType !== 'MAIN') {
+    pastor.church = targetChurch._id;
+    await pastor.save();
+  }
 
   row.status = 'TRANSFERRED';
   row.transferredToChurch = targetChurch._id;
@@ -619,9 +709,25 @@ async function transferPastor(req, res) {
     termEnd: addYears(start, transferTermYears),
     status: 'ASSIGNED',
   });
+
+  if (targetChurchDoc) {
+    if (!targetChurchDoc.localLeadership) targetChurchDoc.localLeadership = {};
+    targetChurchDoc.localLeadership.spiritualPastor = pastor._id;
+    await targetChurchDoc.save();
+  }
+
+  const fromChurchDoc = await Church.findById(row.church).select('_id churchType localLeadership councils');
+  if (fromChurchDoc) {
+    const prevPastorId = spiritualPastorIdFromChurch(fromChurchDoc);
+    if (prevPastorId && String(prevPastorId) === String(pastor._id)) {
+      if (!fromChurchDoc.localLeadership) fromChurchDoc.localLeadership = {};
+      fromChurchDoc.localLeadership.spiritualPastor = null;
+      await fromChurchDoc.save();
+    }
+    await syncChurchMemberRoleDisplays(fromChurchDoc.toObject ? fromChurchDoc.toObject() : fromChurchDoc);
+  }
+
   const populated = await PastorTerm.findById(next._id).populate('pastor', 'fullName email memberId').populate('church', 'name');
-  const fromChurchDoc = await Church.findById(row.church).select('_id localLeadership councils');
-  if (fromChurchDoc) await syncChurchMemberRoleDisplays(fromChurchDoc.toObject ? fromChurchDoc.toObject() : fromChurchDoc);
   if (targetChurchDoc) await syncChurchMemberRoleDisplays(targetChurchDoc.toObject ? targetChurchDoc.toObject() : targetChurchDoc);
   return res.status(201).json(populated);
 }
@@ -699,7 +805,9 @@ async function grantAdminAccess(req, res) {
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const member = await User.findOne({ _id: req.params.userId, church: cid, isActive: true });
   if (!member) return res.status(404).json({ message: 'Member not found in this church' });
-  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role === 'SUPERADMIN' || member.role === 'CHURCH_ADMIN') {
+    return res.status(400).json({ message: 'Cannot modify system or denomination admin role' });
+  }
   if (member.role === 'ADMIN') return res.status(400).json({ message: 'Member already has admin access' });
   member.role = 'ADMIN';
   const cidStr = String(cid);
@@ -713,7 +821,9 @@ async function revokeAdminAccess(req, res) {
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const member = await User.findOne({ _id: req.params.userId, church: cid, isActive: true });
   if (!member) return res.status(404).json({ message: 'Member not found in this church' });
-  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role === 'SUPERADMIN' || member.role === 'CHURCH_ADMIN') {
+    return res.status(400).json({ message: 'Cannot modify system or denomination admin role' });
+  }
   if (member.role !== 'ADMIN') return res.status(400).json({ message: 'Member does not have admin access' });
   member.role = 'MEMBER';
   member.adminChurches = (member.adminChurches || []).filter((id) => String(id) !== String(cid));
@@ -839,7 +949,9 @@ async function upgradeMemberToPastorForSuperadmin(req, res) {
 async function grantAdminAccessForSuperadmin(req, res) {
   const member = await User.findOne({ _id: req.params.userId, isActive: true });
   if (!member) return res.status(404).json({ message: 'Member not found' });
-  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role === 'SUPERADMIN' || member.role === 'CHURCH_ADMIN') {
+    return res.status(400).json({ message: 'Cannot modify system or denomination admin role' });
+  }
   if (member.role === 'ADMIN') return res.status(400).json({ message: 'Member already has admin access' });
   const churchRef = member.church;
   member.role = 'ADMIN';
@@ -853,7 +965,9 @@ async function grantAdminAccessForSuperadmin(req, res) {
 async function revokeAdminAccessForSuperadmin(req, res) {
   const member = await User.findOne({ _id: req.params.userId, isActive: true });
   if (!member) return res.status(404).json({ message: 'Member not found' });
-  if (member.role === 'SUPERADMIN') return res.status(400).json({ message: 'Cannot modify SUPERADMIN role' });
+  if (member.role === 'SUPERADMIN' || member.role === 'CHURCH_ADMIN') {
+    return res.status(400).json({ message: 'Cannot modify system or denomination admin role' });
+  }
   if (member.role !== 'ADMIN') return res.status(400).json({ message: 'Member does not have admin access' });
   member.role = 'MEMBER';
   member.adminChurches = [];
@@ -869,7 +983,7 @@ async function assignPastorTermForSuperadmin(req, res) {
 
 async function removeSpiritualLeader(req, res) {
   const termId = String(req.params.termId || '');
-  const isSuper = req.user.role === 'SUPERADMIN';
+  const isPanel = hasSuperadminPanelAccess(req.user.role);
   const adminCid = churchId(req);
 
   const syntheticMatch =
@@ -877,9 +991,9 @@ async function removeSpiritualLeader(req, res) {
     /^category_([a-f0-9]{24})_([a-f0-9]{24})$/i.exec(termId);
 
   if (syntheticMatch) {
-    if (!isSuper) return res.status(403).json({ message: 'Not allowed' });
+    if (!isPanel) return res.status(403).json({ message: 'Not allowed' });
     const [, churchIdParam, pastorUserId] = syntheticMatch;
-    const church = await Church.findById(churchIdParam).select('localLeadership councils');
+    const church = await Church.findById(churchIdParam).select('churchType localLeadership councils');
     if (!church) return res.status(404).json({ message: 'Church not found' });
 
     const currentId = spiritualPastorIdFromChurch(church);
@@ -892,7 +1006,12 @@ async function removeSpiritualLeader(req, res) {
     await PastorTerm.deleteMany({ church: churchIdParam, pastor: pastorUserId });
 
     const member = await User.findById(pastorUserId);
-    if (member && member.memberCategory === 'PASTOR') {
+    if (
+      member &&
+      member.memberCategory === 'PASTOR' &&
+      church.churchType !== 'MAIN' &&
+      String(member.church) === String(churchIdParam)
+    ) {
       member.memberCategory = 'MEMBER';
       await member.save();
     }
@@ -904,9 +1023,9 @@ async function removeSpiritualLeader(req, res) {
 
   const row = await PastorTerm.findById(termId);
   if (!row) return res.status(404).json({ message: 'Pastor assignment not found' });
-  if (!isSuper && String(row.church) !== adminCid) return res.status(403).json({ message: 'Not allowed' });
+  if (!isPanel && String(row.church) !== adminCid) return res.status(403).json({ message: 'Not allowed' });
 
-  const church = await Church.findById(row.church).select('localLeadership councils');
+  const church = await Church.findById(row.church).select('churchType localLeadership councils');
   if (church) {
     const currentId = spiritualPastorIdFromChurch(church);
     if (currentId && String(currentId) === String(row.pastor)) {
@@ -919,7 +1038,12 @@ async function removeSpiritualLeader(req, res) {
   await PastorTerm.findByIdAndDelete(row._id);
 
   const member = await User.findById(row.pastor);
-  if (member && member.memberCategory === 'PASTOR' && String(member.church) === String(row.church)) {
+  if (
+    member &&
+    member.memberCategory === 'PASTOR' &&
+    church?.churchType !== 'MAIN' &&
+    String(member.church) === String(row.church)
+  ) {
     member.memberCategory = 'MEMBER';
     await member.save();
   }

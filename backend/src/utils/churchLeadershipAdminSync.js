@@ -7,7 +7,7 @@ async function grantLeaderAdminAtChurch(userId, churchId) {
   const uid = String(userId);
   const cid = String(churchId);
   const user = await User.findById(uid).select('_id role adminChurches church');
-  if (!user || user.role === 'SUPERADMIN') return;
+  if (!user || user.role === 'SUPERADMIN' || user.role === 'CHURCH_ADMIN') return;
 
   if (user.role === 'MEMBER') {
     user.role = 'ADMIN';
@@ -33,7 +33,7 @@ async function grantLeaderAdminAtChurch(userId, churchId) {
 async function revokeLeaderAdminAtChurch(userId, churchId) {
   const cid = String(churchId);
   const user = await User.findById(userId).select('_id role adminChurches');
-  if (!user || user.role === 'SUPERADMIN') return;
+  if (!user || user.role === 'SUPERADMIN' || user.role === 'CHURCH_ADMIN') return;
   if (user.role !== 'ADMIN') return;
 
   const remaining = (user.adminChurches || []).filter((id) => String(id) !== cid);

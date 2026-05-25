@@ -1,4 +1,4 @@
-export type Role = 'SUPERADMIN' | 'ADMIN' | 'MEMBER';
+export type Role = 'SUPERADMIN' | 'CHURCH_ADMIN' | 'ADMIN' | 'MEMBER';
 
 export type MemberAddress = {
   line1: string;

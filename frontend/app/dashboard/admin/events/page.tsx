@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
+import { FileManagerField } from '@/components/dashboard/superadmin/FileManagerField';
 
 type EventRow = {
   _id: string;
@@ -182,7 +183,12 @@ export default function AdminEventsPage() {
           <input className={field} type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
           <input className={field} type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
           <input className={field} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" />
-          <input className={field} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL" />
+          <FileManagerField
+            label="Flyer / image / document"
+            value={imageUrl}
+            onChange={setImageUrl}
+            scope="admin"
+          />
           <textarea className={`${field} min-h-[64px]`} value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Excerpt" />
           <textarea className={`${field} min-h-[88px]`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />Published</label>

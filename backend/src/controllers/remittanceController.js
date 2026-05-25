@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Church = require('../models/Church');
 const { Payment } = require('../models/Payment');
 const ChurchRemittance = require('../models/ChurchRemittance');
@@ -5,6 +6,12 @@ const SchoolRemittanceSchool = require('../models/SchoolRemittanceSchool');
 const SchoolRemittanceDue = require('../models/SchoolRemittanceDue');
 const SchoolRemittancePayment = require('../models/SchoolRemittancePayment');
 const SchoolProfile = require('../models/SchoolProfile');
+const ChurchRemittanceAudit = require('../models/ChurchRemittanceAudit');
+const {
+  appendRemittanceAudit,
+  mapRemittanceEntryAuditFields,
+  serializeAuditRow,
+} = require('../utils/remittanceAudit');
 
 async function ensureLegacySchoolIndexesRemoved() {
   try {
@@ -90,6 +97,68 @@ function humanStatus(status) {
   return status;
 }
 
+const REMIT_RATE = 0.1;
+
+function httpError(message, statusCode = 400) {
+  const e = new Error(message);
+  e.statusCode = statusCode;
+  return e;
+}
+
+async function getChurchMonthRemittanceTotals(churchId, monthKey, excludeEntryId = null) {
+  const monthRange = parseMonthRange(monthKey);
+  if (!monthRange) throw httpError('Invalid month format, expected YYYY-MM');
+
+  let churchObjectId;
+  try {
+    churchObjectId = new mongoose.Types.ObjectId(churchId);
+  } catch {
+    throw httpError('Invalid church id');
+  }
+
+  const [incomeAgg, entries] = await Promise.all([
+    Payment.aggregate([
+      { $match: { church: churchObjectId, paidAt: { $gte: monthRange.start, $lt: monthRange.end } } },
+      { $group: { _id: null, totalIncome: { $sum: '$amount' } } },
+    ]),
+    ChurchRemittance.find({ church: churchId, monthKey }).lean(),
+  ]);
+
+  const totalIncome = Number(incomeAgg[0]?.totalIncome || 0);
+  let paidMain = 0;
+  let paidConference = 0;
+  for (const entry of entries) {
+    if (excludeEntryId && String(entry._id) === excludeEntryId) continue;
+    const amt = Number(entry.amount || 0);
+    if (entry.remitType === 'MAIN_CHURCH') paidMain += amt;
+    if (entry.remitType === 'CONFERENCE') paidConference += amt;
+  }
+
+  return {
+    totalIncome,
+    paidMain,
+    paidConference,
+    dueMain: totalIncome * REMIT_RATE,
+    dueConference: totalIncome * REMIT_RATE,
+  };
+}
+
+function validateRemittanceAmounts(ctx, { addMain = 0, addConference = 0 }) {
+  const newMain = ctx.paidMain + addMain;
+  const newConference = ctx.paidConference + addConference;
+  const totalRemitted = newMain + newConference;
+  if (totalRemitted > ctx.totalIncome + 0.0001) {
+    return `Total remitted to main church and conference (USD ${totalRemitted.toFixed(2)}) cannot exceed this church's monthly income (USD ${ctx.totalIncome.toFixed(2)}).`;
+  }
+  if (newMain > ctx.dueMain + 0.0001) {
+    return `Main church remittance (USD ${newMain.toFixed(2)}) cannot exceed 10% of monthly income (USD ${ctx.dueMain.toFixed(2)}).`;
+  }
+  if (newConference > ctx.dueConference + 0.0001) {
+    return `Conference remittance (USD ${newConference.toFixed(2)}) cannot exceed 10% of monthly income (USD ${ctx.dueConference.toFixed(2)}).`;
+  }
+  return null;
+}
+
 async function buildChurchRemittancePayload(monthKey) {
   const monthRange = parseMonthRange(monthKey);
   if (!monthRange) {
@@ -111,6 +180,7 @@ async function buildChurchRemittancePayload(monthKey) {
     ]),
     ChurchRemittance.find({ monthKey })
       .populate('createdBy', 'fullName email')
+      .populate('updatedBy', 'fullName email')
       .sort({ paidAt: -1, createdAt: -1 })
       .lean(),
   ]);
@@ -137,17 +207,7 @@ async function buildChurchRemittancePayload(monthKey) {
       const amt = Number(entry.amount || 0);
       if (entry.remitType === 'MAIN_CHURCH') paidMain += amt;
       if (entry.remitType === 'CONFERENCE') paidConference += amt;
-      return {
-        id: String(entry._id),
-        remitType: entry.remitType,
-        amount: amt,
-        paidAt: entry.paidAt || null,
-        note: entry.note || '',
-        createdAt: entry.createdAt || null,
-        createdByName:
-          (entry.createdBy && (entry.createdBy.fullName || entry.createdBy.email)) ||
-          '',
-      };
+      return mapRemittanceEntryAuditFields(entry);
     });
 
     return {
@@ -218,6 +278,7 @@ async function getChurchRemittanceDetails(req, res) {
     ]),
     ChurchRemittance.find({ church: church._id })
       .populate('createdBy', 'fullName email')
+      .populate('updatedBy', 'fullName email')
       .sort({ monthKey: -1, paidAt: -1, createdAt: -1 })
       .lean(),
   ]);
@@ -278,14 +339,8 @@ async function getChurchRemittanceDetails(req, res) {
   });
 
   const lifetimeEntries = remits.map((entry) => ({
-    id: String(entry._id),
+    ...mapRemittanceEntryAuditFields(entry),
     monthKey: entry.monthKey,
-    remitType: entry.remitType,
-    amount: Number(entry.amount || 0),
-    paidAt: entry.paidAt || null,
-    note: entry.note || '',
-    createdAt: entry.createdAt || null,
-    createdByName: (entry.createdBy && (entry.createdBy.fullName || entry.createdBy.email)) || '',
   }));
 
   const lifetimeSummary = monthlyRows.reduce(
@@ -356,44 +411,91 @@ async function recordChurchRemittance(req, res) {
     return res.status(400).json({ message: 'Enter main church or conference amount' });
   }
 
-  const writes = [];
-  if (Number.isFinite(mainAmount) && mainAmount > 0) {
-    writes.push(
-      ChurchRemittance.create({
-        church: churchId,
-        monthKey,
-        remitType: 'MAIN_CHURCH',
-        amount: mainAmount,
-        paidAt,
-        note,
-        createdBy: req.user?._id || null,
-        updatedBy: req.user?._id || null,
-      })
-    );
-  }
-  if (Number.isFinite(confAmount) && confAmount > 0) {
-    writes.push(
-      ChurchRemittance.create({
-        church: churchId,
-        monthKey,
-        remitType: 'CONFERENCE',
-        amount: confAmount,
-        paidAt,
-        note,
-        createdBy: req.user?._id || null,
-        updatedBy: req.user?._id || null,
-      })
-    );
-  }
+  const addMain = Number.isFinite(mainAmount) && mainAmount > 0 ? mainAmount : 0;
+  const addConference = Number.isFinite(confAmount) && confAmount > 0 ? confAmount : 0;
+  const ctx = await getChurchMonthRemittanceTotals(churchId, monthKey);
+  const validationMsg = validateRemittanceAmounts(ctx, { addMain, addConference });
+  if (validationMsg) return res.status(400).json({ message: validationMsg });
+
+  const createdDocs = [];
+  const actorId = req.user?._id || null;
   try {
-    await Promise.all(writes);
+    if (Number.isFinite(mainAmount) && mainAmount > 0) {
+      createdDocs.push(
+        await ChurchRemittance.create({
+          church: churchId,
+          monthKey,
+          remitType: 'MAIN_CHURCH',
+          amount: mainAmount,
+          paidAt,
+          note,
+          createdBy: actorId,
+          updatedBy: actorId,
+        })
+      );
+    }
+    if (Number.isFinite(confAmount) && confAmount > 0) {
+      createdDocs.push(
+        await ChurchRemittance.create({
+          church: churchId,
+          monthKey,
+          remitType: 'CONFERENCE',
+          amount: confAmount,
+          paidAt,
+          note,
+          createdBy: actorId,
+          updatedBy: actorId,
+        })
+      );
+    }
   } catch (e) {
     if (e?.code === 11000) {
       await ensureLegacyChurchRemittanceIndexesRemoved();
-      await Promise.all(writes);
+      if (Number.isFinite(mainAmount) && mainAmount > 0) {
+        createdDocs.push(
+          await ChurchRemittance.create({
+            church: churchId,
+            monthKey,
+            remitType: 'MAIN_CHURCH',
+            amount: mainAmount,
+            paidAt,
+            note,
+            createdBy: actorId,
+            updatedBy: actorId,
+          })
+        );
+      }
+      if (Number.isFinite(confAmount) && confAmount > 0) {
+        createdDocs.push(
+          await ChurchRemittance.create({
+            church: churchId,
+            monthKey,
+            remitType: 'CONFERENCE',
+            amount: confAmount,
+            paidAt,
+            note,
+            createdBy: actorId,
+            updatedBy: actorId,
+          })
+        );
+      }
     } else {
       throw e;
     }
+  }
+  for (const doc of createdDocs) {
+    await appendRemittanceAudit({
+      churchId,
+      entryId: doc._id,
+      monthKey,
+      remitType: doc.remitType,
+      amount: doc.amount,
+      action: 'CREATED',
+      actorId,
+      details: `Posted ${doc.remitType} remittance USD ${Number(doc.amount).toFixed(2)}`,
+      meta: { paidAt: doc.paidAt, note: doc.note },
+      at: doc.createdAt || new Date(),
+    });
   }
   const payload = await buildChurchRemittancePayload(monthKey);
   return res.status(201).json(payload);
@@ -405,6 +507,13 @@ async function updateChurchRemittanceEntry(req, res) {
 
   const entry = await ChurchRemittance.findById(entryId);
   if (!entry) return res.status(404).json({ message: 'Remittance entry not found' });
+
+  const before = {
+    remitType: entry.remitType,
+    amount: Number(entry.amount || 0),
+    paidAt: entry.paidAt ? new Date(entry.paidAt).toISOString() : null,
+    note: entry.note || '',
+  };
 
   if (req.body?.amount !== undefined) {
     const amount = Number(req.body.amount);
@@ -426,10 +535,67 @@ async function updateChurchRemittanceEntry(req, res) {
     }
     entry.remitType = remitType;
   }
+
+  const ctx = await getChurchMonthRemittanceTotals(entry.church, entry.monthKey, entryId);
+  const addMain = entry.remitType === 'MAIN_CHURCH' ? Number(entry.amount || 0) : 0;
+  const addConference = entry.remitType === 'CONFERENCE' ? Number(entry.amount || 0) : 0;
+  const validationMsg = validateRemittanceAmounts(ctx, { addMain, addConference });
+  if (validationMsg) return res.status(400).json({ message: validationMsg });
+
   entry.updatedBy = req.user?._id || entry.updatedBy || null;
   await entry.save();
+
+  const after = {
+    remitType: entry.remitType,
+    amount: Number(entry.amount || 0),
+    paidAt: entry.paidAt ? new Date(entry.paidAt).toISOString() : null,
+    note: entry.note || '',
+  };
+  await appendRemittanceAudit({
+    churchId: entry.church,
+    entryId: entry._id,
+    monthKey: entry.monthKey,
+    remitType: entry.remitType,
+    amount: entry.amount,
+    action: 'UPDATED',
+    actorId: req.user?._id || null,
+    details: `Updated remittance (${before.remitType} USD ${before.amount.toFixed(2)} → ${after.remitType} USD ${after.amount.toFixed(2)})`,
+    meta: { before, after },
+    at: entry.updatedAt || new Date(),
+  });
+
   const payload = await buildChurchRemittancePayload(entry.monthKey);
   return res.json(payload);
+}
+
+async function queryRemittanceAudit(churchId, { monthKey, limit = 300 }) {
+  const q = { church: churchId };
+  if (monthKey && parseMonthRange(monthKey)) q.monthKey = monthKey;
+  const cap = Math.min(Math.max(1, Number(limit) || 300), 1000);
+  const rows = await ChurchRemittanceAudit.find(q)
+    .populate('actor', 'fullName email memberId')
+    .sort({ at: -1 })
+    .limit(cap)
+    .lean();
+  return rows.map(serializeAuditRow);
+}
+
+async function listAdminChurchRemittanceAudit(req, res) {
+  const churchId = adminChurchIdFromUser(req);
+  if (!churchId) return res.status(400).json({ message: 'No church assigned' });
+  const monthKey = String(req.query.month || '').trim();
+  const limit = Number(req.query.limit);
+  const rows = await queryRemittanceAudit(churchId, { monthKey, limit });
+  return res.json({ monthKey: monthKey || null, rows });
+}
+
+async function listChurchRemittanceAudit(req, res) {
+  const churchId = String(req.query.churchId || req.params.churchId || '').trim();
+  if (!churchId) return res.status(400).json({ message: 'churchId is required' });
+  const monthKey = String(req.query.month || '').trim();
+  const limit = Number(req.query.limit);
+  const rows = await queryRemittanceAudit(churchId, { monthKey, limit });
+  return res.json({ churchId, monthKey: monthKey || null, rows });
 }
 
 function resolveDueStatus(dueAmount, paidAmount) {
@@ -719,6 +885,55 @@ async function updateSchoolDue(req, res) {
   return res.json(due);
 }
 
+function adminChurchIdFromUser(req) {
+  const churchId = req.user?.church;
+  if (!churchId) return null;
+  return String(churchId);
+}
+
+async function listAdminChurchRemittances(req, res) {
+  const churchId = adminChurchIdFromUser(req);
+  if (!churchId) return res.status(400).json({ message: 'No church assigned' });
+  const monthKey = String(req.query.month || monthKeyFromDate()).trim();
+  const payload = await buildChurchRemittancePayload(monthKey);
+  const row = payload.rows.find((r) => r.churchId === churchId) || null;
+  return res.json({ monthKey: payload.monthKey, remitRatePercent: payload.remitRatePercent, row });
+}
+
+async function getAdminChurchRemittanceDetails(req, res) {
+  const churchId = adminChurchIdFromUser(req);
+  if (!churchId) return res.status(400).json({ message: 'No church assigned' });
+  req.params.churchId = churchId;
+  return getChurchRemittanceDetails(req, res);
+}
+
+async function recordAdminChurchRemittance(req, res) {
+  const churchId = adminChurchIdFromUser(req);
+  if (!churchId) return res.status(400).json({ message: 'No church assigned' });
+  req.params.churchId = churchId;
+  return recordChurchRemittance(req, res);
+}
+
+async function updateAdminChurchRemittanceEntry(req, res) {
+  const churchId = adminChurchIdFromUser(req);
+  if (!churchId) return res.status(400).json({ message: 'No church assigned' });
+  const entryId = String(req.params.entryId || '').trim();
+  if (!entryId) return res.status(400).json({ message: 'entryId is required' });
+  const entry = await ChurchRemittance.findById(entryId);
+  if (!entry) return res.status(404).json({ message: 'Remittance entry not found' });
+  if (String(entry.church) !== churchId) {
+    return res.status(403).json({ message: 'Remittance entry does not belong to your church' });
+  }
+  return updateChurchRemittanceEntry(req, res);
+}
+
+async function deleteAdminChurchRemittanceEntry(req, res) {
+  return res.status(403).json({
+    message:
+      'Direct deletion is not allowed. Request deletion and obtain approval from treasurer, vice treasurer, and deacon.',
+  });
+}
+
 async function deleteChurchRemittanceEntry(req, res) {
   const entryId = String(req.params.entryId || '').trim();
   if (!entryId) return res.status(400).json({ message: 'entryId is required' });
@@ -914,6 +1129,13 @@ module.exports = {
   recordChurchRemittance,
   updateChurchRemittanceEntry,
   deleteChurchRemittanceEntry,
+  listAdminChurchRemittances,
+  getAdminChurchRemittanceDetails,
+  listAdminChurchRemittanceAudit,
+  listChurchRemittanceAudit,
+  recordAdminChurchRemittance,
+  updateAdminChurchRemittanceEntry,
+  deleteAdminChurchRemittanceEntry,
   listSchoolRemittances,
   getSchoolRemittanceDetails,
   createSchool,

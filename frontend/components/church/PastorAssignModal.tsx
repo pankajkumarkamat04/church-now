@@ -27,16 +27,40 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
 
   useEffect(() => {
     if (!open || !token || !churchId) return;
-    const path =
-      mode === 'superadmin'
-        ? `/api/superadmin/users?churchId=${encodeURIComponent(churchId)}&limit=500`
-        : '/api/admin/members';
-    apiFetch<AuthUser[] | Paginated<AuthUser>>(path, { token })
+    if (mode === 'superadmin') {
+      apiFetch<{ _id: string; churchType?: string }[]>(`/api/superadmin/main-churches`, { token })
+        .then((mainRows) => {
+          const mainId = Array.isArray(mainRows) && mainRows[0]?._id ? String(mainRows[0]._id) : '';
+          if (mainId && churchId === mainId) {
+            setErr('Assign the main church pastor on the Main Church Pastor tab.');
+            setMembers([]);
+            setPastorUserId('');
+            return;
+          }
+          return apiFetch<AuthUser[] | Paginated<AuthUser>>(
+            `/api/superadmin/pastor-members?churchId=${encodeURIComponent(churchId)}`,
+            { token }
+          );
+        })
+        .then((raw) => {
+          if (!raw) return;
+          const rows = unwrapPaginatedArray(raw);
+          const filtered = rows.filter((r) => r.role === 'MEMBER' || r.role === 'ADMIN');
+          setMembers(filtered);
+          const firstId = filtered[0]?.id || (filtered[0] as { _id?: string })?._id || '';
+          setPastorUserId(firstId);
+          setErr(null);
+        })
+        .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
+      return;
+    }
+    apiFetch<AuthUser[] | Paginated<AuthUser>>('/api/admin/members', { token })
       .then((raw) => {
         const rows = unwrapPaginatedArray(raw);
         const filtered = rows.filter((r) => r.role === 'MEMBER' || r.role === 'ADMIN');
         setMembers(filtered);
-        setPastorUserId(filtered[0]?.id || '');
+        const firstId = filtered[0]?.id || (filtered[0] as { _id?: string })?._id || '';
+        setPastorUserId(firstId);
       })
       .catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
   }, [open, token, churchId, mode]);
@@ -90,11 +114,19 @@ export function PastorAssignModal({ open, onClose, token, churchId, mode, onSave
           className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
         >
           <option value="">Select member / admin</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {(m.memberId || '—').toString()} - {m.fullName || m.email}
-            </option>
-          ))}
+          {members.map((m) => {
+            const id = m.id || (m as { _id?: string })._id || '';
+            const home =
+              typeof (m as { church?: { name?: string } }).church === 'object'
+                ? (m as { church?: { name?: string } }).church?.name
+                : '';
+            return (
+              <option key={id} value={id}>
+                {(m.memberId || '—').toString()} - {m.fullName || m.email}
+                {home ? ` (${home})` : ''}
+              </option>
+            );
+          })}
         </select>
         <label className="mb-1 mt-4 block text-xs font-medium text-neutral-600">Term length</label>
         <select

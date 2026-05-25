@@ -44,6 +44,18 @@ const storage = multer.diskStorage({
   },
 });
 
+const FLYER_EXTENSIONS = new Set(['.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']);
+
+function isAllowedFlyerFile(file) {
+  const m = String(file.mimetype || '').toLowerCase();
+  if (m.startsWith('image/')) return true;
+  if (m === 'application/pdf') return true;
+  if (m === 'application/msword') return true;
+  if (m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return true;
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  return FLYER_EXTENSIONS.has(ext);
+}
+
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -61,11 +73,23 @@ const announcementUpload = multer({
   storage,
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const m = file.mimetype || '';
-    if (m.startsWith('image/') || m === 'application/pdf') {
+    if (isAllowedFlyerFile(file)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF and image files are allowed'));
+      cb(new Error('Only images, PDF, and Word documents are allowed'));
+    }
+  },
+});
+
+/** Event flyers / documents: images, PDF, Word (superadmin global or per-church admin). */
+const flyerUpload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (isAllowedFlyerFile(file)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images, PDF, and Word documents are allowed'));
     }
   },
 });
@@ -189,6 +213,10 @@ async function uploadAdmin(req, res) {
   );
 }
 
+async function uploadFlyerAdmin(req, res) {
+  return uploadAdmin(req, res);
+}
+
 async function uploadAnnouncementAdmin(req, res) {
   return uploadAdmin(req, res);
 }
@@ -221,11 +249,13 @@ async function removeAdmin(req, res) {
 module.exports = {
   upload,
   announcementUpload,
+  flyerUpload,
   list,
   uploadOne,
   remove,
   listAdmin,
   uploadAdmin,
+  uploadFlyerAdmin,
   uploadAnnouncementAdmin,
   uploadAnnouncementSuperadmin,
   removeAdmin,

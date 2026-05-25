@@ -93,7 +93,8 @@ async function updateMyChurch(req, res) {
         const { councils } = await validateChurchLeadershipPayload(
           church._id,
           church.localLeadership?.toObject?.() || church.localLeadership || {},
-          req.body.councils
+          req.body.councils,
+          { churchType: church.churchType }
         );
         church.councils = councils;
       } catch (e) {

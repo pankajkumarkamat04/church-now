@@ -3,7 +3,7 @@ import { SuperadminDashboardLayout } from '@/components/dashboard/SuperadminDash
 
 export default function SuperadminPanelRootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+    <ProtectedRoute allowedRoles={['SUPERADMIN', 'CHURCH_ADMIN']}>
       <SuperadminDashboardLayout>{children}</SuperadminDashboardLayout>
     </ProtectedRoute>
   );

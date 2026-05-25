@@ -36,7 +36,7 @@ export function canAccessMemberPortal(user: AuthUser | null | undefined): boolea
  */
 export function getDefaultDashboardPath(user: AuthUser | null | undefined): string {
   if (!user) return '/login';
-  if (user.role === 'SUPERADMIN') return '/dashboard/superadmin';
+  if (user.role === 'SUPERADMIN' || user.role === 'CHURCH_ADMIN') return '/dashboard/superadmin';
   if (user.role === 'MEMBER') return '/dashboard/member';
   if (user.role === 'ADMIN') {
     if (canAccessMemberPortal(user)) {
@@ -54,6 +54,7 @@ export function getDefaultDashboardPath(user: AuthUser | null | undefined): stri
 export function dashboardPathForRoleOnly(role: Role): string {
   switch (role) {
     case 'SUPERADMIN':
+    case 'CHURCH_ADMIN':
       return '/dashboard/superadmin';
     case 'ADMIN':
       return '/dashboard/admin';

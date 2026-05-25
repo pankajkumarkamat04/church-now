@@ -1,6 +1,7 @@
 import { PAYMENT_OPTIONS } from '@/lib/payments';
 import { emptyAmountsForCodes } from '@/lib/paymentTypes';
 import type { AuthUser } from '@/lib/api';
+import type { PendingDeletion } from '@/components/finance/TransactionDeletionActions';
 
 export type PaymentRow = {
   _id: string;
@@ -23,6 +24,7 @@ export type PaymentRow = {
     role?: string;
   };
   createdBy?: { fullName?: string; email?: string };
+  pendingDeletion?: PendingDeletion | null;
 };
 
 export type MemberBalanceRow = {

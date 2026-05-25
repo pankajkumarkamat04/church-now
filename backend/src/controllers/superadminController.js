@@ -463,6 +463,35 @@ async function listUsers(req, res) {
       }
     }
 
+    const memberCategoryFilter = String(req.query.memberCategory || '').trim().toUpperCase();
+    if (memberCategoryFilter === 'PASTOR') {
+      const catPart = { memberCategory: 'PASTOR' };
+      if (Object.keys(filter).length === 0) {
+        Object.assign(filter, catPart);
+      } else {
+        const prev = { ...filter };
+        Object.keys(filter).forEach((k) => delete filter[k]);
+        Object.assign(filter, { $and: [prev, catPart] });
+      }
+    } else if (memberCategoryFilter === 'LAY') {
+      const catPart = {
+        $or: [
+          { memberCategory: 'MEMBER' },
+          { memberCategory: 'PRESIDENT' },
+          { memberCategory: 'MODERATOR' },
+          { memberCategory: { $exists: false } },
+          { memberCategory: null },
+        ],
+      };
+      if (Object.keys(filter).length === 0) {
+        Object.assign(filter, catPart);
+      } else {
+        const prev = { ...filter };
+        Object.keys(filter).forEach((k) => delete filter[k]);
+        Object.assign(filter, { $and: [prev, catPart] });
+      }
+    }
+
     const badgeFilter = String(req.query.memberBadgeType || '').trim().toUpperCase();
     if (badgeFilter === 'BADGED') {
       const badgePart = { memberBadgeType: 'BADGED' };
@@ -830,6 +859,9 @@ async function createChurchAdmin(req, res) {
 }
 
 async function createSuperadminUser(req, res) {
+  if (req.user.role !== 'SUPERADMIN') {
+    return res.status(403).json({ message: 'Only system superadmin may create superadmin accounts' });
+  }
   try {
     const { email, password, fullName } = req.body;
     if (!email || !password) {
@@ -1034,7 +1066,46 @@ async function rejectPendingMember(req, res) {
   }
 }
 
+/** Global roster for main-church leadership picks (pastors or lay members, any congregation). */
+async function listLeadershipRoster(req, res) {
+  try {
+    const pool = String(req.query.pool || '').trim().toLowerCase();
+    const filter = { role: { $in: ['MEMBER', 'ADMIN'] }, isActive: true };
+    if (pool === 'pastors') {
+      filter.memberCategory = 'PASTOR';
+    } else if (pool === 'lay') {
+      filter.memberCategory = { $ne: 'PASTOR' };
+    } else {
+      return res.status(400).json({ message: 'pool must be pastors or lay' });
+    }
+
+    const users = await User.find(filter)
+      .populate('church', 'name conference')
+      .sort({ fullName: 1, email: 1 })
+      .select('-password')
+      .limit(3000)
+      .lean();
+
+    return res.json(
+      users.map((u) => ({
+        id: u._id,
+        email: u.email,
+        fullName: u.fullName,
+        firstName: u.firstName || '',
+        surname: u.surname || '',
+        memberId: u.memberId || '',
+        memberCategory: u.memberCategory,
+        church: u.church,
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load leadership roster' });
+  }
+}
+
 module.exports = {
+  listLeadershipRoster,
   listCouncils,
   listCouncilMembers,
   createCouncil,

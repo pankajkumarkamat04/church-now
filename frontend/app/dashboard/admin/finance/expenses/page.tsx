@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
+import { TransactionDeletionActions, type PendingDeletion } from '@/components/finance/TransactionDeletionActions';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinanceSectionNav } from '@/components/finance/FinanceSectionNav';
@@ -34,6 +35,7 @@ type ExpenseRow = {
   canCurrentUserInitiate?: boolean;
   canCurrentUserVerify?: boolean;
   canCurrentUserNoticeApprove?: boolean;
+  pendingDeletion?: PendingDeletion | null;
 };
 
 const field = 'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
@@ -111,12 +113,6 @@ export default function AdminFinanceExpensesPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function remove(id: string) {
-    if (!token || !window.confirm('Delete this expense?')) return;
-    await apiFetch(`/api/admin/expenses/${id}`, { method: 'DELETE', token });
-    await load();
   }
 
   async function verifyPayment(id: string) {
@@ -230,6 +226,12 @@ export default function AdminFinanceExpensesPage() {
         </div>
       )}
 
+      <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
+        Removing a transaction requires approval from <strong>treasurer</strong>, <strong>vice treasurer</strong>, and{' '}
+        <strong>deacon</strong> (on main churches, the <strong>moderator</strong> may approve the deacon step). Use
+        &quot;Request delete&quot; on a row; each officer approves once all three agree, the record is deleted.
+      </div>
+
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="space-y-3 p-3 md:hidden">
           {rows.map((r) => (
@@ -244,7 +246,13 @@ export default function AdminFinanceExpensesPage() {
                 {r.canCurrentUserVerify && r.approvalStage === 'PENDING_VERIFICATION' ? <button type="button" onClick={() => void verifyPayment(r._id)} className="inline-flex items-center text-sky-700 hover:underline">Verify</button> : null}
                 {r.canCurrentUserNoticeApprove && r.approvalStage === 'PENDING_NOTICE_APPROVALS' ? <button type="button" onClick={() => void approveNotice(r._id)} className="inline-flex items-center text-emerald-700 hover:underline">Approve notice</button> : null}
                 <button type="button" onClick={() => startEdit(r)} className="inline-flex items-center text-sky-700 hover:underline"><Pencil className="mr-1 size-3.5" />Edit</button>
-                <button type="button" onClick={() => remove(r._id)} className="inline-flex items-center text-red-700 hover:underline"><Trash2 className="mr-1 size-3.5" />Delete</button>
+                <TransactionDeletionActions
+                  token={token}
+                  targetKind="EXPENSE"
+                  targetId={r._id}
+                  pendingDeletion={r.pendingDeletion}
+                  onChanged={load}
+                />
               </div>
             </div>
           ))}
@@ -311,9 +319,13 @@ export default function AdminFinanceExpensesPage() {
                   <button type="button" onClick={() => startEdit(r)} className="mr-2 inline-flex items-center text-sky-700 hover:underline">
                     <Pencil className="mr-1 size-3.5" /> Edit
                   </button>
-                  <button type="button" onClick={() => remove(r._id)} className="inline-flex items-center text-red-700 hover:underline">
-                    <Trash2 className="mr-1 size-3.5" /> Delete
-                  </button>
+                  <TransactionDeletionActions
+                    token={token}
+                    targetKind="EXPENSE"
+                    targetId={r._id}
+                    pendingDeletion={r.pendingDeletion}
+                    onChanged={load}
+                  />
                 </td>
               </tr>
             ))}

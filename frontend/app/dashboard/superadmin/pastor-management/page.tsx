@@ -7,6 +7,11 @@ import Link from 'next/link';
 import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { PastorAssignModal } from '@/components/church/PastorAssignModal';
+import { MainChurchPastorTab } from '@/components/church/MainChurchPastorTab';
+import { DashboardPageHeader } from '@/components/layout/DashboardPageHeader';
+import { DashboardPageShell } from '@/components/layout/DashboardPageShell';
+import { canAccessSuperadminPanel } from '@/lib/superadminPanel';
+import { excludeMainChurchRows, subChurchesOnly } from '@/lib/pastorManagement';
 import {
   RemoveSpiritualLeaderModal,
   type SpiritualLeaderRemoveTarget,
@@ -167,11 +172,19 @@ const STATUS_BADGE: Record<string, string> = {
   CATEGORY_ONLY: 'bg-violet-100 text-violet-900',
 };
 
-type Tab = 'directory' | 'upgrade' | 'terms' | 'remove';
+type Tab = 'directory' | 'upgrade' | 'main-pastor' | 'terms' | 'remove';
 
 function parseTabParam(value: string | null): Tab {
   if (!value) return 'directory';
   const v = value.toLowerCase();
+  if (
+    v === 'main-pastor' ||
+    v === 'main-church-pastor' ||
+    v === 'main-church' ||
+    v === 'mainchurch'
+  ) {
+    return 'main-pastor';
+  }
   if (v === 'terms' || v === 'pastor-terms' || v === 'leader-terms' || v === 'spiritual-leaders') return 'terms';
   if (v === 'upgrade' || v === 'upgrade-member') return 'upgrade';
   if (v === 'remove' || v === 'remove-leader' || v === 'remove-spiritual-leader') return 'remove';
@@ -253,7 +266,7 @@ function DirectoryTab({
           className="min-w-0 flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-100"
         />
         <select value={selectedChurchId} onChange={(e) => { setSelectedChurchId(e.target.value); setPage(1); }} className={`w-48 ${field}`}>
-          <option value="">All churches</option>
+          <option value="">All sub-churches</option>
           {churches.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')} className={`w-36 ${field}`}>
@@ -488,7 +501,7 @@ function UpgradeMemberTab({
       <div>
         <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">Select Church</label>
         <select value={selectedChurchId} onChange={(e) => setSelectedChurchId(e.target.value)} className={`max-w-sm ${field}`}>
-          <option value="">Select church</option>
+          <option value="">Select sub-church</option>
           {churches.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
         </select>
       </div>
@@ -628,8 +641,9 @@ function TermsTab({
   const [pageSize, setPageSize] = useState(PASTOR_PAGE_DEFAULT);
 
   const filtered = useMemo(() => {
-    if (!churchFilter) return terms;
-    return terms.filter((t) => churchIdFromRef(t.church, churches) === churchFilter);
+    let rows = terms;
+    if (churchFilter) rows = rows.filter((t) => churchIdFromRef(t.church, churches) === churchFilter);
+    return rows;
   }, [terms, churchFilter, churches]);
 
   const leadershipOnlyCount = useMemo(
@@ -693,15 +707,18 @@ function TermsTab({
 
       <div className="flex flex-wrap items-center gap-3">
         <select value={churchFilter} onChange={(e) => { setChurchFilter(e.target.value); setPage(1); }} className={`w-56 ${field}`}>
-          <option value="">All churches</option>
-          {churches.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+          <option value="">All sub-churches</option>
+          {churches.map((c) => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
         </select>
         <button type="button" onClick={openAssignModal} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500">
           + Assign term (1 or 4 years)
         </button>
       </div>
       <p className="text-xs text-neutral-500">
-        Leaders set only in church leadership (no term dates yet) show as &quot;Church leadership&quot;. Use Create term to add a 1-year or 4-year term.
+        Main church pastor is managed on the <strong>Main Church Pastor</strong> tab (sub-church pastors only). Other
+        leaders set only in church leadership (no term dates yet) show as &quot;Church leadership&quot;.
       </p>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -867,8 +884,9 @@ function RemoveLeadersTab({
   const leaders = useMemo(() => removableLeaders(terms), [terms]);
 
   const filtered = useMemo(() => {
-    if (!churchFilter) return leaders;
-    return leaders.filter((t) => churchIdFromRef(t.church, churches) === churchFilter);
+    let rows = leaders;
+    if (churchFilter) rows = rows.filter((t) => churchIdFromRef(t.church, churches) === churchFilter);
+    return rows;
   }, [leaders, churchFilter, churches]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -897,8 +915,9 @@ function RemoveLeadersTab({
       <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
         <p className="text-sm font-medium text-red-900 dark:text-red-200">Remove a spiritual leader</p>
         <p className="mt-1 text-xs text-red-800/90 dark:text-red-300/90">
-          Select a leader below and click Remove leader. You will see full church and term details before confirming.
-          This clears the spiritual pastor role and deletes the term record when applicable.
+          Select a leader below and click Remove leader. Sub-churches only — use the{' '}
+          <strong>Main Church Pastor</strong> tab for the denomination main church. This clears the spiritual pastor role
+          and deletes the term record when applicable.
         </p>
       </div>
 
@@ -913,7 +932,7 @@ function RemoveLeadersTab({
           }}
           className={`w-56 ${field}`}
         >
-          <option value="">All churches</option>
+          <option value="">All sub-churches</option>
           {churches.map((c) => (
             <option key={c._id} value={c._id}>
               {c.name}
@@ -1045,6 +1064,9 @@ function SuperadminPastorManagementPageInner() {
   const [assignChurchId, setAssignChurchId] = useState('');
   const [assignOpen, setAssignOpen] = useState(false);
   const [pageErr, setPageErr] = useState<string | null>(null);
+  const [mainChurchId, setMainChurchId] = useState('');
+
+  const subChurches = useMemo(() => subChurchesOnly(churches), [churches]);
 
   useEffect(() => {
     const raw = searchParams.get('tab');
@@ -1068,37 +1090,41 @@ function SuperadminPastorManagementPageInner() {
   );
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'SUPERADMIN')) router.replace('/login');
+    if (!loading && (!user || !canAccessSuperadminPanel(user.role))) router.replace('/login');
   }, [loading, user, router]);
 
   async function loadRecords() {
-    if (!token || user?.role !== 'SUPERADMIN') return;
+    if (!token || !canAccessSuperadminPanel(user?.role)) return;
     try {
-      const res = await apiFetch<{ data: PastorRecord[] } | PastorRecord[]>('/api/superadmin/pastors?limit=200', { token });
-      setRecords(Array.isArray(res) ? res : (res.data ?? []));
+      const res = await apiFetch<PastorRecord[] | Paginated<PastorRecord>>('/api/superadmin/pastors?limit=200', { token });
+      setRecords(excludeMainChurchRows(unwrapPaginatedArray(res), mainChurchId));
     } catch { /* ignore */ }
   }
 
   async function loadTerms() {
-    if (!token || user?.role !== 'SUPERADMIN') return;
+    if (!token || !canAccessSuperadminPanel(user?.role)) return;
     try {
       const res = await apiFetch<PastorTerm[] | Paginated<PastorTerm>>('/api/superadmin/pastor-terms?limit=200', { token });
-      setTerms(unwrapPaginatedArray(res));
+      setTerms(excludeMainChurchRows(unwrapPaginatedArray(res), mainChurchId));
     } catch { /* ignore */ }
   }
 
   useEffect(() => {
     async function init() {
-      if (!token || user?.role !== 'SUPERADMIN') return;
+      if (!token || !canAccessSuperadminPanel(user?.role)) return;
       try {
-        const [churchRes, pastorRes, termRes] = await Promise.all([
-          apiFetch<ChurchOption[] | Paginated<ChurchOption>>('/api/superadmin/churches?limit=500', { token }),
+        const [subChurchRes, mainRes, pastorRes, termRes] = await Promise.all([
+          apiFetch<ChurchOption[] | Paginated<ChurchOption>>('/api/superadmin/sub-churches?limit=500', { token }),
+          apiFetch<ChurchOption[]>('/api/superadmin/main-churches', { token }),
           apiFetch<PastorRecord[] | Paginated<PastorRecord>>('/api/superadmin/pastors?limit=200', { token }),
           apiFetch<PastorTerm[] | Paginated<PastorTerm>>('/api/superadmin/pastor-terms?limit=200', { token }),
         ]);
-        setChurches(unwrapPaginatedArray(churchRes));
-        setRecords(unwrapPaginatedArray(pastorRes));
-        setTerms(unwrapPaginatedArray(termRes));
+        const mainList = Array.isArray(mainRes) ? mainRes : [];
+        const mainId = mainList[0]?._id ? String(mainList[0]._id) : '';
+        setMainChurchId(mainId);
+        setChurches(subChurchesOnly(unwrapPaginatedArray(subChurchRes)));
+        setRecords(excludeMainChurchRows(unwrapPaginatedArray(pastorRes), mainId));
+        setTerms(excludeMainChurchRows(unwrapPaginatedArray(termRes), mainId));
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to load';
         setPageErr(msg);
@@ -1108,62 +1134,63 @@ function SuperadminPastorManagementPageInner() {
   }, [token, user]);
 
   useEffect(() => {
-    if ((tab === 'remove' || tab === 'terms') && token && user?.role === 'SUPERADMIN') {
+    if ((tab === 'remove' || tab === 'terms') && token && canAccessSuperadminPanel(user?.role)) {
       void loadTerms();
     }
   }, [tab, token, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!user || user.role !== 'SUPERADMIN') return null;
+  if (!user || !canAccessSuperadminPanel(user.role)) return null;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'directory', label: 'Pastor Directory' },
     { id: 'upgrade', label: 'Upgrade Member' },
+    { id: 'main-pastor', label: 'Main Church Pastor' },
     { id: 'terms', label: 'Pastors / Spiritual leaders' },
     { id: 'remove', label: 'Remove spiritual leader' },
   ];
 
   return (
-    <div className="w-full min-w-0 max-w-7xl space-y-6">
-      {/* Header */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-400">Leadership</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-3xl">
-          Pastor Management
-        </h1>
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Manage pastors and spiritual leaders. Assign a 1-year or 4-year term (one renewal allowed per assignment).
-        </p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        variant="superadmin"
+        eyebrow="Leadership"
+        title="Pastor Management"
+        description="Manage pastors and spiritual leaders. Assign a 1-year or 4-year term (one renewal allowed per assignment)."
+      />
 
       {pageErr && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{pageErr}</p>}
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-neutral-200 bg-neutral-100 p-1 dark:bg-neutral-800 dark:border-neutral-700 w-fit">
+      <div className="flex w-full justify-start">
+        <div className="flex gap-1 rounded-xl border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800 w-fit">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => selectTab(t.id)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === t.id ? 'bg-white text-violet-700 shadow-sm dark:bg-neutral-900 dark:text-violet-300' : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'}`}>
             {t.label}
           </button>
         ))}
+        </div>
       </div>
 
       {tab === 'directory' && (
-        <DirectoryTab records={records} churches={churches}
+        <DirectoryTab records={records} churches={subChurches}
           selectedChurchId={selectedChurchId} setSelectedChurchId={setSelectedChurchId}
           token={token} onRefresh={() => void loadRecords()} />
       )}
       {tab === 'upgrade' && (
         <UpgradeMemberTab
-          churches={churches}
+          churches={subChurches}
           token={token}
           onRefresh={() => void loadRecords()}
           onRefreshTerms={() => void loadTerms()}
         />
       )}
+      {tab === 'main-pastor' && (
+        <MainChurchPastorTab token={token} onRefreshTerms={() => void loadTerms()} />
+      )}
       {tab === 'terms' && (
         <TermsTab
           terms={terms}
-          churches={churches}
+          churches={subChurches}
           token={token}
           onRefreshTerms={() => void loadTerms()}
           setAssignOpen={setAssignOpen}
@@ -1173,7 +1200,7 @@ function SuperadminPastorManagementPageInner() {
       {tab === 'remove' && (
         <RemoveLeadersTab
           terms={terms}
-          churches={churches}
+          churches={subChurches}
           token={token}
           onRefreshTerms={() => void loadTerms()}
         />
@@ -1187,7 +1214,7 @@ function SuperadminPastorManagementPageInner() {
         mode="superadmin"
         onSaved={() => void loadTerms()}
       />
-    </div>
+    </DashboardPageShell>
   );
 }
 
