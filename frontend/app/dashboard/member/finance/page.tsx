@@ -116,7 +116,7 @@ export default function MemberFinanceRecordsPage() {
           Loading…
         </div>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="mt-6 table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-neutral-50 text-neutral-600">
               <tr>

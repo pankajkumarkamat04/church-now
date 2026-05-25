@@ -87,7 +87,7 @@ export default function SuperadminConferencesPage() {
         </Link>
       </div>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-neutral-50 text-neutral-600">

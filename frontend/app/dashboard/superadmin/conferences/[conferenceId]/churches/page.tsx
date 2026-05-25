@@ -63,7 +63,7 @@ export default function SuperadminConferenceChurchesPage() {
           <Loader2 className="size-7 animate-spin text-violet-600" />
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-neutral-50 text-neutral-600">

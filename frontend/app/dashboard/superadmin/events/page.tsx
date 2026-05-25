@@ -157,7 +157,7 @@ export default function SuperadminEventsPage() {
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
             <h2 className="text-sm font-semibold text-neutral-900">Events</h2>
             <div className="w-full sm:w-72">

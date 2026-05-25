@@ -10,6 +10,8 @@ import { PastorAssignModal } from '@/components/church/PastorAssignModal';
 import { MainChurchPastorTab } from '@/components/church/MainChurchPastorTab';
 import { DashboardPageHeader } from '@/components/layout/DashboardPageHeader';
 import { DashboardPageShell } from '@/components/layout/DashboardPageShell';
+import { DashboardTabs } from '@/components/layout/DashboardTabs';
+import { toolbarControl, toolbarRow } from '@/lib/responsiveClasses';
 import { canAccessSuperadminPanel } from '@/lib/superadminPanel';
 import { excludeMainChurchRows, subChurchesOnly } from '@/lib/pastorManagement';
 import {
@@ -259,17 +261,17 @@ function DirectoryTab({
       {err && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{err}</p>}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className={toolbarRow}>
         <input
           value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, church, role…"
-          className="min-w-0 flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-100"
+          className={`${toolbarControl} min-w-0 flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-100`}
         />
-        <select value={selectedChurchId} onChange={(e) => { setSelectedChurchId(e.target.value); setPage(1); }} className={`w-48 ${field}`}>
+        <select value={selectedChurchId} onChange={(e) => { setSelectedChurchId(e.target.value); setPage(1); }} className={`${toolbarControl} sm:max-w-xs ${field}`}>
           <option value="">All sub-churches</option>
           {churches.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
         </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')} className={`w-36 ${field}`}>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')} className={`${toolbarControl} sm:max-w-[9rem] ${field}`}>
           <option value="all">All status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
@@ -529,7 +531,7 @@ function UpgradeMemberTab({
       {successMsg && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{successMsg}</p>}
 
       {members.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
+        <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600 dark:bg-neutral-800 dark:border-neutral-700">
@@ -705,8 +707,8 @@ function TermsTab({
     <div className="space-y-4">
       {err && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{err}</p>}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <select value={churchFilter} onChange={(e) => { setChurchFilter(e.target.value); setPage(1); }} className={`w-56 ${field}`}>
+      <div className={toolbarRow}>
+        <select value={churchFilter} onChange={(e) => { setChurchFilter(e.target.value); setPage(1); }} className={`${toolbarControl} sm:max-w-xs ${field}`}>
           <option value="">All sub-churches</option>
           {churches.map((c) => (
             <option key={c._id} value={c._id}>{c.name}</option>
@@ -736,7 +738,7 @@ function TermsTab({
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-400">
@@ -944,7 +946,7 @@ function RemoveLeadersTab({
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
@@ -1160,16 +1162,18 @@ function SuperadminPastorManagementPageInner() {
 
       {pageErr && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{pageErr}</p>}
 
-      <div className="flex w-full justify-start">
-        <div className="flex gap-1 rounded-xl border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800 w-fit">
+      <DashboardTabs>
         {TABS.map((t) => (
-          <button key={t.id} type="button" onClick={() => selectTab(t.id)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === t.id ? 'bg-white text-violet-700 shadow-sm dark:bg-neutral-900 dark:text-violet-300' : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'}`}>
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => selectTab(t.id)}
+            className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${tab === t.id ? 'bg-white text-violet-700 shadow-sm dark:bg-neutral-900 dark:text-violet-300' : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'}`}
+          >
             {t.label}
           </button>
         ))}
-        </div>
-      </div>
+      </DashboardTabs>
 
       {tab === 'directory' && (
         <DirectoryTab records={records} churches={subChurches}

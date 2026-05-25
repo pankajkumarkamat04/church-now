@@ -337,32 +337,84 @@ video {
 /* Responsive hardening for shared dashboard/public content */
 .dashboard-content {
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
-@media (max-width: 1024px) {
-  .dashboard-content {
-    overflow-x: auto;
+.dashboard-content .table-scroll,
+.dashboard-content .overflow-x-auto {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.dashboard-content .tabs-scroll {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.dashboard-content table {
+  width: 100%;
+}
+
+/* Toolbar / filter rows (class toolbar-row on flex containers) */
+@media (max-width: 639px) {
+  .dashboard-content .toolbar-row {
+    align-items: stretch;
   }
-}
 
-@media (max-width: 768px) {
-  .dashboard-content table {
-    display: block;
+  .dashboard-content .toolbar-row .toolbar-control,
+  .dashboard-content .toolbar-row select,
+  .dashboard-content .toolbar-row input:not([type='checkbox']):not([type='radio']) {
     width: 100%;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
   }
 
-  .dashboard-content thead,
-  .dashboard-content tbody,
-  .dashboard-content tr {
-    white-space: nowrap;
+  .dashboard-content .toolbar-row .toolbar-actions {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
-  input,
-  select,
-  textarea {
+  .dashboard-content .toolbar-row .toolbar-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Prevent iOS zoom on focus */
+@media (max-width: 768px) {
+  .dashboard-content input,
+  .dashboard-content select,
+  .dashboard-content textarea {
     font-size: 16px;
+  }
+}
+
+/* Safe area for notched devices */
+@supports (padding: max(0px)) {
+  .dashboard-safe-x {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+}
+
+/* Scrollable in-page tab bars */
+.dashboard-content .tabs-scroll {
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-content .tabs-scroll > * {
+  flex-shrink: 0;
+}
+
+/* Modal / dialog max width on small screens */
+@media (max-width: 639px) {
+  .dashboard-content .modal-panel,
+  .dashboard-content [role='dialog'] > div {
+    max-width: calc(100vw - 2rem);
   }
 }

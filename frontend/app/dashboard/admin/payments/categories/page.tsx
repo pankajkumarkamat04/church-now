@@ -134,7 +134,7 @@ export default function AdminPaymentCategoriesPage() {
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
         <table className="w-full min-w-[480px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800">

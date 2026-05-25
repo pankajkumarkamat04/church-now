@@ -155,7 +155,7 @@ export default function SuperadminServiceCouncilsPage() {
           Create the main church first to manage service councils.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full min-w-[620px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

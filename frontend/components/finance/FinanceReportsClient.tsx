@@ -724,7 +724,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
               </div>
             </div>
             {churchIncomeRows.length > 0 ? (
-              <div className="mb-6 overflow-x-auto rounded-xl border border-violet-300 bg-white shadow-sm">
+              <div className="mb-6 table-scroll overflow-x-auto rounded-xl border border-violet-300 bg-white shadow-sm">
                 <div className="border-b border-violet-100 bg-violet-50 px-4 py-2">
                   <h2 className="text-sm font-semibold text-violet-900">Total income by church (USD)</h2>
                 </div>
@@ -751,8 +751,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             <div
               className={
                 variant === 'admin'
-                  ? 'mb-8 overflow-x-auto rounded-xl border-2 border-sky-800 bg-white shadow-lg'
-                  : 'mb-8 overflow-x-auto rounded-xl border-2 border-neutral-800 bg-white shadow-lg'
+                  ? 'mb-8 table-scroll overflow-x-auto rounded-xl border-2 border-sky-800 bg-white shadow-lg'
+                  : 'mb-8 table-scroll overflow-x-auto rounded-xl border-2 border-neutral-800 bg-white shadow-lg'
               }
             >
               <div
@@ -855,8 +855,8 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             <div
               className={
                 variant === 'admin'
-                  ? 'mb-8 overflow-x-auto rounded-xl border border-sky-300 bg-white shadow-sm'
-                  : 'mb-8 overflow-x-auto rounded-xl border border-neutral-300 bg-white shadow-sm'
+                  ? 'mb-8 table-scroll overflow-x-auto rounded-xl border border-sky-300 bg-white shadow-sm'
+                  : 'mb-8 table-scroll overflow-x-auto rounded-xl border border-neutral-300 bg-white shadow-sm'
               }
             >
               <div
@@ -944,7 +944,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
           </div>
           ) : null}
 
-          <div className="mb-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="mb-6 table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
               <h2 className="text-sm font-semibold text-neutral-900">Totals (USD)</h2>
             </div>
@@ -975,7 +975,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             ) : null}
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2">
               <h2 className="text-sm font-semibold text-neutral-900">Payment &amp; expense lines</h2>
               <p className="text-xs text-neutral-500">

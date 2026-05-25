@@ -54,7 +54,7 @@ export default function AdminCouncilMembersPage() {
         {data?.council?.name || 'Council'} members
       </h1>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <div className="mt-5 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="mt-5 table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

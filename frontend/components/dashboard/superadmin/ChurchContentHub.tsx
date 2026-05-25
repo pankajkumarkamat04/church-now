@@ -55,7 +55,7 @@ export function ChurchContentHub({
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">

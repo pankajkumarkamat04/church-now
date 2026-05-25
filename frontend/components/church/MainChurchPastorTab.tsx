@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiFetch, unwrapPaginatedArray } from '@/lib/api';
+import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import {
   PASTOR_TERM_LENGTH_OPTIONS,
   MAX_PASTOR_TERM_CYCLES,
@@ -14,6 +14,7 @@ import {
   RemoveSpiritualLeaderModal,
   type SpiritualLeaderRemoveTarget,
 } from '@/components/church/RemoveSpiritualLeaderModal';
+import { statsGrid } from '@/lib/responsiveClasses';
 
 type ChurchMemberRef = {
   _id?: string;
@@ -123,7 +124,7 @@ export function MainChurchPastorTab({ token, onRefreshTerms }: Props) {
       setMainChurch(main);
 
       const [termRes, pastorRes] = await Promise.all([
-        apiFetch<PastorTerm[] | { data: PastorTerm[] }>(
+        apiFetch<PastorTerm[] | Paginated<PastorTerm>>(
           `/api/superadmin/pastor-terms?churchId=${encodeURIComponent(main._id)}&limit=50`,
           { token }
         ),
@@ -271,7 +272,7 @@ export function MainChurchPastorTab({ token, onRefreshTerms }: Props) {
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Main church</p>
         <h2 className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-100">{mainChurch.name}</h2>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className={`mt-4 ${statsGrid}`}>
           <div className="rounded-lg bg-neutral-50 px-4 py-3 dark:bg-neutral-800/60">
             <p className="text-xs text-neutral-500">Spiritual pastor (leadership)</p>
             <p className="mt-1 font-semibold text-neutral-900 dark:text-neutral-100">

@@ -414,7 +414,7 @@ export default function AdminRemittancesPage() {
             {auditRows.length === 0 ? (
               <p className="mt-3 text-sm text-neutral-500">No audit events for this month yet.</p>
             ) : (
-              <div className="mt-3 overflow-x-auto">
+              <div className="mt-3 table-scroll overflow-x-auto">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="bg-neutral-50 text-neutral-600">
                     <tr>

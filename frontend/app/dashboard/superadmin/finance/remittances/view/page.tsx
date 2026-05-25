@@ -313,7 +313,7 @@ export default function RemittanceDetailsPage() {
             </div>
           </div>
           ) : null}
-          <div className="mb-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="mb-4 table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2"><h2 className="text-sm font-semibold text-neutral-900">Monthly Remittance Status (Due + Paid + Balance)</h2></div>
             <table className="w-full min-w-[980px] text-sm">
               <thead className="bg-neutral-50 text-neutral-700">
@@ -350,7 +350,7 @@ export default function RemittanceDetailsPage() {
               </tbody>
             </table>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2"><h2 className="text-sm font-semibold text-neutral-900">All Lifetime Church Remittance Payments</h2></div>
             <table className="w-full min-w-[960px] text-sm">
               <thead className="bg-neutral-50 text-neutral-700"><tr><th className="px-3 py-2 text-left">Month</th><th className="px-3 py-2 text-left">Type</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2 text-left">Paid At</th><th className="px-3 py-2 text-left">Added By</th><th className="px-3 py-2 text-left">Added At</th><th className="px-3 py-2 text-left">Note</th><th className="px-3 py-2 text-right">Action</th></tr></thead>
@@ -475,14 +475,14 @@ export default function RemittanceDetailsPage() {
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"><p className="text-xs text-neutral-500">Total Paid</p><p className="mt-1 text-xl font-semibold text-emerald-800">USD {schoolData.row.totalPaid.toFixed(2)}</p></div>
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"><p className="text-xs text-neutral-500">Status</p><span className={`mt-1 inline-block rounded-full px-2 py-1 text-xs font-medium ${statusClass(schoolData.row.paymentStatus || 'PENDING')}`}>{statusLabel(schoolData.row.paymentStatus || 'PENDING')}</span></div>
           </div>
-          <div className="mb-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="mb-4 table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2"><h2 className="text-sm font-semibold text-neutral-900">All Dues</h2></div>
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-neutral-50 text-neutral-700"><tr><th className="px-3 py-2 text-left">Label</th><th className="px-3 py-2 text-left">Term</th><th className="px-3 py-2 text-right">Due</th><th className="px-3 py-2 text-right">Paid</th><th className="px-3 py-2 text-right">Balance</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">Due Date</th></tr></thead>
               <tbody>{schoolData.row.dues.map((d) => <tr key={d.id} className="border-t border-neutral-100"><td className="px-3 py-2">{d.label}</td><td className="px-3 py-2">{d.termKey || '—'}</td><td className="px-3 py-2 text-right tabular-nums">{d.dueAmount.toFixed(2)}</td><td className="px-3 py-2 text-right tabular-nums">{d.paidAmount.toFixed(2)}</td><td className="px-3 py-2 text-right tabular-nums">{d.balance.toFixed(2)}</td><td className="px-3 py-2"><span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(d.status)}`}>{statusLabel(d.status)}</span></td><td className="px-3 py-2">{d.dueDate ? new Date(d.dueDate).toLocaleDateString() : '—'}</td></tr>)}</tbody>
             </table>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="table-scroll overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-neutral-100 bg-neutral-50 px-4 py-2"><h2 className="text-sm font-semibold text-neutral-900">All Payments</h2></div>
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-neutral-50 text-neutral-700"><tr><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2 text-left">Paid At</th><th className="px-3 py-2 text-left">Method</th><th className="px-3 py-2 text-left">Reference</th><th className="px-3 py-2 text-left">Added By</th><th className="px-3 py-2 text-left">Note</th></tr></thead>
