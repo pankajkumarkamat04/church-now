@@ -12,18 +12,31 @@ export type LeadershipMemberOption = {
   label: string;
   memberCategory?: string;
   churchName?: string;
+  churchId?: string;
+  conferenceId?: string;
 };
 
 type ConferenceOption = { _id: string; name: string };
 type ChurchOption = {
   _id: string;
   name: string;
+  churchType?: string;
   conference?: string | { _id?: string } | null;
 };
 
-function churchNameFromUser(u: AuthUser): string {
-  if (!u.church || typeof u.church === 'string') return '';
-  return u.church.name || '';
+type RosterUser = AuthUser & { _id?: string };
+
+function churchRefsFromUser(u: RosterUser): { churchId: string; conferenceId: string; churchName: string } {
+  const church = u.church;
+  if (!church || typeof church === 'string') {
+    return { churchId: typeof church === 'string' ? church : '', conferenceId: '', churchName: '' };
+  }
+  const churchId = String(church._id || '');
+  const churchName = church.name || '';
+  const conf = (church as { conference?: string | { _id?: string } | null }).conference;
+  const conferenceId =
+    conf && typeof conf === 'object' ? String(conf._id || '') : conf ? String(conf) : '';
+  return { churchId, conferenceId, churchName };
 }
 
 function conferenceIdFromChurch(c: ChurchOption): string {
@@ -31,16 +44,19 @@ function conferenceIdFromChurch(c: ChurchOption): string {
   return typeof c.conference === 'string' ? c.conference : String(c.conference._id || '');
 }
 
-export function mapUserToLeadershipOption(u: AuthUser): LeadershipMemberOption {
-  const name = (u.fullName || `${u.firstName || ''} ${u.surname || ''}`.trim() || u.email || u.id).trim();
+export function mapUserToLeadershipOption(u: RosterUser): LeadershipMemberOption {
+  const userId = String(u.id || u._id || '');
+  const name = (u.fullName || `${u.firstName || ''} ${u.surname || ''}`.trim() || u.email || userId).trim();
   const mid = u.memberId ? String(u.memberId) : '';
-  const congregation = churchNameFromUser(u);
+  const { churchId, conferenceId, churchName } = churchRefsFromUser(u);
   const base = mid ? `${mid} — ${name}` : name;
   return {
-    id: u.id,
+    id: userId,
     memberCategory: u.memberCategory,
-    churchName: congregation,
-    label: congregation ? `${base} (${congregation})` : base,
+    churchId,
+    conferenceId,
+    churchName,
+    label: churchName ? `${base} (${churchName})` : base,
   };
 }
 
@@ -53,7 +69,7 @@ type Props = {
   token: string | null;
   title: string;
   description?: string;
-  /** Main church: conference → church filters. Sub-church: fixed congregation only. */
+  /** Main church: all denomination members; optional conference/church filters. Sub-church: one congregation. */
   filterMode: 'main' | 'fixed-church';
   fixedChurchId?: string;
   fixedChurchName?: string;
@@ -79,55 +95,54 @@ export function LeadershipMemberPickerModal({
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [search, setSearch] = useState('');
-  const [members, setMembers] = useState<LeadershipMemberOption[]>([]);
+  const [allMembers, setAllMembers] = useState<LeadershipMemberOption[]>([]);
   const [loadingRefs, setLoadingRefs] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const isMain = filterMode === 'main';
 
-  const churchesInConference = useMemo(() => {
-    if (!isMain || !conferenceId) return [];
-    return churches.filter((c) => conferenceIdFromChurch(c) === conferenceId);
-  }, [isMain, conferenceId, churches]);
+  const churchesForFilter = useMemo(() => {
+    if (!isMain) return [];
+    const subs = churches.filter((c) => c.churchType !== 'MAIN');
+    if (!conferenceId) return subs;
+    return subs.filter((c) => conferenceIdFromChurch(c) === conferenceId);
+  }, [isMain, churches, conferenceId]);
 
-  const loadReferences = useCallback(async () => {
-    if (!token || !open) return;
-    setLoadingRefs(true);
+  const loadMainRoster = useCallback(async () => {
+    if (!token || !open || !isMain) return;
+    setLoadingMembers(true);
     setErr(null);
     try {
-      if (isMain) {
-        const [confRaw, churchRaw] = await Promise.all([
-          apiFetch<ConferenceOption[] | Paginated<ConferenceOption>>(
-            '/api/superadmin/conferences?limit=500',
-            { token }
-          ),
-          apiFetch<ChurchOption[]>('/api/superadmin/sub-churches', { token }),
-        ]);
-        setConferences(unwrapPaginatedArray(confRaw));
-        setChurches(Array.isArray(churchRaw) ? churchRaw : []);
+      let rows: RosterUser[] = [];
+      const raw = await apiFetch<RosterUser[]>(`/api/superadmin/leadership-roster?pool=${pool}`, { token });
+      rows = Array.isArray(raw) ? raw : [];
+
+      if (rows.length === 0) {
+        const params = new URLSearchParams({
+          role: 'ALL',
+          isActive: 'true',
+          limit: '3000',
+          memberCategory: pool === 'pastors' ? 'PASTOR' : 'LAY',
+        });
+        const fallback = await apiFetch<RosterUser[] | Paginated<RosterUser>>(
+          `/api/superadmin/users?${params.toString()}`,
+          { token }
+        );
+        rows = unwrapPaginatedArray(fallback);
       }
+
+      setAllMembers(rows.map(mapUserToLeadershipOption).filter((m) => m.id));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed to load filters');
+      setErr(e instanceof Error ? e.message : 'Failed to load members');
+      setAllMembers([]);
     } finally {
-      setLoadingRefs(false);
+      setLoadingMembers(false);
     }
-  }, [token, open, isMain]);
+  }, [token, open, isMain, pool]);
 
-  const loadMembers = useCallback(async () => {
-    if (!token || !open) return;
-
-    if (isMain && !conferenceId) {
-      setMembers([]);
-      return;
-    }
-
-    const cid = isMain ? churchId : fixedChurchId;
-    if (!isMain && !cid) {
-      setMembers([]);
-      return;
-    }
-
+  const loadFixedChurchMembers = useCallback(async () => {
+    if (!token || !open || isMain || !fixedChurchId) return;
     setLoadingMembers(true);
     setErr(null);
     try {
@@ -135,64 +150,88 @@ export function LeadershipMemberPickerModal({
         role: 'ALL',
         isActive: 'true',
         limit: '500',
+        churchId: fixedChurchId,
         memberCategory: pool === 'pastors' ? 'PASTOR' : 'LAY',
       });
-      if (isMain) {
-        params.set('conferenceId', conferenceId);
-        if (churchId) params.set('churchId', churchId);
-      } else if (cid) {
-        params.set('churchId', cid);
-      }
-
       const raw = await apiFetch<AuthUser[] | Paginated<AuthUser>>(
         `/api/superadmin/users?${params.toString()}`,
         { token }
       );
-      setMembers(unwrapPaginatedArray(raw).map(mapUserToLeadershipOption));
+      setAllMembers(unwrapPaginatedArray(raw).map(mapUserToLeadershipOption));
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load members');
-      setMembers([]);
+      setAllMembers([]);
     } finally {
       setLoadingMembers(false);
     }
-  }, [token, open, isMain, conferenceId, churchId, fixedChurchId, pool]);
+  }, [token, open, isMain, fixedChurchId, pool]);
+
+  const loadReferences = useCallback(async () => {
+    if (!token || !open || !isMain) return;
+    setLoadingRefs(true);
+    try {
+      const [confRaw, churchRaw] = await Promise.all([
+        apiFetch<ConferenceOption[] | Paginated<ConferenceOption>>(
+          '/api/superadmin/conferences?limit=500',
+          { token }
+        ),
+        apiFetch<ChurchOption[]>('/api/superadmin/sub-churches', { token }),
+      ]);
+      setConferences(unwrapPaginatedArray(confRaw));
+      setChurches(Array.isArray(churchRaw) ? churchRaw : []);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load filters');
+    } finally {
+      setLoadingRefs(false);
+    }
+  }, [token, open, isMain]);
 
   useEffect(() => {
     if (!open) return;
     setSearch('');
     setConferenceId('');
     setChurchId('');
-    setMembers([]);
-    void loadReferences();
-  }, [open, loadReferences]);
+    setAllMembers([]);
+    setErr(null);
+    if (isMain) {
+      void loadReferences();
+      void loadMainRoster();
+    } else {
+      void loadFixedChurchMembers();
+    }
+  }, [open, isMain, loadReferences, loadMainRoster, loadFixedChurchMembers]);
 
   useEffect(() => {
-    if (!open) return;
-    if (isMain) {
-      setChurchId('');
-      setMembers([]);
-    }
+    if (!open || !isMain) return;
+    setChurchId('');
   }, [open, isMain, conferenceId]);
 
-  useEffect(() => {
-    if (!open) return;
-    void loadMembers();
-  }, [open, loadMembers]);
+  const scopedMembers = useMemo(() => {
+    if (!isMain) return allMembers;
+    let rows = allMembers;
+    if (conferenceId) {
+      rows = rows.filter((m) => m.conferenceId === conferenceId);
+    }
+    if (churchId) {
+      rows = rows.filter((m) => m.churchId === churchId);
+    }
+    return rows;
+  }, [allMembers, isMain, conferenceId, churchId]);
 
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter(
+    if (!q) return scopedMembers;
+    return scopedMembers.filter(
       (m) =>
         m.label.toLowerCase().includes(q) ||
         (m.churchName || '').toLowerCase().includes(q) ||
         m.id.toLowerCase().includes(q)
     );
-  }, [members, search]);
+  }, [scopedMembers, search]);
 
   if (!open) return null;
 
-  const canListMembers = isMain ? Boolean(conferenceId) : Boolean(fixedChurchId);
+  const canListMembers = isMain ? allMembers.length > 0 || loadingMembers : Boolean(fixedChurchId);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-neutral-900/50 p-4 backdrop-blur-[1px]">
@@ -229,44 +268,50 @@ export function LeadershipMemberPickerModal({
           ) : null}
 
           {isMain ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                  1. Conference
-                </label>
-                <select
-                  value={conferenceId}
-                  onChange={(e) => setConferenceId(e.target.value)}
-                  className={field}
-                  disabled={loadingRefs}
-                >
-                  <option value="">Select conference</option>
-                  {conferences.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+            <>
+              <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                All active congregation members in the system are listed below (including those registered at any
+                church). Use optional filters to narrow by conference or church.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                    Filter by conference (optional)
+                  </label>
+                  <select
+                    value={conferenceId}
+                    onChange={(e) => setConferenceId(e.target.value)}
+                    className={field}
+                    disabled={loadingRefs}
+                  >
+                    <option value="">All conferences</option>
+                    {conferences.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                    Filter by church (optional)
+                  </label>
+                  <select
+                    value={churchId}
+                    onChange={(e) => setChurchId(e.target.value)}
+                    className={field}
+                    disabled={loadingRefs}
+                  >
+                    <option value="">All churches</option>
+                    {churchesForFilter.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                  2. Church (optional)
-                </label>
-                <select
-                  value={churchId}
-                  onChange={(e) => setChurchId(e.target.value)}
-                  className={field}
-                  disabled={!conferenceId || loadingRefs}
-                >
-                  <option value="">All churches in conference</option>
-                  {churchesInConference.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            </>
           ) : (
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
               Congregation: <span className="font-medium text-neutral-900 dark:text-neutral-100">{fixedChurchName || '—'}</span>
@@ -275,7 +320,7 @@ export function LeadershipMemberPickerModal({
 
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-              {isMain ? '3. Search member' : 'Search member'}
+              Search member
             </label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
@@ -285,25 +330,31 @@ export function LeadershipMemberPickerModal({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Name, member ID, or church…"
                 className={`${field} pl-9`}
-                disabled={!canListMembers}
+                disabled={!canListMembers && !loadingMembers}
               />
             </div>
+            {isMain && allMembers.length > 0 ? (
+              <p className="mt-1 text-[11px] text-neutral-500">
+                Showing {filteredMembers.length} of {scopedMembers.length} members
+                {scopedMembers.length !== allMembers.length ? ` (${allMembers.length} total in system)` : ''}
+              </p>
+            ) : null}
           </div>
 
           <div className="rounded-xl border border-neutral-200 dark:border-neutral-700">
-            {!canListMembers ? (
-              <p className="px-4 py-8 text-center text-sm text-neutral-500">
-                {isMain ? 'Select a conference to list members.' : 'No church selected.'}
-              </p>
-            ) : loadingMembers ? (
+            {loadingMembers ? (
               <div className="flex justify-center py-10">
                 <Loader2 className="size-7 animate-spin text-violet-600" />
               </div>
+            ) : !canListMembers ? (
+              <p className="px-4 py-8 text-center text-sm text-neutral-500">No members available.</p>
             ) : filteredMembers.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-neutral-500">
-                {members.length === 0
-                  ? 'No matching members in this scope.'
-                  : 'No members match your search.'}
+                {allMembers.length === 0
+                  ? `No active ${pool === 'pastors' ? 'pastors' : 'lay members'} found in the system.`
+                  : scopedMembers.length === 0
+                    ? 'No members match the selected conference or church filters. Try clearing filters above.'
+                    : 'No members match your search.'}
               </p>
             ) : (
               <ul className="max-h-64 divide-y divide-neutral-100 overflow-y-auto dark:divide-neutral-800">

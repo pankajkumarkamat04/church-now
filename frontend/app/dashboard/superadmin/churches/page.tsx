@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, Layers, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { ChurchLeadershipModal, leadershipSummary } from '@/components/church/ChurchLeadershipModal';
+import { leadershipSummary } from '@/components/church/ChurchLeadershipEditor';
 import { ChurchViewModal } from '@/components/church/ChurchViewModal';
 import { localMinisterFromChurch, withRevMinisterPrefix } from '@/lib/churchLocalMinister';
 import { Pagination } from '@/components/ui/Pagination';
@@ -24,7 +24,6 @@ export default function SuperadminChurchesListPage() {
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [leadershipChurch, setLeadershipChurch] = useState<ChurchRecord | null>(null);
   const [viewChurch, setViewChurch] = useState<ChurchRecord | null>(null);
 
   function conferenceLabel(row: ChurchRecord) {
@@ -156,7 +155,14 @@ export default function SuperadminChurchesListPage() {
                   <button type="button" onClick={() => setViewChurch(c)} className={btn} aria-label="View church details"><Eye className="size-3.5" /></button>
                   <Link href={`/dashboard/superadmin/churches/${c._id}/edit`} className={btn} aria-label="Edit church"><Pencil className="size-3.5" /></Link>
                   <Link href={`/dashboard/superadmin/churches/${c._id}/members`} className={btn} aria-label="Church members"><Users className="size-3.5" /></Link>
-                  <button type="button" onClick={() => setLeadershipChurch(c)} className={btn} aria-label="Edit leadership"><Shield className="size-3.5" /></button>
+                  <Link
+                    href={`/dashboard/superadmin/churches/${c._id}/members?tab=leadership`}
+                    className={btn}
+                    title={leadershipSummary(c)}
+                    aria-label="Edit leadership"
+                  >
+                    <Shield className="size-3.5" />
+                  </Link>
                   <button type="button" disabled={busyId === c._id} onClick={() => removeChurch(c._id)} className={`${btn} border-red-200 text-red-700 hover:bg-red-50`} aria-label="Delete church"><Trash2 className="size-3.5" /></button>
                 </div>
               </div>
@@ -245,15 +251,14 @@ export default function SuperadminChurchesListPage() {
                         >
                           <Layers className="size-3.5" aria-hidden />
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => setLeadershipChurch(c)}
+                        <Link
+                          href={`/dashboard/superadmin/churches/${c._id}/members?tab=leadership`}
                           className={btn}
                           title={leadershipSummary(c)}
                           aria-label="Edit leadership"
                         >
                           <Shield className="size-3.5" aria-hidden />
-                        </button>
+                        </Link>
                         <button
                           type="button"
                           disabled={busyId === c._id}
@@ -295,18 +300,6 @@ export default function SuperadminChurchesListPage() {
         onClose={() => setViewChurch(null)}
         church={viewChurch}
         localMinister={viewChurch ? withRevMinisterPrefix(localMinisterFromChurch(viewChurch)) : '—'}
-      />
-      <ChurchLeadershipModal
-        open={Boolean(leadershipChurch)}
-        onClose={() => setLeadershipChurch(null)}
-        churchId={leadershipChurch?._id || ''}
-        churchType={leadershipChurch?.churchType === 'SUB' ? 'SUB' : 'MAIN'}
-        churchName={leadershipChurch?.name || ''}
-        token={token}
-        row={leadershipChurch}
-        onSaved={() => {
-          load().catch(() => {});
-        }}
       />
     </div>
   );

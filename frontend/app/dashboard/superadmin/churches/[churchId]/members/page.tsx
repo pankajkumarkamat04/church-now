@@ -1,17 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { Eye, KeyRound, Loader2, Pencil, Plus } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Eye, KeyRound, Loader2, Pencil, Plus, Shield, Users } from 'lucide-react';
+import { ChurchLeadershipEditor, leadershipSummary } from '@/components/church/ChurchLeadershipEditor';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
+import type { ChurchRecord } from '../../types';
 
 type MemberRow = AuthUser & { id: string };
 
-type Church = { _id: string; name: string };
+type PageTab = 'members' | 'leadership';
 
 const btn =
   'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
@@ -33,22 +35,37 @@ function formatShortDate(iso: string | null | undefined): string {
   return t.toLocaleDateString();
 }
 
-export default function SuperadminChurchMembersPage() {
+function memberCongregationName(m: MemberRow): string {
+  const ch = m.church;
+  if (!ch) return '—';
+  if (typeof ch === 'string') return '—';
+  return ch.name || '—';
+}
+
+type SubChurchOption = { _id: string; name: string };
+
+function SuperadminChurchMembersPageInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const churchId = params.churchId as string;
   const { user, token, loading } = useAuth();
   const router = useRouter();
-  const [church, setChurch] = useState<Church | null>(null);
+  const initialTab: PageTab = searchParams.get('tab') === 'leadership' ? 'leadership' : 'members';
+  const [tab, setTab] = useState<PageTab>(initialTab);
+  const [church, setChurch] = useState<ChurchRecord | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1, limit: 20 });
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
+  const [localChurches, setLocalChurches] = useState<SubChurchOption[]>([]);
+  const [localChurchFilter, setLocalChurchFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'MEMBER' | 'ADMIN'>('ALL');
   const [councilId, setCouncilId] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState('');
   const [badgeFilter, setBadgeFilter] = useState<'' | 'BADGED' | 'NON_BADGED'>('');
   const [err, setErr] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<{ id: string; email: string; name: string } | null>(null);
 
   const returnPath = `/dashboard/superadmin/churches/${churchId}/members`;
@@ -61,10 +78,25 @@ export default function SuperadminChurchMembersPage() {
     [returnPath]
   );
 
-  const hasFilters = roleFilter !== 'ALL' || Boolean(councilId) || Boolean(isActiveFilter) || Boolean(badgeFilter);
+  const isMainChurch = church?.churchType === 'MAIN';
+
+  const hasFilters =
+    roleFilter !== 'ALL' ||
+    Boolean(councilId) ||
+    Boolean(isActiveFilter) ||
+    Boolean(badgeFilter) ||
+    (isMainChurch && Boolean(localChurchFilter));
 
   const filterMessage = useMemo(() => {
     const parts: string[] = [];
+    if (isMainChurch) {
+      if (localChurchFilter) {
+        const name = localChurches.find((c) => c._id === localChurchFilter)?.name || 'selected church';
+        parts.push(name);
+      } else {
+        parts.push('all local churches');
+      }
+    }
     if (roleFilter !== 'ALL') parts.push(roleFilter === 'MEMBER' ? 'members only' : 'admins only');
     if (councilId) {
       const name = councils.find((c) => c._id === councilId)?.name || 'selected council';
@@ -74,34 +106,45 @@ export default function SuperadminChurchMembersPage() {
     else if (isActiveFilter === 'false') parts.push('inactive');
     if (badgeFilter === 'BADGED') parts.push('badged');
     else if (badgeFilter === 'NON_BADGED') parts.push('non-badged');
-    if (parts.length === 0) return 'Showing all members and church admins for this congregation.';
+    if (parts.length === 0) {
+      return isMainChurch
+        ? 'Showing all members and admins from every local congregation.'
+        : 'Showing all members and church admins for this congregation.';
+    }
     return `Filters applied: ${parts.join(', ')}.`;
-  }, [roleFilter, councilId, isActiveFilter, badgeFilter, councils]);
+  }, [roleFilter, councilId, isActiveFilter, badgeFilter, councils, isMainChurch, localChurchFilter, localChurches]);
 
-  const load = useCallback(async () => {
+  const loadChurch = useCallback(async () => {
     if (!token || !churchId) return;
-    setErr(null);
+    const churchRow = await apiFetch<ChurchRecord>(`/api/superadmin/churches/${churchId}`, { token });
+    setChurch(churchRow);
+    return churchRow;
+  }, [token, churchId]);
+
+  const loadMembers = useCallback(async () => {
+    if (!token || !churchId || !church) return;
     const query = new URLSearchParams({
       role: roleFilter,
-      churchId,
       page: String(page),
       limit: String(pageSize),
     });
+    if (church.churchType === 'MAIN') {
+      query.set('memberScope', 'local');
+      if (localChurchFilter) query.set('filterChurchId', localChurchFilter);
+    } else {
+      query.set('churchId', churchId);
+    }
     if (councilId) query.set('councilId', councilId);
     if (isActiveFilter) query.set('isActive', isActiveFilter);
     if (badgeFilter) query.set('memberBadgeType', badgeFilter);
 
-    const [churchRow, res] = await Promise.all([
-      apiFetch<Church>(`/api/superadmin/churches/${churchId}`, { token }),
-      apiFetch<{ data: MemberRow[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/superadmin/users?${query.toString()}`,
-        { token }
-      ),
-    ]);
-    setChurch(churchRow);
+    const res = await apiFetch<{ data: MemberRow[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/api/superadmin/users?${query.toString()}`,
+      { token }
+    );
     setMembers(res.data);
     setMeta({ total: res.total, totalPages: res.totalPages, limit: res.limit });
-  }, [token, churchId, roleFilter, councilId, isActiveFilter, badgeFilter, page, pageSize]);
+  }, [token, churchId, church, roleFilter, localChurchFilter, councilId, isActiveFilter, badgeFilter, page, pageSize]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERADMIN')) {
@@ -110,10 +153,14 @@ export default function SuperadminChurchMembersPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user?.role === 'SUPERADMIN' && token && churchId) {
-      load().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
-    }
-  }, [user, token, churchId, load]);
+    if (user?.role !== 'SUPERADMIN' || !token || !churchId) return;
+    loadChurch().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load church'));
+  }, [user, token, churchId, loadChurch]);
+
+  useEffect(() => {
+    if (user?.role !== 'SUPERADMIN' || !token || !churchId || tab !== 'members' || !church) return;
+    loadMembers().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load members'));
+  }, [user, token, churchId, church, tab, loadMembers]);
 
   useEffect(() => {
     async function loadCouncils() {
@@ -129,8 +176,34 @@ export default function SuperadminChurchMembersPage() {
   }, [token, user]);
 
   useEffect(() => {
+    async function loadLocalChurches() {
+      if (!token || user?.role !== 'SUPERADMIN' || church?.churchType !== 'MAIN') return;
+      try {
+        const rows = await apiFetch<SubChurchOption[]>('/api/superadmin/sub-churches', { token });
+        setLocalChurches(Array.isArray(rows) ? rows : []);
+      } catch (e) {
+        console.error('Failed to load local churches', e);
+      }
+    }
+    loadLocalChurches();
+  }, [token, user, church?.churchType]);
+
+  useEffect(() => {
     setPage(1);
-  }, [roleFilter, councilId, isActiveFilter, badgeFilter]);
+  }, [roleFilter, councilId, isActiveFilter, badgeFilter, localChurchFilter]);
+
+  useEffect(() => {
+    setTab(searchParams.get('tab') === 'leadership' ? 'leadership' : 'members');
+  }, [searchParams]);
+
+  const churchType: 'MAIN' | 'SUB' = church?.churchType === 'SUB' ? 'SUB' : 'MAIN';
+
+  function switchTab(next: PageTab) {
+    setTab(next);
+    setSavedMsg(null);
+    const url = `/dashboard/superadmin/churches/${churchId}/members${next === 'leadership' ? '?tab=leadership' : ''}`;
+    router.replace(url, { scroll: false });
+  }
 
   if (!user || user.role !== 'SUPERADMIN') return null;
 
@@ -145,20 +218,55 @@ export default function SuperadminChurchMembersPage() {
             ← Back to churches
           </Link>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-            Church members &amp; admins
+            {church?.name || 'Loading church…'}
           </h1>
           <p className="mt-1 text-sm text-neutral-600">
-            {church?.name || 'Loading church…'} — member ID, contact, councils, and roles.
+            {tab === 'leadership'
+              ? `Leadership: ${leadershipSummary(church)}`
+              : isMainChurch
+                ? 'Congregation roster and local church leadership for this main church.'
+                : 'Members and admins registered at this congregation.'}
           </p>
         </div>
-        <Link
-          href="/dashboard/superadmin/users/members/create"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
-        >
-          <Plus className="size-4" aria-hidden />
-          Add member
-        </Link>
+        {tab === 'members' ? (
+          <Link
+            href="/dashboard/superadmin/users/members/create"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-500"
+          >
+            <Plus className="size-4" aria-hidden />
+            Add member
+          </Link>
+        ) : null}
       </div>
+
+      {church ? (
+        <div className="mb-4 flex gap-1 rounded-xl border border-neutral-200 bg-neutral-50 p-1">
+          <button
+            type="button"
+            onClick={() => switchTab('members')}
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition sm:flex-none ${
+              tab === 'members'
+                ? 'bg-white text-violet-800 shadow-sm'
+                : 'text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <Users className="size-4" aria-hidden />
+            Members
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTab('leadership')}
+            className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition sm:flex-none ${
+              tab === 'leadership'
+                ? 'bg-white text-violet-800 shadow-sm'
+                : 'text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <Shield className="size-4" aria-hidden />
+            Leadership
+          </button>
+        </div>
+      ) : null}
 
       {err ? (
         <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p>
@@ -168,11 +276,59 @@ export default function SuperadminChurchMembersPage() {
         <div className="flex justify-center py-10">
           <Loader2 className="size-7 animate-spin text-violet-600" />
         </div>
+      ) : tab === 'leadership' ? (
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <p className="mb-4 text-sm text-neutral-600">
+            {isMainChurch
+              ? 'Choose leaders from any active congregation member. Minister roles require pastors; moderator, secretary, treasurer, and committee use lay members. Use Select on each role to search and filter by conference or church.'
+              : 'Assign local church leaders from members registered at this congregation.'}
+          </p>
+          {savedMsg ? (
+            <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              {savedMsg}
+            </p>
+          ) : null}
+          <ChurchLeadershipEditor
+            churchId={churchId}
+            churchType={churchType}
+            churchName={church.name}
+            token={token}
+            row={church}
+            showHeader={false}
+            onSaved={() => {
+              setSavedMsg('Leadership saved successfully.');
+              loadChurch().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to refresh'));
+            }}
+          />
+        </div>
       ) : (
         <>
+          {isMainChurch ? (
+            <p className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+              Members from every <strong>local congregation</strong> (sub-church) are listed below. Use the congregation
+              filter to narrow to one church, or open the <strong>Leadership</strong> tab to assign main church roles.
+            </p>
+          ) : null}
           <div className="mb-4 rounded-xl border border-neutral-200 bg-white p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-700">Filters</p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={`grid gap-3 sm:grid-cols-2 ${isMainChurch ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+              {isMainChurch ? (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Congregation</label>
+                  <select
+                    value={localChurchFilter}
+                    onChange={(e) => setLocalChurchFilter(e.target.value)}
+                    className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+                  >
+                    <option value="">All local churches</option>
+                    {localChurches.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Account</label>
                 <select
@@ -239,6 +395,7 @@ export default function SuperadminChurchMembersPage() {
                     setCouncilId('');
                     setIsActiveFilter('');
                     setBadgeFilter('');
+                    setLocalChurchFilter('');
                   }}
                   className="text-xs font-medium text-violet-700 hover:text-violet-900"
                 >
@@ -257,6 +414,9 @@ export default function SuperadminChurchMembersPage() {
                     <p className="text-sm font-semibold text-neutral-900">{m.fullName || '—'}</p>
                     <p className="text-xs text-neutral-600">{m.email}</p>
                     <p className="mt-1 text-xs text-neutral-600">Member ID: {m.memberId || '—'}</p>
+                    {isMainChurch ? (
+                      <p className="mt-1 text-xs text-neutral-600">Congregation: {memberCongregationName(m)}</p>
+                    ) : null}
                     <p className="mt-1 text-xs text-neutral-600">
                       Councils: {(m.councils || []).length ? (m.councils || []).map((c) => c.name).join(', ') : '—'}
                     </p>
@@ -328,6 +488,7 @@ export default function SuperadminChurchMembersPage() {
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                     <th className="px-4 py-3 font-medium">Member ID</th>
+                    {isMainChurch ? <th className="px-4 py-3 font-medium">Congregation</th> : null}
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Name</th>
                     <th className="px-4 py-3 font-medium">Councils</th>
@@ -428,7 +589,11 @@ export default function SuperadminChurchMembersPage() {
             </div>
 
             {members.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-neutral-500">No members match these filters.</p>
+              <p className="px-4 py-8 text-center text-sm text-neutral-500">
+                {isMainChurch && !hasFilters
+                  ? 'No members are registered at any local congregation yet.'
+                  : 'No members match these filters.'}
+              </p>
             ) : null}
           </div>
 
@@ -459,5 +624,13 @@ export default function SuperadminChurchMembersPage() {
         />
       ) : null}
     </div>
+  );
+}
+
+export default function SuperadminChurchMembersPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-neutral-500">Loading…</div>}>
+      <SuperadminChurchMembersPageInner />
+    </Suspense>
   );
 }

@@ -410,6 +410,8 @@ async function listUsers(req, res) {
     const conferenceId = req.query.conferenceId;
     const councilId = req.query.councilId;
     const isActiveStr = req.query.isActive;
+    const memberScope = String(req.query.memberScope || '').trim().toLowerCase();
+    const filterChurchId = String(req.query.filterChurchId || '').trim();
 
     if (councilId) {
       filter.councilIds = councilId;
@@ -420,7 +422,17 @@ async function listUsers(req, res) {
       filter.isActive = false;
     }
 
-    if (conferenceId && churchId) {
+    if (memberScope === 'local') {
+      let localChurchIds;
+      if (filterChurchId) {
+        const sub = await Church.findOne({ _id: filterChurchId, churchType: 'SUB' }).select('_id').lean();
+        localChurchIds = sub ? [sub._id] : [];
+      } else {
+        localChurchIds = await Church.find({ churchType: 'SUB', isActive: { $ne: false } }).distinct('_id');
+      }
+      const roleForScope = roleQ || 'ALL';
+      Object.assign(filter, buildConferenceUserScopeFilter(roleForScope, localChurchIds));
+    } else if (conferenceId && churchId) {
       const inConf = await Church.findOne({ _id: churchId, conference: conferenceId }).select('_id').lean();
       if (!inConf) {
         return res.json([]);
@@ -1070,7 +1082,7 @@ async function rejectPendingMember(req, res) {
 async function listLeadershipRoster(req, res) {
   try {
     const pool = String(req.query.pool || '').trim().toLowerCase();
-    const filter = { role: { $in: ['MEMBER', 'ADMIN'] }, isActive: true };
+    const filter = { role: { $in: ['MEMBER', 'ADMIN'] }, isActive: { $ne: false } };
     if (pool === 'pastors') {
       filter.memberCategory = 'PASTOR';
     } else if (pool === 'lay') {
@@ -1080,7 +1092,11 @@ async function listLeadershipRoster(req, res) {
     }
 
     const users = await User.find(filter)
-      .populate('church', 'name conference')
+      .populate({
+        path: 'church',
+        select: 'name conference churchType',
+        populate: { path: 'conference', select: '_id name' },
+      })
       .sort({ fullName: 1, email: 1 })
       .select('-password')
       .limit(3000)
