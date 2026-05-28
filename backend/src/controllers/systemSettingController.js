@@ -3,13 +3,13 @@ const fs = require('fs/promises');
 const path = require('path');
 
 const DEFAULT_SETTINGS = {
-  systemName: 'Church OS',
+  systemName: 'UCCZ CONNECT',
   systemLogoUrl: '',
   supportEmail: '',
-  supportPhone: '',
+  supportPhone: '+263775656571',
   websiteUrl: '',
   address: '',
-  footerText: '',
+  footerText: 'UCCZ Digital Connect powered by Mandvis Tech Solutions',
   copyrightText: '',
 };
 
@@ -45,14 +45,22 @@ async function getOrCreateSettings() {
   let row = await SystemSetting.findOne({ singletonKey: 'default' });
   if (!row) {
     row = await SystemSetting.create({ singletonKey: 'default', ...DEFAULT_SETTINGS });
+    return row;
+  }
+  const name = normalizeString(row.systemName);
+  const footer = normalizeString(row.footerText);
+  const copyright = normalizeString(row.copyrightText);
+  if (name === 'Church OS' && !footer && !copyright) {
+    row.set(DEFAULT_SETTINGS);
+    await row.save();
   }
   return row;
 }
 
 async function getPublicSystemSettings(_req, res) {
   try {
-    const row = await SystemSetting.findOne({ singletonKey: 'default' }).lean();
-    return res.json(toClientPayload(row));
+    const row = await getOrCreateSettings();
+    return res.json(toClientPayload(row.toObject ? row.toObject() : row));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load system settings' });

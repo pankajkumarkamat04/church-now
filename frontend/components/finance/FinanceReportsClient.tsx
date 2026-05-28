@@ -658,7 +658,7 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
         </div>
       ) : summary ? (
         <>
-          <p className="mb-2 text-sm text-neutral-600">
+          <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">
             {summary.churchId
               ? 'Single church'
               : variant === 'superadmin'
@@ -678,19 +678,19 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
             <div
               className={
                 variant === 'admin'
-                  ? 'mb-6 overflow-hidden rounded-xl border-2 border-sky-200 bg-gradient-to-br from-sky-50/90 to-white shadow-sm'
-                  : 'mb-6 overflow-hidden rounded-xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/90 to-white shadow-sm'
+                  ? 'mb-6 overflow-hidden rounded-xl border-2 border-sky-200 bg-gradient-to-br from-sky-50/90 to-white shadow-sm dark:border-sky-800 dark:from-sky-950/40 dark:to-neutral-900 dark:shadow-black/20'
+                  : 'mb-6 overflow-hidden rounded-xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/90 to-white shadow-sm dark:border-violet-800 dark:from-violet-950/40 dark:to-neutral-900 dark:shadow-black/20'
               }
             >
               <div
                 className={
                   variant === 'admin'
-                    ? 'border-b border-sky-100 bg-sky-100/80 px-4 py-3'
-                    : 'border-b border-violet-100 bg-violet-100/80 px-4 py-3'
+                    ? 'border-b border-sky-100 bg-sky-100/80 px-4 py-3 dark:border-sky-900 dark:bg-sky-950/50'
+                    : 'border-b border-violet-100 bg-violet-100/80 px-4 py-3 dark:border-violet-900 dark:bg-violet-950/50'
                 }
               >
-                <h2 className="text-base font-bold text-neutral-900">Payment summary</h2>
-                <p className="mt-1 text-xs text-neutral-600">
+                <h2 className="text-base font-bold text-neutral-900 dark:text-neutral-100">Payment summary</h2>
+                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
                   Unified totals by payment category ({displayCurrency}).
                 </p>
               </div>
@@ -698,13 +698,17 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
                 {paymentColumnCodes.map((opt) => (
                   <div
                     key={opt}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200/80 bg-white px-3 py-2.5 shadow-sm"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200/80 bg-white px-3 py-2.5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800/90 dark:shadow-none"
                   >
                     <div>
-                      <p className="text-sm font-medium text-neutral-900">{labelForPaymentType(opt, paymentTypeLabels)}</p>
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-400">{opt}</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                        {labelForPaymentType(opt, paymentTypeLabels)}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
+                        {opt}
+                      </p>
                     </div>
-                    <p className="text-sm font-semibold tabular-nums text-emerald-900">
+                    <p className="text-sm font-semibold tabular-nums text-emerald-900 dark:text-emerald-300">
                       {formatDashboardAmount(incomeMatrix.columnTotals[opt] || 0)}
                     </p>
                   </div>
@@ -713,33 +717,39 @@ export function FinanceReportsClient({ variant, churches = [] }: Props) {
               <div
                 className={
                   variant === 'admin'
-                    ? 'flex flex-wrap items-center justify-between gap-2 border-t border-sky-100 bg-sky-50/50 px-4 py-3'
-                    : 'flex flex-wrap items-center justify-between gap-2 border-t border-violet-100 bg-violet-50/50 px-4 py-3'
+                    ? 'flex flex-wrap items-center justify-between gap-2 border-t border-sky-100 bg-sky-50/50 px-4 py-3 dark:border-sky-900 dark:bg-sky-950/30'
+                    : 'flex flex-wrap items-center justify-between gap-2 border-t border-violet-100 bg-violet-50/50 px-4 py-3 dark:border-violet-900 dark:bg-violet-950/30'
                 }
               >
-                <span className="text-sm font-bold text-neutral-900">Total unified income ({displayCurrency})</span>
-                <span className="text-lg font-bold tabular-nums text-emerald-950">
+                <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
+                  Total unified income ({displayCurrency})
+                </span>
+                <span className="text-lg font-bold tabular-nums text-emerald-950 dark:text-emerald-300">
                   {formatDashboardAmount(incomeMatrix.grandTotal)}
                 </span>
               </div>
             </div>
             {churchIncomeRows.length > 0 ? (
-              <div className="mb-6 table-scroll overflow-x-auto rounded-xl border border-violet-300 bg-white shadow-sm">
-                <div className="border-b border-violet-100 bg-violet-50 px-4 py-2">
-                  <h2 className="text-sm font-semibold text-violet-900">Total income by church (USD)</h2>
+              <div className="mb-6 table-scroll overflow-x-auto rounded-xl border border-violet-300 bg-white shadow-sm dark:border-violet-800 dark:bg-neutral-900 dark:shadow-black/20">
+                <div className="border-b border-violet-100 bg-violet-50 px-4 py-2 dark:border-violet-900 dark:bg-violet-950/40">
+                  <h2 className="text-sm font-semibold text-violet-900 dark:text-violet-200">Total income by church (USD)</h2>
                 </div>
-                <table className="w-full min-w-[520px] text-sm">
-                  <thead className="text-neutral-600">
+                <table className="w-full min-w-[520px] text-sm text-neutral-800 dark:text-neutral-200">
+                  <thead className="text-neutral-600 dark:text-neutral-400">
                     <tr>
-                      <th className="border-b border-neutral-200 px-4 py-2 text-left font-medium">Church</th>
-                      <th className="border-b border-neutral-200 px-4 py-2 text-right font-medium">Total income (USD)</th>
+                      <th className="border-b border-neutral-200 px-4 py-2 text-left font-medium dark:border-neutral-700">
+                        Church
+                      </th>
+                      <th className="border-b border-neutral-200 px-4 py-2 text-right font-medium dark:border-neutral-700">
+                        Total income (USD)
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {churchIncomeRows.map((row) => (
-                      <tr key={row.churchId || row.churchName} className="border-t border-neutral-100">
+                      <tr key={row.churchId || row.churchName} className="border-t border-neutral-100 dark:border-neutral-800">
                         <td className="px-4 py-2">{row.churchName}</td>
-                        <td className="px-4 py-2 text-right font-semibold tabular-nums text-emerald-800">
+                        <td className="px-4 py-2 text-right font-semibold tabular-nums text-emerald-800 dark:text-emerald-300">
                           {formatUsdAnalysis(row.totalIncome)}
                         </td>
                       </tr>

@@ -69,6 +69,14 @@ const userSchema = new mongoose.Schema(
       enum: MEMBER_CATEGORIES,
       default: 'MEMBER',
     },
+    /**
+     * PASTOR only: LOCAL = spiritual pastor of home sub-church; MAIN_CHURCH = serves denomination (main church pool).
+     */
+    pastorServiceScope: {
+      type: String,
+      enum: ['MAIN_CHURCH', 'LOCAL'],
+      default: null,
+    },
     memberBadgeType: {
       type: String,
       enum: MEMBER_BADGE_TYPES,

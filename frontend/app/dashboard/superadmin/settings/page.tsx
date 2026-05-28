@@ -53,7 +53,7 @@ export default function SuperadminSystemSettingsPage() {
     setSaveState('saving');
     setMessage('');
     try {
-      const payload = normalizeSystemSettings(form);
+      const payload = normalizeSystemSettings({ ...form, copyrightText: '' });
       const next = await apiFetch<SystemSettings>('/api/superadmin/system-settings', {
         method: 'PUT',
         token,
@@ -149,15 +149,9 @@ export default function SuperadminSystemSettingsPage() {
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
               placeholder="Optional line shown in footer"
             />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Copyright text</span>
-            <input
-              value={form.copyrightText}
-              onChange={(e) => setForm((prev) => ({ ...prev, copyrightText: e.target.value }))}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-              placeholder="e.g. © 2026 Church OS. All rights reserved."
-            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Copyright (© current year and system name) is added automatically above this line.
+            </p>
           </label>
         </div>
         {form.systemLogoUrl ? (

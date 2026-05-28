@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
+import { consumeInactivityLogoutFlag, INACTIVITY_TIMEOUT_MINUTES } from '@/lib/inactivityLogout';
 
 export default function LoginPage() {
   const { login, user, loading } = useAuth();
@@ -15,6 +16,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [inactivityNotice, setInactivityNotice] = useState(false);
+
+  useEffect(() => {
+    if (consumeInactivityLogoutFlag()) {
+      setInactivityNotice(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -39,6 +47,15 @@ export default function LoginPage() {
   return (
     <AuthShell>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Sign in</h1>
+
+      {inactivityNotice ? (
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-900"
+        >
+          You were signed out after {INACTIVITY_TIMEOUT_MINUTES} minutes of inactivity. Please sign in again.
+        </p>
+      ) : null}
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <div>

@@ -3,13 +3,17 @@ const mongoose = require('mongoose');
 const systemSettingSchema = new mongoose.Schema(
   {
     singletonKey: { type: String, default: 'default', unique: true, index: true },
-    systemName: { type: String, trim: true, default: 'Church OS' },
+    systemName: { type: String, trim: true, default: 'UCCZ CONNECT' },
     systemLogoUrl: { type: String, trim: true, default: '' },
     supportEmail: { type: String, trim: true, lowercase: true, default: '' },
-    supportPhone: { type: String, trim: true, default: '' },
+    supportPhone: { type: String, trim: true, default: '+263775656571' },
     websiteUrl: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },
-    footerText: { type: String, trim: true, default: '' },
+    footerText: {
+      type: String,
+      trim: true,
+      default: 'UCCZ Digital Connect powered by Mandvis Tech Solutions',
+    },
     copyrightText: { type: String, trim: true, default: '' },
   },
   { timestamps: true }

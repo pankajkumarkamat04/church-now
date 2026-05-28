@@ -37,3 +37,10 @@ export function excludeMainChurchRows<T extends { church?: { _id?: string; churc
 ): T[] {
   return rows.filter((r) => !isMainChurchRecord(r, mainChurchId));
 }
+
+/** Readable amber badge (main church spiritual leader). See globals.css `.badge-pastor-main-leader`. */
+export const pastorMainLeaderBadgeClass = 'badge-pastor-main-leader';
+
+export const pastorLocalBadgeClass = 'badge-pastor-local';
+
+export const pastorPoolBadgeClass = 'badge-pastor-pool';

@@ -17,6 +17,7 @@ import {
   Menu,
   Shield,
   UserCheck,
+  Settings,
   UserCog,
   Users,
   Wallet,
@@ -656,6 +657,15 @@ export function PanelLayout({
 
           {/* ── Footer ── */}
           <div className="mt-4 space-y-1.5 border-t border-neutral-100 px-3 pt-4 dark:border-neutral-800">
+            {variant === 'superadmin' ? (
+              <Link
+                href={SUPER_SETTINGS_LINK.href}
+                className={`${NAV_TOP_LINK} ${isNavActive(pathname, SUPER_SETTINGS_LINK.href, variant) ? meta.navActive : meta.navIdle}`}
+              >
+                {SUPER_SETTINGS_LINK.icon}
+                {SUPER_SETTINGS_LINK.label}
+              </Link>
+            ) : null}
             <button
               type="button"
               onClick={() => { logout(); router.replace('/login'); }}
@@ -705,7 +715,7 @@ export function PanelLayout({
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="dashboard-content dashboard-safe-x mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col justify-center px-3 py-4 sm:px-6 sm:py-8 lg:px-10">
+          <div className="dashboard-content dashboard-safe-x mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col justify-start px-3 py-4 sm:px-6 sm:py-8 lg:px-10">
             {children}
           </div>
         </main>

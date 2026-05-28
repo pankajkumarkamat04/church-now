@@ -5,6 +5,15 @@ const User = require('../models/User');
 const Church = require('../models/Church');
 const { syncChurchMemberRoleDisplays, ACTIVE_PASTOR_TERM_STATUSES } = require('../utils/memberRoleSync');
 const { pastorListChurchFilter } = require('../utils/pastorMainChurch');
+const {
+  getMainChurchLean,
+  getSubChurchIds,
+  serializePastorUser,
+  setPastorMainChurchPool,
+  setPastorLocalSpiritual,
+  clearLocalSpiritualAtChurch,
+  isMainChurchSpiritualLeader,
+} = require('../utils/pastorScope');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 const {
   MAX_TERM_CYCLES,
@@ -228,6 +237,50 @@ async function buildPastorCategoryOnlyTermRows(churchFilter = {}, coveredKeys = 
   }
 
   return rows;
+}
+
+/** Directory rows for upgraded pastors (PASTOR category) without a PastorRecord or active term row. */
+async function buildCategoryOnlyPastorDirectoryEntries(churchFilter, excludedUserIds) {
+  const userQuery = { isActive: true, memberCategory: 'PASTOR' };
+  if (churchFilter.church) userQuery.church = churchFilter.church;
+
+  const users = await User.find(userQuery)
+    .select('_id fullName email memberId contactPhone memberCategory role pastorServiceScope church')
+    .populate('church', 'name churchType')
+    .lean();
+
+  const entries = [];
+  for (const user of users) {
+    const pastorId = String(user._id);
+    if (excludedUserIds.has(pastorId)) continue;
+    excludedUserIds.add(pastorId);
+    const churchId = user.church ? String(user.church._id || user.church) : '';
+    entries.push({
+      _id: `category_${churchId}_${pastorId}`,
+      _categoryOnly: true,
+      personal: {
+        name: user.fullName || user.email || 'Unknown',
+        contactEmail: user.email || '',
+        contactPhone: user.contactPhone || '',
+      },
+      church: user.church,
+      member: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        memberId: user.memberId,
+        role: user.role,
+        memberCategory: user.memberCategory,
+        pastorServiceScope: user.pastorServiceScope,
+      },
+      currentRole:
+        user.pastorServiceScope === 'LOCAL'
+          ? 'Local congregation pastor'
+          : 'Pastor (main church pool)',
+      isActive: true,
+    });
+  }
+  return entries;
 }
 
 async function listPastorTermsMerged(req, res, filter) {
@@ -520,9 +573,13 @@ async function listPastorsForSuperadmin(req, res) {
     });
   }
 
+  const coveredUserIds = new Set([...recordMemberIds, ...seenTermPastors]);
+  const categoryOnly = await buildCategoryOnlyPastorDirectoryEntries(churchFilter, coveredUserIds);
+
   const combined = [
-    ...rows.map((r) => r.toObject ? r.toObject() : r),
+    ...rows.map((r) => (r.toObject ? r.toObject() : r)),
     ...synthetic,
+    ...categoryOnly,
   ];
   combined.sort((a, b) => (a.personal?.name || '').localeCompare(b.personal?.name || ''));
   const total = combined.length;
@@ -572,6 +629,31 @@ async function assignPastorTerm(req, res) {
   }
   const { pastor, church } = resolved;
 
+  if (church.churchType === 'MAIN') {
+    if (await isMainChurchSpiritualLeader(pastor._id)) {
+      return res.status(409).json({ message: 'This pastor is already the main church spiritual leader' });
+    }
+    const homeChurchId = pastor.church
+      ? String(typeof pastor.church === 'object' ? pastor.church._id : pastor.church)
+      : '';
+    if (homeChurchId) {
+      const home = await Church.findById(homeChurchId).select('localLeadership councils churchType');
+      if (home && home.churchType === 'SUB' && spiritualPastorIdFromChurch(home) === String(pastor._id)) {
+        await clearLocalSpiritualAtChurch(home, pastor._id);
+        await PastorTerm.deleteMany({
+          church: homeChurchId,
+          pastor: pastor._id,
+          status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+        });
+        await syncChurchMemberRoleDisplays(home.toObject ? home.toObject() : home);
+      }
+    }
+  } else if (await isMainChurchSpiritualLeader(pastor._id)) {
+    return res.status(409).json({
+      message: 'This pastor is the main church spiritual leader. Unassign from Main Church Pastor Management before assigning as a local church pastor.',
+    });
+  }
+
   const existing = await PastorTerm.findOne({
     pastor: pastor._id,
     church: targetChurchId,
@@ -620,6 +702,12 @@ async function assignPastorTerm(req, res) {
   if (!church.localLeadership) church.localLeadership = {};
   church.localLeadership.spiritualPastor = pastor._id;
   await church.save();
+
+  if (church.churchType === 'MAIN') {
+    await setPastorMainChurchPool(pastor);
+  } else {
+    await setPastorLocalSpiritual(pastor);
+  }
 
   const populated = await PastorTerm.findById(row._id).populate('pastor', 'fullName email memberId').populate('church', 'name');
   await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
@@ -795,9 +883,12 @@ async function upgradeMemberToPastor(req, res) {
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
   const member = await User.findOne({ _id: req.params.userId, church: cid, isActive: true });
   if (!member) return res.status(404).json({ message: 'Member not found in this church' });
-  member.memberCategory = 'PASTOR';
-  await member.save();
-  return res.json({ message: 'Member upgraded to PASTOR category', memberCategory: member.memberCategory });
+  await setPastorMainChurchPool(member);
+  return res.json({
+    message: 'Member added as pastor (main church pool). Assign as local spiritual pastor separately if needed.',
+    memberCategory: member.memberCategory,
+    pastorServiceScope: member.pastorServiceScope,
+  });
 }
 
 async function grantAdminAccess(req, res) {
@@ -923,25 +1014,19 @@ async function listAllMembersForUpgradeForSuperadmin(req, res) {
 async function upgradeMemberToPastorForSuperadmin(req, res) {
   const member = await User.findOne({ _id: req.params.userId, isActive: true });
   if (!member) return res.status(404).json({ message: 'Member not found' });
-  member.memberCategory = 'PASTOR';
-  await member.save();
-
+  const homeChurch = member.church ? await Church.findById(member.church).select('churchType').lean() : null;
+  if (homeChurch?.churchType === 'MAIN') {
+    return res.status(400).json({ message: 'Pastors must belong to a sub-church congregation' });
+  }
+  await setPastorMainChurchPool(member);
   if (member.church) {
     const church = await Church.findById(member.church).select('localLeadership councils');
-    if (church) {
-      const currentLeaderId = spiritualPastorIdFromChurch(church);
-      if (!currentLeaderId) {
-        if (!church.localLeadership) church.localLeadership = {};
-        church.localLeadership.spiritualPastor = member._id;
-        await church.save();
-        await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
-      }
-    }
+    if (church) await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
   }
-
   return res.json({
-    message: 'Member upgraded to PASTOR category',
+    message: 'Member upgraded to pastor. Assign as local church pastor or main church spiritual leader when ready.',
     memberCategory: member.memberCategory,
+    pastorServiceScope: member.pastorServiceScope,
     churchId: member.church ? String(member.church) : null,
   });
 }
@@ -1006,14 +1091,12 @@ async function removeSpiritualLeader(req, res) {
     await PastorTerm.deleteMany({ church: churchIdParam, pastor: pastorUserId });
 
     const member = await User.findById(pastorUserId);
-    if (
-      member &&
-      member.memberCategory === 'PASTOR' &&
-      church.churchType !== 'MAIN' &&
-      String(member.church) === String(churchIdParam)
-    ) {
-      member.memberCategory = 'MEMBER';
-      await member.save();
+    if (member && member.memberCategory === 'PASTOR') {
+      if (church.churchType === 'MAIN') {
+        await setPastorMainChurchPool(member);
+      } else if (String(member.church) === String(churchIdParam)) {
+        await setPastorMainChurchPool(member);
+      }
     }
 
     await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
@@ -1038,18 +1121,246 @@ async function removeSpiritualLeader(req, res) {
   await PastorTerm.findByIdAndDelete(row._id);
 
   const member = await User.findById(row.pastor);
-  if (
-    member &&
-    member.memberCategory === 'PASTOR' &&
-    church?.churchType !== 'MAIN' &&
-    String(member.church) === String(row.church)
-  ) {
-    member.memberCategory = 'MEMBER';
-    await member.save();
+  if (member && member.memberCategory === 'PASTOR') {
+    if (church?.churchType === 'MAIN') {
+      await setPastorMainChurchPool(member);
+    } else if (String(member.church) === String(row.church)) {
+      await setPastorMainChurchPool(member);
+    }
   }
 
   if (church) await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
   return res.json({ message: 'Spiritual leader term removed' });
+}
+
+// ── Multi-pastor: local vs main church pool ───────────────────────────────────
+
+async function listSubChurchPastorsManagement(req, res) {
+  const targetChurchId = String(req.query.churchId || '');
+  if (!targetChurchId) return res.status(400).json({ message: 'churchId is required' });
+
+  const church = await Church.findOne({ _id: targetChurchId, churchType: 'SUB' })
+    .select('name churchType localLeadership')
+    .populate('localLeadership.spiritualPastor', 'fullName email memberId')
+    .lean();
+  if (!church) return res.status(404).json({ message: 'Sub-church not found' });
+
+  const mainChurch = await getMainChurchLean();
+  const mainSpiritualId = spiritualPastorIdFromChurch(mainChurch);
+  const localSpiritualId = spiritualPastorIdFromChurch(church);
+
+  const [categoryPastors, pastorRecords] = await Promise.all([
+    User.find({
+      church: targetChurchId,
+      memberCategory: 'PASTOR',
+      isActive: true,
+    })
+      .select('fullName email memberId role memberCategory pastorServiceScope church')
+      .populate('church', 'name churchType')
+      .sort({ fullName: 1 }),
+    PastorRecord.find({ church: targetChurchId, isActive: { $ne: false } })
+      .populate('member', 'fullName email memberId role memberCategory pastorServiceScope church')
+      .lean(),
+  ]);
+
+  const pastorById = new Map(categoryPastors.map((p) => [String(p._id), p]));
+
+  for (const rec of pastorRecords) {
+    const member = rec.member;
+    const mid = member && (member._id || member) ? String(member._id || member) : '';
+    if (!mid || pastorById.has(mid)) continue;
+    const user =
+      member && typeof member === 'object' && member._id
+        ? member
+        : await User.findById(mid)
+            .select('fullName email memberId role memberCategory pastorServiceScope church')
+            .populate('church', 'name churchType');
+    if (user && user.isActive !== false) pastorById.set(mid, user);
+  }
+
+  if (localSpiritualId && !pastorById.has(localSpiritualId)) {
+    const leader = await User.findOne({ _id: localSpiritualId, isActive: true })
+      .select('fullName email memberId role memberCategory pastorServiceScope church')
+      .populate('church', 'name churchType');
+    if (leader) pastorById.set(localSpiritualId, leader);
+  }
+
+  const pastors = [...pastorById.values()].sort((a, b) =>
+    (a.fullName || a.email || '').localeCompare(b.fullName || b.email || '')
+  );
+
+  const terms = await PastorTerm.find({
+    church: targetChurchId,
+    status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
+  })
+    .populate('pastor', 'fullName email memberId')
+    .lean();
+
+  const termByPastor = new Map(terms.map((t) => [String(t.pastor?._id || t.pastor), t]));
+
+  return res.json({
+    church: { id: String(church._id), name: church.name, churchType: church.churchType },
+    localSpiritualPastorId: localSpiritualId,
+    mainChurchSpiritualLeaderId: mainSpiritualId,
+    pastors: pastors.map((p) => {
+      const pid = String(p._id);
+      const term = termByPastor.get(pid);
+      return {
+        ...serializePastorUser(p),
+        isLocalSpiritual: localSpiritualId === pid,
+        isMainChurchSpiritualLeader: mainSpiritualId === pid,
+        activeTerm: term
+          ? {
+              id: String(term._id),
+              status: term.status,
+              termNumber: term.termNumber,
+              termLengthYears: term.termLengthYears,
+              termStart: term.termStart,
+              termEnd: term.termEnd,
+            }
+          : null,
+      };
+    }),
+  });
+}
+
+async function listMainChurchPastorsOverview(req, res) {
+  const main = await getMainChurchLean();
+  if (!main) return res.json({ mainChurch: null, spiritualLeader: null, spiritualTerm: null, poolPastors: [] });
+
+  const mainId = String(main._id);
+  const mainSpiritualId = spiritualPastorIdFromChurch(main);
+  const subIds = await getSubChurchIds();
+
+  const [poolRows, spiritualTerm] = await Promise.all([
+    User.find({
+      memberCategory: 'PASTOR',
+      isActive: true,
+      church: { $in: subIds },
+    })
+      .select('fullName email memberId role memberCategory pastorServiceScope church')
+      .populate('church', 'name churchType')
+      .sort({ fullName: 1 }),
+    PastorTerm.findOne({ church: mainId, status: { $in: ACTIVE_PASTOR_TERM_STATUSES } })
+      .populate('pastor', 'fullName email memberId')
+      .lean(),
+  ]);
+
+  let spiritualLeaderUser = null;
+  if (mainSpiritualId) {
+    spiritualLeaderUser = poolRows.find((p) => String(p._id) === mainSpiritualId) || null;
+    if (!spiritualLeaderUser) {
+      spiritualLeaderUser = await User.findById(mainSpiritualId).populate('church', 'name churchType').lean();
+    }
+    if (!spiritualLeaderUser && main.localLeadership?.spiritualPastor) {
+      const sp = main.localLeadership.spiritualPastor;
+      if (typeof sp === 'object' && sp._id) {
+        spiritualLeaderUser = await User.findById(sp._id).populate('church', 'name churchType').lean();
+      } else if (typeof sp === 'string') {
+        spiritualLeaderUser = await User.findById(sp).populate('church', 'name churchType').lean();
+      }
+    }
+  }
+
+  const poolPastors = poolRows
+    .filter((p) => {
+      const pid = String(p._id);
+      if (mainSpiritualId && pid === mainSpiritualId) return true;
+      return p.pastorServiceScope === 'MAIN_CHURCH' || !p.pastorServiceScope;
+    })
+    .map((p) => {
+      const pid = String(p._id);
+      return {
+        ...serializePastorUser(p),
+        isMainChurchSpiritualLeader: mainSpiritualId === pid,
+        isLocalSpiritual: p.pastorServiceScope === 'LOCAL',
+      };
+    });
+
+  return res.json({
+    mainChurch: { id: mainId, name: main.name },
+    spiritualLeader: spiritualLeaderUser ? serializePastorUser(spiritualLeaderUser, { isMainChurchSpiritualLeader: true }) : null,
+    spiritualTerm: spiritualTerm
+      ? {
+          id: String(spiritualTerm._id),
+          status: spiritualTerm.status,
+          termNumber: spiritualTerm.termNumber,
+          termLengthYears: spiritualTerm.termLengthYears,
+          termStart: spiritualTerm.termStart,
+          termEnd: spiritualTerm.termEnd,
+        }
+      : null,
+    poolPastors,
+  });
+}
+
+async function unassignLocalSpiritualPastor(req, res) {
+  const churchId = String(req.body?.churchId || '');
+  const pastorUserId = String(req.body?.pastorUserId || '');
+  if (!churchId || !pastorUserId) {
+    return res.status(400).json({ message: 'churchId and pastorUserId are required' });
+  }
+
+  const church = await Church.findOne({ _id: churchId, churchType: 'SUB' }).select('localLeadership councils churchType');
+  if (!church) return res.status(404).json({ message: 'Sub-church not found' });
+
+  const pastor = await User.findOne({ _id: pastorUserId, church: churchId, memberCategory: 'PASTOR', isActive: true });
+  if (!pastor) return res.status(404).json({ message: 'Pastor not found at this church' });
+
+  if (await isMainChurchSpiritualLeader(pastorUserId)) {
+    return res.status(409).json({
+      message: 'This pastor is the main church spiritual leader. Unassign them from Main Church Pastor Management first.',
+    });
+  }
+
+  await clearLocalSpiritualAtChurch(church, pastorUserId);
+  await PastorTerm.deleteMany({ church: churchId, pastor: pastorUserId });
+  await setPastorMainChurchPool(pastor);
+  await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
+
+  return res.json({ message: 'Local church pastor unassigned; pastor remains in the main church pool.' });
+}
+
+async function unassignPastorCompletely(req, res) {
+  const userId = String(req.body?.userId || req.params.userId || '');
+  if (!userId) return res.status(400).json({ message: 'userId is required' });
+
+  const pastor = await User.findOne({ _id: userId, memberCategory: 'PASTOR', isActive: true });
+  if (!pastor) return res.status(404).json({ message: 'Pastor not found' });
+
+  if (await isMainChurchSpiritualLeader(userId)) {
+    return res.status(409).json({
+      message: 'Unassign main church spiritual leader on the Main Church Pastor tab before removing this pastor.',
+    });
+  }
+
+  const homeChurchId = pastor.church ? String(pastor.church) : '';
+  if (homeChurchId) {
+    const church = await Church.findById(homeChurchId).select('localLeadership councils churchType');
+    if (church) {
+      await clearLocalSpiritualAtChurch(church, userId);
+      await PastorTerm.deleteMany({ church: homeChurchId, pastor: userId });
+      await syncChurchMemberRoleDisplays(church.toObject ? church.toObject() : church);
+    }
+  }
+
+  const main = await getMainChurchLean();
+  if (main) {
+    await PastorTerm.deleteMany({ church: main._id, pastor: userId });
+    if (spiritualPastorIdFromChurch(main) === userId) {
+      const doc = await Church.findById(main._id);
+      if (doc?.localLeadership) {
+        doc.localLeadership.spiritualPastor = null;
+        await doc.save();
+      }
+    }
+  }
+
+  pastor.memberCategory = 'MEMBER';
+  pastor.pastorServiceScope = null;
+  await pastor.save();
+
+  return res.json({ message: 'Pastor removed and reverted to member.' });
 }
 
 module.exports = {
@@ -1082,4 +1393,8 @@ module.exports = {
   renewPastorTerm,
   transferPastor,
   removeSpiritualLeader,
+  listSubChurchPastorsManagement,
+  listMainChurchPastorsOverview,
+  unassignLocalSpiritualPastor,
+  unassignPastorCompletely,
 };

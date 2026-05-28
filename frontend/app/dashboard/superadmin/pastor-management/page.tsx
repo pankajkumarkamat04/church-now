@@ -8,12 +8,18 @@ import { apiFetch, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { PastorAssignModal } from '@/components/church/PastorAssignModal';
 import { MainChurchPastorTab } from '@/components/church/MainChurchPastorTab';
+import { SubChurchPastorsTab } from '@/components/church/SubChurchPastorsTab';
 import { DashboardPageHeader } from '@/components/layout/DashboardPageHeader';
 import { DashboardPageShell } from '@/components/layout/DashboardPageShell';
 import { DashboardTabs } from '@/components/layout/DashboardTabs';
 import { toolbarControl, toolbarRow } from '@/lib/responsiveClasses';
 import { canAccessSuperadminPanel } from '@/lib/superadminPanel';
-import { excludeMainChurchRows, subChurchesOnly } from '@/lib/pastorManagement';
+import {
+  excludeMainChurchRows,
+  pastorMainLeaderBadgeClass,
+  pastorPoolBadgeClass,
+  subChurchesOnly,
+} from '@/lib/pastorManagement';
 import {
   RemoveSpiritualLeaderModal,
   type SpiritualLeaderRemoveTarget,
@@ -56,7 +62,7 @@ type MemberOption = {
 };
 type PastorRecord = {
   _id: string; isActive?: boolean; currentRole?: string;
-  _termOnly?: boolean; _termId?: string;
+  _termOnly?: boolean; _termId?: string; _categoryOnly?: boolean;
   church?: { _id?: string; name?: string; churchType?: string } | string;
   member?: { _id?: string; fullName?: string; email?: string; memberId?: string; role?: string; memberCategory?: string; adminChurches?: string[] };
   personal?: { name?: string; fullName?: string; title?: string; contactEmail?: string; email?: string; contactPhone?: string; dateOfBirth?: string; gender?: string; address?: string };
@@ -170,7 +176,7 @@ const STATUS_BADGE: Record<string, string> = {
   RENEWED: 'bg-sky-100 text-sky-800',
   TRANSFER_REQUIRED: 'bg-amber-100 text-amber-800',
   TRANSFERRED: 'bg-neutral-100 text-neutral-600',
-  LEADERSHIP_ONLY: 'bg-amber-100 text-amber-900',
+  LEADERSHIP_ONLY: pastorMainLeaderBadgeClass,
   CATEGORY_ONLY: 'bg-violet-100 text-violet-900',
 };
 
@@ -300,15 +306,22 @@ function DirectoryTab({
           const isAdmin = mem?.role === 'ADMIN';
           const isPastorCat = mem?.memberCategory === 'PASTOR';
           const isTermOnly = Boolean(r._termOnly);
+          const isCategoryOnly = Boolean(r._categoryOnly);
+          const isSynthetic = isTermOnly || isCategoryOnly;
           return (
-            <div key={r._id} className={`relative flex flex-col rounded-2xl border bg-white shadow-sm dark:bg-neutral-900 ${isTermOnly ? 'border-amber-200 dark:border-amber-800/40' : r.isActive === false ? 'border-neutral-200 opacity-60 dark:border-neutral-800' : 'border-violet-100 dark:border-violet-900/40'}`}>
+            <div key={r._id} className={`relative flex flex-col rounded-2xl border bg-white shadow-sm dark:bg-neutral-900 ${isSynthetic ? 'border-amber-200 dark:border-amber-800/40' : r.isActive === false ? 'border-neutral-200 opacity-60 dark:border-neutral-800' : 'border-violet-100 dark:border-violet-900/40'}`}>
               {isTermOnly && (
                 <div className="rounded-t-2xl bg-amber-50 dark:bg-amber-900/20 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                   <span>⚡</span> Term Assigned — No Profile Record
                 </div>
               )}
+              {isCategoryOnly && (
+                <div className="rounded-t-2xl bg-amber-50 dark:bg-amber-900/20 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <span>✓</span> Upgraded Pastor — No Profile Record
+                </div>
+              )}
               <div className="flex items-start gap-3 p-4">
-                <div className={`flex size-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${isTermOnly ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'}`}>
+                <div className={`flex size-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${isSynthetic ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'}`}>
                   {pastorName(r).charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -326,7 +339,7 @@ function DirectoryTab({
                 {r.currentRole && <p><span className="font-medium">Role:</span> {r.currentRole}</p>}
                 {r.personal?.contactEmail && <p className="truncate"><span className="font-medium">Email:</span> {r.personal.contactEmail}</p>}
                 {r.personal?.contactPhone && <p><span className="font-medium">Phone:</span> {r.personal.contactPhone}</p>}
-                {isTermOnly && (
+                {isSynthetic && (
                   <p className="text-amber-600 dark:text-amber-400">
                     No detailed profile yet.{' '}
                     <Link
@@ -338,10 +351,10 @@ function DirectoryTab({
                     .
                   </p>
                 )}
-                {!isTermOnly && r.credentials?.denomination && <p><span className="font-medium">Denomination:</span> {r.credentials.denomination}</p>}
+                {!isSynthetic && r.credentials?.denomination && <p><span className="font-medium">Denomination:</span> {r.credentials.denomination}</p>}
               </div>
               <div className="mt-auto flex flex-wrap gap-2 border-t border-neutral-100 dark:border-neutral-800 px-4 py-3">
-                {isTermOnly ? (
+                {isSynthetic ? (
                   <Link
                     href={`/dashboard/superadmin/pastors${churchId(r) ? `?churchId=${encodeURIComponent(churchId(r))}` : ''}`}
                     className="flex-1 rounded-lg bg-amber-100 px-3 py-1.5 text-center text-xs font-medium text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60"
@@ -770,11 +783,7 @@ function TermsTab({
                     <td className="px-4 py-3 text-neutral-500">—</td>
                     <td className="px-4 py-3 text-neutral-500">—</td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          categoryOnly ? STATUS_BADGE.CATEGORY_ONLY : STATUS_BADGE.LEADERSHIP_ONLY
-                        }`}
-                      >
+                      <span className={categoryOnly ? pastorPoolBadgeClass : pastorMainLeaderBadgeClass}>
                         {categoryOnly ? 'PASTOR category' : 'Church leadership'}
                       </span>
                     </td>
@@ -975,13 +984,13 @@ function RemoveLeadersTab({
                   <td className="px-4 py-3 text-neutral-500">{t.pastor?.email || '—'}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      className={
                         leadershipOnly
-                          ? STATUS_BADGE.LEADERSHIP_ONLY
+                          ? pastorMainLeaderBadgeClass
                           : categoryOnly
-                            ? STATUS_BADGE.CATEGORY_ONLY
-                            : STATUS_BADGE[t.status] || 'bg-neutral-100 text-neutral-600'
-                      }`}
+                            ? `rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE.CATEGORY_ONLY}`
+                            : `rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[t.status] || 'bg-neutral-100 text-neutral-600'}`
+                      }
                     >
                       {leadershipOnly
                         ? 'Church leadership'
@@ -1145,7 +1154,7 @@ function SuperadminPastorManagementPageInner() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'directory', label: 'Pastor Directory' },
-    { id: 'upgrade', label: 'Upgrade Member' },
+    { id: 'upgrade', label: 'Congregation Pastors' },
     { id: 'main-pastor', label: 'Main Church Pastor' },
     { id: 'terms', label: 'Pastors / Spiritual leaders' },
     { id: 'remove', label: 'Remove spiritual leader' },
@@ -1181,7 +1190,7 @@ function SuperadminPastorManagementPageInner() {
           token={token} onRefresh={() => void loadRecords()} />
       )}
       {tab === 'upgrade' && (
-        <UpgradeMemberTab
+        <SubChurchPastorsTab
           churches={subChurches}
           token={token}
           onRefresh={() => void loadRecords()}

@@ -22,6 +22,8 @@ import {
   getDefaultDashboardPath,
   dashboardPathForRoleOnly,
 } from '@/lib/dashboardRouting';
+import { setInactivityLogoutFlag } from '@/lib/inactivityLogout';
+import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 
 type RegisterInput = {
   email: string;
@@ -134,6 +136,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
   }, []);
+
+  const logoutForInactivity = useCallback(() => {
+    setInactivityLogoutFlag();
+    clearAuth();
+    setToken(null);
+    setUser(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  }, []);
+
+  useInactivityLogout(Boolean(token && user && !loading), logoutForInactivity);
 
   const value = useMemo(
     () => ({ user, token, loading, login, register, logout, refreshUser }),

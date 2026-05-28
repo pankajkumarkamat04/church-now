@@ -191,6 +191,14 @@ video {
   color: rgb(253 230 138);
 }
 
+.dark .text-amber-900 {
+  color: rgb(254 243 199);
+}
+
+.dark .text-amber-700 {
+  color: rgb(253 230 138);
+}
+
 .dark .text-fuchsia-800 {
   color: rgb(240 171 252);
 }
@@ -417,4 +425,56 @@ video {
   .dashboard-content [role='dialog'] > div {
     max-width: calc(100vw - 2rem);
   }
+}
+
+/*
+ * Pastor status badges — do not use bg-amber-100 + text-amber-900 here.
+ * Broad .dark .bg-amber-100 / .text-amber-900 remaps above make that pair unreadable.
+ */
+.badge-pastor-main-leader {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  background-color: rgb(254 243 199);
+  color: rgb(69 26 3);
+}
+
+html.dark .badge-pastor-main-leader {
+  background-color: rgb(180 83 9);
+  color: rgb(255 251 235);
+}
+
+.badge-pastor-local {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  background-color: rgb(209 250 229);
+  color: rgb(6 78 59);
+}
+
+html.dark .badge-pastor-local {
+  background-color: rgb(6 95 70);
+  color: rgb(209 250 229);
+}
+
+.badge-pastor-pool {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  background-color: rgb(237 233 254);
+  color: rgb(76 29 149);
+}
+
+html.dark .badge-pastor-pool {
+  background-color: rgb(91 33 182);
+  color: rgb(237 233 254);
 }
