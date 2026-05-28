@@ -1,14 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Users, X } from 'lucide-react';
-import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
-import type { ChurchRecord, LocalLeadership } from '@/app/dashboard/superadmin/churches/types';
+import { useEffect, useState } from 'react';
+import { Loader2, Search, UserPlus, Users, X } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import type { ChurchRecord, ChurchMemberRef, LocalLeadership } from '@/app/dashboard/superadmin/churches/types';
+import {
+  LeadershipMemberPickerModal,
+  type LeadershipMemberOption,
+  type LeadershipPickerPool,
+} from '@/components/church/LeadershipMemberPickerModal';
+import {
+  LOCAL_ROLE_LABELS,
+  LOCAL_SINGLE_KEYS,
+  MAIN_LEADERSHIP_KEYS,
+  SUB_LEADERSHIP_KEYS,
+  poolForLeadershipRoleKey,
+} from '@/components/church/churchLeadershipConstants';
 
-const field =
-  'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
-
-type MemberOption = { id: string; label: string; memberCategory?: string };
+const fieldBtn =
+  'rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700';
 
 function memberRefId(value: string | { _id?: string } | null | undefined): string {
   if (!value) return '';
@@ -20,114 +30,34 @@ function leadershipFromRecord(row: ChurchRecord | null): LocalLeadership {
   return row.localLeadership;
 }
 
-function churchNameFromUser(u: AuthUser): string {
-  if (!u.church) return '';
-  if (typeof u.church === 'string') return '';
-  return u.church.name || '';
+function labelFromRef(ref: ChurchMemberRef | string | null | undefined): string {
+  if (!ref || typeof ref === 'string') return '';
+  const name = (ref.fullName || ref.email || '').trim();
+  return name || '';
 }
 
-function mapUserToOption(u: AuthUser, includeChurch = false): MemberOption {
-  const name = (u.fullName || `${u.firstName || ''} ${u.surname || ''}`.trim() || u.email || u.id).trim();
-  const mid = u.memberId ? String(u.memberId) : '';
-  const congregation = includeChurch ? churchNameFromUser(u) : '';
-  const base = mid ? `${mid} — ${name}` : name;
-  return {
-    id: u.id,
-    memberCategory: u.memberCategory,
-    label: congregation ? `${base} (${congregation})` : base,
-  };
-}
-
-const LOCAL_ROLE_LABELS: Record<string, string> = {
-  churchPresident: 'Church president (minister)',
-  vicePresident: 'Vice president (minister)',
-  moderator: 'Moderator',
-  viceModerator: 'Vice moderator',
-  superintendent: 'Superintendent (minister)',
-  viceSuperintendent: 'Vice superintendent (minister)',
-  conferenceMinister1: 'Conference minister 1',
-  conferenceMinister2: 'Conference minister 2',
-  minister: 'Minister',
-  deacon: 'Deacon (elected)',
-  viceDeacon: 'Vice deacon',
-  secretary: 'Secretary',
-  viceSecretary: 'Vice secretary',
-  treasurer: 'Treasurer',
-  viceTreasurer: 'Vice treasurer',
-};
-
-const MAIN_LEADERSHIP_KEYS = [
-  'churchPresident',
-  'vicePresident',
-  'moderator',
-  'viceModerator',
-  'secretary',
-  'viceSecretary',
-  'treasurer',
-  'viceTreasurer',
-  'minister',
-  'superintendent',
-  'viceSuperintendent',
-  'conferenceMinister1',
-  'conferenceMinister2',
-] as const;
-
-const SUB_LEADERSHIP_KEYS = [
-  'deacon',
-  'viceDeacon',
-  'secretary',
-  'viceSecretary',
-  'treasurer',
-  'viceTreasurer',
-] as const;
-
-const MAIN_PASTOR_ONLY_KEYS = new Set<string>([
-  'churchPresident',
-  'vicePresident',
-  'superintendent',
-  'viceSuperintendent',
-  'conferenceMinister1',
-  'conferenceMinister2',
-  'minister',
-]);
-
-const MAIN_LAY_KEYS = new Set<string>([
-  'moderator',
-  'viceModerator',
-  'secretary',
-  'viceSecretary',
-  'treasurer',
-  'viceTreasurer',
-]);
-
-const LOCAL_SINGLE_KEYS = [...MAIN_LEADERSHIP_KEYS, ...SUB_LEADERSHIP_KEYS] as const;
-
-function normCat(c?: string) {
-  return String(c || 'MEMBER').toUpperCase();
-}
-
-function memberOptionsForField(
-  key: string,
-  all: MemberOption[],
-  selectedId: string,
-  isMainChurch: boolean
-): MemberOption[] {
-  if (!isMainChurch) {
-    return all;
+function collectLabelsFromLeadership(l: LocalLeadership): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const key of LOCAL_SINGLE_KEYS) {
+    const id = memberRefId(l[key]);
+    const label = labelFromRef(l[key]);
+    if (id && label) map[id] = label;
   }
-  const filtered = all.filter((m) => {
-    if (!m.id) return true;
-    const cat = normCat(m.memberCategory);
-    if (MAIN_PASTOR_ONLY_KEYS.has(key)) return cat === 'PASTOR';
-    if (MAIN_LAY_KEYS.has(key)) return cat !== 'PASTOR';
-    return true;
-  });
-  const sel = all.find((m) => m.id === selectedId);
-  if (selectedId && sel && !filtered.some((m) => m.id === selectedId)) {
-    return [...filtered, sel];
+  const committee = l.committeeMembers;
+  if (Array.isArray(committee)) {
+    for (const m of committee) {
+      const id = memberRefId(m);
+      const label = labelFromRef(m);
+      if (id && label) map[id] = label;
+    }
   }
-  return filtered;
+  return map;
 }
+
+type PickerState =
+  | { kind: 'role'; key: (typeof LOCAL_SINGLE_KEYS)[number] }
+  | { kind: 'committee' }
+  | null;
 
 type ChurchLeadershipModalProps = {
   open: boolean;
@@ -151,10 +81,7 @@ export function ChurchLeadershipModal({
   onSaved,
 }: ChurchLeadershipModalProps) {
   const isMainChurch = churchType === 'MAIN';
-  const [localMembers, setLocalMembers] = useState<MemberOption[]>([]);
-  const [globalPastors, setGlobalPastors] = useState<MemberOption[]>([]);
-  const [globalLayMembers, setGlobalLayMembers] = useState<MemberOption[]>([]);
-  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [memberLabels, setMemberLabels] = useState<Record<string, string>>({});
   const [singleRoles, setSingleRoles] = useState<Record<(typeof LOCAL_SINGLE_KEYS)[number], string>>({
     churchPresident: '',
     vicePresident: '',
@@ -173,58 +100,14 @@ export function ChurchLeadershipModal({
     viceDeacon: '',
   });
   const [committeeIds, setCommitteeIds] = useState<string[]>([]);
+  const [picker, setPicker] = useState<PickerState>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const allMainOptions = useMemo(() => {
-    const byId = new Map<string, MemberOption>();
-    for (const m of [...globalPastors, ...globalLayMembers]) {
-      if (m.id) byId.set(m.id, m);
-    }
-    return [...byId.values()];
-  }, [globalPastors, globalLayMembers]);
-
-  const committeeOptions = useMemo(
-    () => (isMainChurch ? globalLayMembers : localMembers),
-    [isMainChurch, globalLayMembers, localMembers]
-  );
-
-  const loadMembers = useCallback(async () => {
-    if (!token) return;
-    setLoadErr(null);
-
-    if (isMainChurch) {
-      const [pastorsRaw, layRaw] = await Promise.all([
-        apiFetch<AuthUser[]>('/api/superadmin/leadership-roster?pool=pastors', { token }),
-        apiFetch<AuthUser[]>('/api/superadmin/leadership-roster?pool=lay', { token }),
-      ]);
-      const pastors = pastorsRaw.map((u) => mapUserToOption(u, true));
-      const lay = layRaw.map((u) => mapUserToOption(u, true));
-      setGlobalPastors(pastors);
-      setGlobalLayMembers(lay);
-      setLocalMembers([]);
-      return;
-    }
-
-    if (!churchId) return;
-    const raw = await apiFetch<AuthUser[] | Paginated<AuthUser>>(
-      `/api/superadmin/users?role=ALL&churchId=${encodeURIComponent(churchId)}&isActive=true&limit=500`,
-      { token }
-    );
-    const rows = unwrapPaginatedArray(raw);
-    setLocalMembers(rows.map((u) => mapUserToOption(u, false)));
-    setGlobalPastors([]);
-    setGlobalLayMembers([]);
-  }, [token, churchId, isMainChurch]);
-
-  useEffect(() => {
-    if (!open || !token) return;
-    loadMembers().catch((e) => setLoadErr(e instanceof Error ? e.message : 'Failed to load members'));
-  }, [open, token, loadMembers]);
 
   useEffect(() => {
     if (!open || !row) return;
     const l = leadershipFromRecord(row);
+    setMemberLabels(collectLabelsFromLeadership(l));
     setSingleRoles({
       churchPresident: memberRefId(l.churchPresident),
       vicePresident: memberRefId(l.vicePresident),
@@ -249,10 +132,33 @@ export function ChurchLeadershipModal({
       setCommitteeIds([]);
     }
     setErr(null);
+    setPicker(null);
   }, [open, row]);
 
-  function toggleCommittee(id: string) {
-    setCommitteeIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  function registerMember(option: LeadershipMemberOption) {
+    setMemberLabels((prev) => ({ ...prev, [option.id]: option.label }));
+  }
+
+  function labelForId(id: string): string {
+    if (!id) return '';
+    return memberLabels[id] || 'Selected member';
+  }
+
+  function handlePickerSelect(option: LeadershipMemberOption) {
+    registerMember(option);
+    if (picker?.kind === 'role') {
+      setSingleRoles((s) => ({ ...s, [picker.key]: option.id }));
+    } else if (picker?.kind === 'committee') {
+      setCommitteeIds((prev) => (prev.includes(option.id) ? prev : [...prev, option.id]));
+    }
+  }
+
+  function clearRole(key: (typeof LOCAL_SINGLE_KEYS)[number]) {
+    setSingleRoles((s) => ({ ...s, [key]: '' }));
+  }
+
+  function removeCommittee(id: string) {
+    setCommitteeIds((prev) => prev.filter((x) => x !== id));
   }
 
   async function onSave() {
@@ -294,119 +200,182 @@ export function ChurchLeadershipModal({
     }
   }
 
+  const pickerPool: LeadershipPickerPool | null = picker
+    ? picker.kind === 'committee'
+      ? 'lay'
+      : poolForLeadershipRoleKey(picker.key)
+    : null;
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-[1px]">
-      <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="church-leadership-title"
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Church leadership</p>
-            <h2 id="church-leadership-title" className="text-lg font-semibold text-neutral-900">
-              {churchName}
-            </h2>
-            <p className="mt-1 text-sm text-neutral-600">
-              {isMainChurch
-                ? 'Main church leaders are chosen from the global roster: pastors (any conference) for minister roles; lay members (any congregation) for moderator, secretary, treasurer, and committee.'
-                : 'Assign leaders from members of this congregation. Councils are managed from the dedicated Councils pages.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100"
-            aria-label="Close"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {loadErr ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{loadErr}</p>
-          ) : null}
-
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-neutral-900">Local church leadership</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(churchType === 'MAIN' ? MAIN_LEADERSHIP_KEYS : SUB_LEADERSHIP_KEYS).map((key) => {
-                const pool = isMainChurch ? allMainOptions : localMembers;
-                const options = memberOptionsForField(key, pool, singleRoles[key], isMainChurch);
-                return (
-                  <div key={key}>
-                    <label className="mb-1 block text-xs font-medium text-neutral-600">{LOCAL_ROLE_LABELS[key]}</label>
-                    <select
-                      value={singleRoles[key]}
-                      onChange={(e) => setSingleRoles((s) => ({ ...s, [key]: e.target.value }))}
-                      className={field}
-                    >
-                      <option value="">— None —</option>
-                      {options.map((m) => (
-                        <option key={`${key}-${m.id || 'none'}`} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })}
-            </div>
-
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-[1px]">
+        <div
+          className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="church-leadership-title"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4 dark:border-neutral-700">
             <div>
-              <label className="mb-2 block text-xs font-medium text-neutral-600">Committee members (elected)</label>
-              <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                {committeeOptions.length === 0 ? (
-                  <p className="text-sm text-neutral-500">
-                    {isMainChurch ? 'No lay members found in the global roster.' : 'No members at this church yet.'}
-                  </p>
-                ) : (
-                  committeeOptions.map((m) => (
-                    <label key={m.id} className="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
-                      <input
-                        type="checkbox"
-                        checked={committeeIds.includes(m.id)}
-                        onChange={() => toggleCommittee(m.id)}
-                        className="size-4 rounded border-neutral-300 text-violet-600"
-                      />
-                      {m.label}
-                    </label>
-                  ))
-                )}
-              </div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                Church leadership
+              </p>
+              <h2 id="church-leadership-title" className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                {churchName}
+              </h2>
+              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                {isMainChurch
+                  ? 'Main church leaders are chosen from the global roster: pastors (any conference) for minister roles; lay members (any congregation) for moderator, secretary, treasurer, and committee. Use Select member to filter by conference and church.'
+                  : 'Assign leaders from members of this congregation. Councils are managed from the dedicated Councils pages.'}
+              </p>
             </div>
-          </section>
-        </div>
-
-        <div className="border-t border-neutral-200 bg-neutral-50 px-5 py-3">
-          {err ? (
-            <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>
-          ) : null}
-          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+              className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              aria-label="Close"
             >
-              Cancel
+              <X className="size-5" />
             </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void onSave()}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
-            >
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Users className="size-4" />}
-              Save leadership
-            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Local church leadership</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(churchType === 'MAIN' ? MAIN_LEADERSHIP_KEYS : SUB_LEADERSHIP_KEYS).map((key) => {
+                  const selectedId = singleRoles[key];
+                  return (
+                    <div key={key}>
+                      <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                        {LOCAL_ROLE_LABELS[key]}
+                      </label>
+                      <div className="flex gap-2">
+                        <div
+                          className="min-w-0 flex-1 truncate rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-200"
+                          title={selectedId ? labelForId(selectedId) : undefined}
+                        >
+                          {selectedId ? labelForId(selectedId) : '— None —'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPicker({ kind: 'role', key })}
+                          className={`${fieldBtn} inline-flex shrink-0 items-center gap-1`}
+                        >
+                          <Search className="size-3.5" />
+                          Select
+                        </button>
+                        {selectedId ? (
+                          <button
+                            type="button"
+                            onClick={() => clearRole(key)}
+                            className={`${fieldBtn} shrink-0 px-2`}
+                            aria-label="Clear"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                    Committee members (elected)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setPicker({ kind: 'committee' })}
+                    className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500"
+                  >
+                    <UserPlus className="size-3.5" />
+                    Add member
+                  </button>
+                </div>
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/40">
+                  {committeeIds.length === 0 ? (
+                    <p className="text-sm text-neutral-500">No committee members selected.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {committeeIds.map((id) => (
+                        <li
+                          key={id}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-900"
+                        >
+                          <span className="min-w-0 truncate text-neutral-800 dark:text-neutral-200">
+                            {labelForId(id)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeCommittee(id)}
+                            className="shrink-0 text-red-600 hover:text-red-800 dark:text-red-400"
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div className="border-t border-neutral-200 bg-neutral-50 px-5 py-3 dark:border-neutral-700 dark:bg-neutral-950/50">
+            {err ? (
+              <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+                {err}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={onClose} className={fieldBtn}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onSave()}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <Users className="size-4" />}
+                Save leadership
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {picker && pickerPool ? (
+        <LeadershipMemberPickerModal
+          open
+          onClose={() => setPicker(null)}
+          onSelect={handlePickerSelect}
+          token={token}
+          title={
+            picker.kind === 'committee'
+              ? 'Add committee member'
+              : `Select: ${LOCAL_ROLE_LABELS[picker.key]}`
+          }
+          description={
+            isMainChurch
+              ? 'Choose conference, then church (optional), then search and pick a member.'
+              : `Search members at ${churchName}.`
+          }
+          filterMode={isMainChurch ? 'main' : 'fixed-church'}
+          fixedChurchId={isMainChurch ? undefined : churchId}
+          fixedChurchName={isMainChurch ? undefined : churchName}
+          pool={pickerPool}
+          selectedId={
+            picker.kind === 'role' ? singleRoles[picker.key] : undefined
+          }
+        />
+      ) : null}
+    </>
   );
 }
 
