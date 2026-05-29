@@ -1,17 +1,14 @@
 /**
- * Wipes the entire MongoDB database used by MONGODB_URI and creates a single superadmin.
+ * Wipes the entire MongoDB database (MONGODB_URI) and creates one superadmin.
+ * This is the only backend maintenance script — use for fresh local setup or full reset.
  *
- * Usage (required confirmation flag):
- *   npm run reset:system -- --confirm
+ *   npm run reset:system:confirm
  *
- * Or:
- *   RESET_SYSTEM_CONFIRM=yes npm run reset:system
+ * PowerShell alternative:
+ *   $env:RESET_SYSTEM_CONFIRM="yes"; npm run reset:system
  *
- * Credentials (optional .env overrides):
- *   SUPERADMIN_EMAIL=admin@test.com
- *   SUPERADMIN_PASSWORD=admin123
- */
-require('dotenv').config();
+ * Optional .env: SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, SUPERADMIN_FULL_NAME
+ */require('dotenv').config();
 
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -36,8 +33,9 @@ async function main() {
     console.error(
       'Refusing to run without confirmation.\n' +
         'This deletes ALL data in the database configured by MONGODB_URI.\n\n' +
-        'Run:  npm run reset:system -- --confirm\n' +
-        'Or:   RESET_SYSTEM_CONFIRM=yes npm run reset:system'
+        'Run:  npm run reset:system:confirm\n' +
+        'Or:   npm run reset:system -- --confirm\n' +
+        'PowerShell:  $env:RESET_SYSTEM_CONFIRM="yes"; npm run reset:system'
     );
     process.exit(1);
   }

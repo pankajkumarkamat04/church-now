@@ -6,9 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed:superadmin": "node src/scripts/seedSuperadmin.js",
     "reset:system": "node src/scripts/resetSystem.js",
-    "clean:dups": "node src/scripts/cleanDups.js"
+    "reset:system:confirm": "node src/scripts/resetSystem.js --confirm"
   },
   "engines": {
     "node": ">=20"
