@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -43,7 +43,7 @@ export default function AdminFinanceOverviewPage() {
   const primary = summary?.byCurrency?.USD || Object.values(summary?.byCurrency || {})[0];
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="admin" />
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Unified finance</p>

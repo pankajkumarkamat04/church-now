@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ImagePlus, Loader2, Trash2, Upload } from 'lucide-react';
@@ -96,8 +96,8 @@ export default function SuperadminMediaPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="dashboard-page w-full min-w-0">
+      <div className="page-header-row mb-6 flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Media</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">

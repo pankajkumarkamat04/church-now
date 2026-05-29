@@ -506,7 +506,7 @@ function UpgradeMemberTab({
   }
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="dashboard-page w-full min-w-0 space-y-4">
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
         <strong>Rules:</strong> Each church can have <strong>only one spiritual leader</strong>. Upgrading opens a confirmation
         modal to set <em>PASTOR</em> category and assign a 1-year or 4-year term on Pastors / Spiritual leaders.

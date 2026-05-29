@@ -26,17 +26,23 @@ export default function AdminPaymentsLayout({ children }: { children: React.Reac
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
-      <h1 className="text-2xl font-semibold text-neutral-900">Payments</h1>
-      <p className="mt-1 text-sm text-neutral-600">
-        Treasurer tools: manage payment types, fund wallets, pay on behalf, and review history.
-        {!canManagePayments ? (
-          <span className="mt-1 block text-neutral-500">
-            Only Treasurer or Vice Treasurer can manage payment types, deposits, and pay on behalf.
-          </span>
-        ) : null}
-      </p>
-      <nav className="mt-4 flex flex-wrap gap-2 border-b border-neutral-200 pb-3" aria-label="Payments sections">
+    <div className="dashboard-page w-full min-w-0 space-y-5">
+      <div className="page-header-row flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-3xl">
+            Payments
+          </h1>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+            Treasurer tools: manage payment types, fund wallets, pay on behalf, and review history.
+            {!canManagePayments ? (
+              <span className="mt-1 block text-neutral-500 dark:text-neutral-500">
+                Only Treasurer or Vice Treasurer can manage payment types, deposits, and pay on behalf.
+              </span>
+            ) : null}
+          </p>
+        </div>
+      </div>
+      <nav className="flex flex-wrap gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-800" aria-label="Payments sections">
           {visibleNav.map((tab) => {
             const active = isActive(tab);
             return (
@@ -54,7 +60,7 @@ export default function AdminPaymentsLayout({ children }: { children: React.Reac
             );
           })}
         </nav>
-      <div className="mt-6">{children}</div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

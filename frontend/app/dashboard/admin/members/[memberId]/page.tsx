@@ -106,7 +106,7 @@ export default function AdminMemberViewPage() {
 
   if (err || !profile) {
     return (
-      <div className="mx-auto w-full min-w-0 max-w-2xl">
+      <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
         <Link href="/dashboard/admin/members" className="text-sm font-medium text-sky-700 hover:text-sky-900">
           ← Back to members
         </Link>
@@ -118,7 +118,7 @@ export default function AdminMemberViewPage() {
   const canEdit = profile.role === 'MEMBER';
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link href="/dashboard/admin/members" className="text-sm font-medium text-sky-700 hover:text-sky-900">

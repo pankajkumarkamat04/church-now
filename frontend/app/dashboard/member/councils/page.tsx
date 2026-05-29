@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -44,7 +44,7 @@ export default function MemberCouncilsPage() {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-5xl">
+    <div className="dashboard-page w-full min-w-0">
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">My councils</h1>
       <p className="mt-1 text-sm text-neutral-600">
         Councils you belong to at {data?.churchName || 'your church'}. Admins manage council membership and roles.

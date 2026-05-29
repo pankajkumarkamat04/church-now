@@ -703,7 +703,7 @@ export function PanelLayout({
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="dashboard-content dashboard-safe-x mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col justify-start px-3 py-4 sm:px-6 sm:py-8 lg:px-10">
+          <div className="dashboard-content dashboard-safe-x mx-auto flex w-full min-w-0 max-w-[min(100%,96rem)] flex-1 flex-col justify-start px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
             {children}
           </div>
         </main>

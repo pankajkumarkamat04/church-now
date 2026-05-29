@@ -12,7 +12,7 @@ export function FinanceSectionNav({ variant }: { variant: FinanceNavVariant }) {
   return (
     <>
       {variant === 'superadmin' ? <SuperadminFinanceReadOnlyBanner /> : null}
-      <nav className="mb-6 flex flex-wrap gap-2 border-b border-neutral-200 pb-3">
+      <nav className="mb-6 flex w-full flex-wrap gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-800">
       {links.map((item) => {
         const active = isFinanceNavItemActive(pathname, item.href, variant);
         return (

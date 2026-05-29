@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -240,7 +240,7 @@ export default function RemittanceDetailsPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-7xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>

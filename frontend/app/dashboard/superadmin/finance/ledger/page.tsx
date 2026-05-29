@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -55,7 +55,7 @@ export default function SuperadminLedgerPage() {
   const draftEntries = entries.filter((e) => e.status === 'Draft' || e.status === 'Pending Authorization');
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">General Ledger</h1>

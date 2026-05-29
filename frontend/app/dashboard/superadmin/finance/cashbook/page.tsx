@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -42,7 +42,7 @@ export default function SuperadminCashBookPage() {
   }, [token, churchId, load]);
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <h1 className="mb-2 text-2xl font-semibold">Cash Book</h1>
       <SuperadminChurchFilter token={token} value={churchId} onChange={setChurchId} />

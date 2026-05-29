@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -50,7 +50,7 @@ export default function MemberAnnouncementsPage() {
   if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Updates</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Announcements</h1>

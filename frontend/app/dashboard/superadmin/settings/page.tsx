@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -77,7 +77,7 @@ export default function SuperadminSystemSettingsPage() {
   }
 
   return (
-    <div className="w-full max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">System settings</h1>
         <p className="mt-1 text-sm text-neutral-600">

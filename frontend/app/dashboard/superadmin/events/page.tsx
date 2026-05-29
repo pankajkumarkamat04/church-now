@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -137,7 +137,7 @@ export default function SuperadminEventsPage() {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Events</p>

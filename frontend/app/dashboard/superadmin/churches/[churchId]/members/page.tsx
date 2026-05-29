@@ -208,8 +208,8 @@ function SuperadminChurchMembersPageInner() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="dashboard-page w-full min-w-0">
+      <div className="page-header-row mb-6 flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link
             href="/dashboard/superadmin/churches"

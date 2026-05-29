@@ -141,7 +141,7 @@ export default function AdminBudgetDetailPage() {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="admin" />
       <div className="mb-4">
         <Link href="/dashboard/admin/finance/budget" className="text-sm text-sky-700 hover:underline">← Back to budgets</Link>

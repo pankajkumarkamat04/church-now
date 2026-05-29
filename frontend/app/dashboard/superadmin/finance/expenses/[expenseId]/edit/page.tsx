@@ -52,7 +52,7 @@ export default function SuperadminExpenseDetailPage() {
   const churchHref = churchId ? `/dashboard/superadmin/churches/${churchId}/edit` : null;
 
   return (
-    <div className="w-full min-w-0 max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <Link href="/dashboard/superadmin/finance/expenses" className="text-sm font-medium text-violet-700 hover:text-violet-900">
         ← Back to expenses

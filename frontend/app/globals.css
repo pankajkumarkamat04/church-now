@@ -349,6 +349,29 @@ video {
   max-width: 100%;
 }
 
+/* Full-width page block inside dashboard main (replaces per-page max-w-6xl) */
+.dashboard-page {
+  width: 100%;
+  min-width: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dashboard-page--narrow {
+  max-width: 42rem;
+}
+
+.dashboard-page .page-header-row,
+.dashboard-content .page-header-row {
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.dashboard-page > h1:first-child,
+.dashboard-page > .page-header-row:first-child h1 {
+  text-align: left;
+}
+
 .dashboard-content .table-scroll,
 .dashboard-content .overflow-x-auto {
   max-width: 100%;

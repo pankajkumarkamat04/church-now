@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -82,7 +82,7 @@ export default function SuperadminFinanceProcurementPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <SuperadminFinanceReadOnlyBanner />
       <div className="mb-6">

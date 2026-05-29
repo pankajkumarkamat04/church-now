@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -122,7 +122,7 @@ export default function AdminLedgerPage() {
   const draftEntries = entries.filter((e) => e.status === 'Draft' || e.status === 'Pending Authorization');
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="admin" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>

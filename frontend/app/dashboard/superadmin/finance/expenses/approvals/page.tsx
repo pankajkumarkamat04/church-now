@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -50,7 +50,7 @@ export default function SuperadminExpenseApprovalsPage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <div className="mb-6 flex items-center justify-between">
         <div>

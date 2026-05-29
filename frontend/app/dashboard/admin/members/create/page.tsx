@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -110,7 +110,7 @@ export default function AdminMemberCreatePage() {
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <Link
         href="/dashboard/admin/members"
         className="text-sm font-medium text-sky-700 hover:text-sky-900"

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
@@ -77,7 +77,7 @@ export default function AdminBudgetPage() {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="admin" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>

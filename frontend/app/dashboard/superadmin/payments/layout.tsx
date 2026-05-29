@@ -21,13 +21,15 @@ export default function SuperadminPaymentsLayout({ children }: { children: React
   }
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
-      <h1 className="text-2xl font-semibold text-neutral-900">Payments</h1>
-      <div className="mt-4">
-        <SuperadminFinanceReadOnlyBanner />
+    <div className="dashboard-page w-full min-w-0 space-y-5">
+      <div className="page-header-row flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-3xl">
+          Payments
+        </h1>
       </div>
+      <SuperadminFinanceReadOnlyBanner />
       {!isOverview ? (
-        <nav className="mt-4 flex flex-wrap gap-2 border-b border-neutral-200 pb-3" aria-label="Payments sections">
+        <nav className="flex flex-wrap gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-800" aria-label="Payments sections">
           {NAV.map((tab) => {
             const active = isActive(tab);
             return (
@@ -46,7 +48,7 @@ export default function SuperadminPaymentsLayout({ children }: { children: React
           })}
         </nav>
       ) : null}
-      <div className="mt-6">{children}</div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

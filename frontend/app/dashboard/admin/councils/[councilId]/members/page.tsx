@@ -46,7 +46,7 @@ export default function AdminCouncilMembersPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <Link href="/dashboard/admin/councils" className="text-sm font-medium text-sky-700 hover:text-sky-900">
         ← Back to councils
       </Link>

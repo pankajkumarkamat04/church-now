@@ -184,7 +184,7 @@ export default function AdminDashboardIndexPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6">
+    <div className="dashboard-page w-full min-w-0 space-y-6">
       <section className={shellHero}>
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Admin Dashboard</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl dark:text-neutral-50">

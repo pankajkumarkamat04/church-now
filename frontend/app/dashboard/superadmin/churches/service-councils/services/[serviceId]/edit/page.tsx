@@ -158,7 +158,7 @@ export default function EditServicePage() {
   if (!user || user.role !== 'SUPERADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-3xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <div className="mb-6 flex items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900">Edit Service</h1>

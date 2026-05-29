@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -42,7 +42,7 @@ export default function SuperadminGlobalPaymentsPage() {
   }, [token, selectedId, churchId]);
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       <h1 className="mb-2 text-2xl font-semibold">Global Payments</h1>
       <p className="mb-4 text-sm text-neutral-600">Read-only member payment overview by congregation.</p>

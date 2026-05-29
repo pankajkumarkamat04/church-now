@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -152,7 +152,7 @@ export default function MemberPaymentsPage() {
   if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
-    <div className="w-full min-w-0 max-w-5xl">
+    <div className="dashboard-page w-full min-w-0">
       <h1 className="text-2xl font-semibold text-neutral-900">Payments</h1>
       <p className="mt-1 text-sm text-neutral-600">Use available balance deposited by treasurer, then allocate it across payment types.</p>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}

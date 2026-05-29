@@ -272,7 +272,7 @@ export default function SuperadminPastorDetailPage() {
   const currentChurchId = typeof pastor.church === 'object' && pastor.church ? pastor.church._id || '' : '';
 
   return (
-    <div className="w-full min-w-0 max-w-5xl space-y-6">
+    <div className="dashboard-page w-full min-w-0 space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/dashboard/superadmin/pastor-management" className="text-violet-600 hover:underline dark:text-violet-400">Pastor Management</Link>

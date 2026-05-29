@@ -11,7 +11,7 @@ type Props = {
   localMinister: string;
 };
 
-/** Labels aligned with ChurchLeadershipModal single-role fields. */
+/** Labels aligned with ChurchLeadershipEditor single-role fields. */
 const VIEW_ROLE_LABELS: Record<string, string> = {
   spiritualPastor: 'Spiritual pastor',
   churchPresident: 'Church president (minister)',

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -39,7 +39,7 @@ export default function AdminCouncilsPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-neutral-900">Councils</h1>

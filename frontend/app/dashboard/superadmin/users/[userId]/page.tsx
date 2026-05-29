@@ -85,7 +85,7 @@ export default function SuperadminUserViewPage() {
 
   if (err || !profile) {
     return (
-      <div className="mx-auto w-full min-w-0 max-w-2xl">
+      <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
         <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">
           ← Back
         </Link>
@@ -104,7 +104,7 @@ export default function SuperadminUserViewPage() {
         : '—';
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">

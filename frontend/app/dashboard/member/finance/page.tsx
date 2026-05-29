@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -93,7 +93,7 @@ export default function MemberFinanceRecordsPage() {
   if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
-    <div className="w-full min-w-0 max-w-5xl">
+    <div className="dashboard-page w-full min-w-0">
       <h1 className="text-2xl font-semibold text-neutral-900">My finance records</h1>
       <p className="mt-1 text-sm text-neutral-600">
         All payments for your account at your church, newest first. Only you can

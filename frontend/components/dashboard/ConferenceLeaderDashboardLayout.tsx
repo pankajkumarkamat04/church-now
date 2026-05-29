@@ -187,7 +187,7 @@ export function ConferenceLeaderDashboardLayout({ children }: { children: React.
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full min-w-0 max-w-7xl flex-1 px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+      <main className="relative z-10 mx-auto w-full min-w-0 max-w-[min(100%,96rem)] flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
         <div className="grid min-w-0 gap-6 lg:grid-cols-12">
           <aside className="hidden lg:col-span-3 lg:block">{sidebarContent}</aside>
           <section className="dashboard-content min-w-0 lg:col-span-9">{children}</section>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -118,7 +118,7 @@ export default function SuperadminOverviewPage() {
   ];
 
   return (
-    <div className="w-full min-w-0 max-w-7xl">
+    <div className="dashboard-page w-full min-w-0">
       <div className="mb-8 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-white p-6 shadow-sm dark:border-violet-900/70 dark:from-violet-950/50 dark:via-neutral-900 dark:to-neutral-900">
         <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">Superadmin dashboard</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">

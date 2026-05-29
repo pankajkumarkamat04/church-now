@@ -92,7 +92,7 @@ export default function AdminPaymentCategoriesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0 space-y-6">
       <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200">
         Add your own offering categories (e.g. missions, youth fund). Built-in types like Tithe can be deactivated but not
         deleted. Members see only active categories when paying.

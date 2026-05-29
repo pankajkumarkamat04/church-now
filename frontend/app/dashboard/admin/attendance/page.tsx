@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -88,7 +88,7 @@ export default function AdminAttendancePage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-7xl">
+    <div className="dashboard-page w-full min-w-0">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Attendance</p>

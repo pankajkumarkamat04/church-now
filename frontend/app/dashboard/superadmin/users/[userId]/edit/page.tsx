@@ -248,7 +248,7 @@ export default function SuperadminUserEditPage() {
   }`;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <div className="flex flex-wrap items-center gap-3">
         <Link href={backHref} className="text-sm font-medium text-violet-700 hover:text-violet-900">
           ← Back

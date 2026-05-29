@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -201,7 +201,7 @@ export default function AdminFinanceAssetsPage() {
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="admin" />
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Finance</p>

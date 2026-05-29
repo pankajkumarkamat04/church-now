@@ -39,7 +39,7 @@ export default function SuperadminBudgetDetailPage() {
   }, [token, budgetId, load]);
 
   return (
-    <div className="w-full min-w-0 max-w-6xl">
+    <div className="dashboard-page w-full min-w-0">
       <FinanceSectionNav variant="superadmin" />
       {budget ? (
         <>

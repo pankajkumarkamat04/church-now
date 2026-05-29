@@ -33,9 +33,9 @@ export function DashboardPageHeader({
 }: Props) {
   return (
     <div
-      className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${className}`.trim()}
+      className={`page-header-row flex w-full flex-col gap-4 border-b border-neutral-200 pb-5 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between ${className}`.trim()}
     >
-      <div className="min-w-0 flex-1 text-left">
+      <div className="min-w-0 flex-1">
         {eyebrow ? (
           <p className={`text-xs font-semibold uppercase tracking-wide ${eyebrowTone[variant]}`}>
             {eyebrow}
@@ -49,7 +49,7 @@ export function DashboardPageHeader({
         ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
+        <div className="page-header-actions flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
       ) : null}
     </div>
   );

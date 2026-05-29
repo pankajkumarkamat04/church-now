@@ -74,7 +74,7 @@ export default function MemberPasswordPage() {
   if (!user || !canAccessMemberPortal(user)) return null;
 
   return (
-    <div className="w-full min-w-0 max-w-lg">
+    <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <Link
         href="/dashboard/member/account"
         className="text-sm font-medium text-emerald-700 hover:text-emerald-900"
