@@ -7,6 +7,7 @@ const {
 } = require('../utils/transactionDeletion');
 const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
+const { attachExpenseLedger } = require('../utils/churchLedgerPosting');
 
 function churchId(req) {
   return req.user?.church;
@@ -255,7 +256,8 @@ async function approveAdminExpenseNotice(req, res) {
     return res.status(400).json({ message: 'Payment notice approval is not available for this expense' });
   }
   applyNoticeApproval(row, roleSet);
-  if (areAllNoticeApprovalsDone(row)) {
+  const becamePosted = areAllNoticeApprovalsDone(row);
+  if (becamePosted) {
     row.approvalStage = 'POSTED';
     row.approvalStatus = 'APPROVED';
     row.approvedBy = req.user._id;
@@ -264,6 +266,20 @@ async function approveAdminExpenseNotice(req, res) {
     row.approvalStatus = 'PENDING';
   }
   await row.save();
+
+  if (becamePosted) {
+    try {
+      await attachExpenseLedger({
+        churchId: cid,
+        expenseDoc: row,
+        userId: req.user._id,
+        paymentMethod: String(req.body?.paymentMethod || 'Cash'),
+      });
+    } catch {
+      // Expense remains posted even if ledger draft fails.
+    }
+  }
+
   const populated = await Expense.findById(row._id)
     .populate('church', 'name')
     .populate('conference', 'name conferenceId')

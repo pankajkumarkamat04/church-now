@@ -12,6 +12,7 @@ const {
   mapRemittanceEntryAuditFields,
   serializeAuditRow,
 } = require('../utils/remittanceAudit');
+const { attachRemittanceLedger } = require('../utils/churchLedgerPosting');
 
 async function ensureLegacySchoolIndexesRemoved() {
   try {
@@ -496,6 +497,16 @@ async function recordChurchRemittance(req, res) {
       meta: { paidAt: doc.paidAt, note: doc.note },
       at: doc.createdAt || new Date(),
     });
+    try {
+      await attachRemittanceLedger({
+        churchId,
+        remittanceDoc: doc,
+        userId: actorId,
+        paymentMethod: String(req.body?.paymentMethod || 'Cash'),
+      });
+    } catch {
+      // Remittance recorded; ledger draft optional.
+    }
   }
   const payload = await buildChurchRemittancePayload(monthKey);
   return res.status(201).json(payload);

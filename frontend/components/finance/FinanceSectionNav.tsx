@@ -3,41 +3,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SuperadminFinanceReadOnlyBanner } from '@/components/finance/SuperadminFinanceReadOnlyBanner';
+import { financeNavItems, isFinanceNavItemActive, type FinanceNavVariant } from '@/lib/financeNav';
 
-const adminLinks: Array<{ href: string; label: string }> = [
-  { href: '/dashboard/admin/finance', label: 'Overview' },
-  { href: '/dashboard/admin/finance/reports', label: 'Reports' },
-  { href: '/dashboard/admin/payments', label: 'Payments' },
-  { href: '/dashboard/admin/finance/remittances', label: 'Remittances' },
-  { href: '/dashboard/admin/finance/expenses', label: 'Expenses' },
-  { href: '/dashboard/admin/finance/assets', label: 'Assets' },
-];
-
-const superadminLinks: Array<{ href: string; label: string }> = [
-  { href: '/dashboard/superadmin/finance', label: 'Overview' },
-  { href: '/dashboard/superadmin/finance/reports', label: 'Reports' },
-  { href: '/dashboard/superadmin/finance/remittances', label: 'Remittances' },
-  { href: '/dashboard/superadmin/payments', label: 'Payments' },
-  { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses' },
-  { href: '/dashboard/superadmin/finance/assets', label: 'Assets' },
-];
-
-type Variant = 'admin' | 'superadmin';
-
-export function FinanceSectionNav({ variant }: { variant: Variant }) {
+export function FinanceSectionNav({ variant }: { variant: FinanceNavVariant }) {
   const pathname = usePathname();
-  const links = variant === 'admin' ? adminLinks : superadminLinks;
+  const links = financeNavItems(variant);
 
   return (
     <>
       {variant === 'superadmin' ? <SuperadminFinanceReadOnlyBanner /> : null}
       <nav className="mb-6 flex flex-wrap gap-2 border-b border-neutral-200 pb-3">
       {links.map((item) => {
-        const overviewHref = `/dashboard/${variant}/finance`;
-        const active =
-          item.href === overviewHref
-            ? pathname === overviewHref
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = isFinanceNavItemActive(pathname, item.href, variant);
         return (
           <Link
             key={item.href}

@@ -125,14 +125,32 @@ export function unwrapPaginatedArray<T>(body: T[] | Paginated<T>): T[] {
 
 const STORAGE_KEY = 'church_auth';
 
+function authStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage;
+}
+
+/** Remove legacy persistent login (localStorage survived browser restarts). */
+function clearLegacyPersistentAuth(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getApiBase(): string {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 }
 
+/** Session-only auth: cleared when the browser session ends (all tabs closed). */
 export function loadStoredAuth(): { token: string; user: AuthUser } | null {
-  if (typeof window === 'undefined') return null;
+  const storage = authStorage();
+  if (!storage) return null;
+  clearLegacyPersistentAuth();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as { token: string; user: AuthUser };
     if (!data?.token || !data?.user) return null;
@@ -143,11 +161,19 @@ export function loadStoredAuth(): { token: string; user: AuthUser } | null {
 }
 
 export function saveAuth(token: string, user: AuthUser): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user }));
+  const storage = authStorage();
+  if (!storage) return;
+  clearLegacyPersistentAuth();
+  storage.setItem(STORAGE_KEY, JSON.stringify({ token, user }));
 }
 
 export function clearAuth(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  clearLegacyPersistentAuth();
+  try {
+    authStorage()?.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function apiFetch<T>(

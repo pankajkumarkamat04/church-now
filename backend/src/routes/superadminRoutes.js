@@ -32,6 +32,7 @@ const mediaController = require('../controllers/mediaController');
 const churchChangeController = require('../controllers/churchChangeController');
 const paymentController = require('../controllers/paymentController');
 const expenseController = require('../controllers/expenseController');
+const procurementController = require('../controllers/procurementController');
 const financeController = require('../controllers/financeController');
 const assetController = require('../controllers/assetController');
 const conferenceController = require('../controllers/conferenceController');
@@ -45,6 +46,9 @@ const systemSettingController = require('../controllers/systemSettingController'
 const remittanceController = require('../controllers/remittanceController');
 const churchLogoController = require('../controllers/churchLogoController');
 const passwordAdminController = require('../controllers/passwordAdminController');
+const ledgerController = require('../controllers/ledgerController');
+const budgetController = require('../controllers/budgetController');
+const globalPaymentController = require('../controllers/globalPaymentController');
 
 const router = express.Router();
 
@@ -152,6 +156,8 @@ router.post('/expenses', superadminFinanceReadOnly);
 router.put('/expenses/:expenseId', superadminFinanceReadOnly);
 router.post('/expenses/:expenseId/approval', superadminFinanceReadOnly);
 router.delete('/expenses/:expenseId', superadminFinanceReadOnly);
+router.get('/procurements', asyncHandler(procurementController.listSuperadminProcurements));
+router.get('/procurements/:procurementId', asyncHandler(procurementController.getSuperadminProcurement));
 router.get('/church-change-requests', asyncHandler(churchChangeController.listSuperadminChurchChangeRequests));
 router.post(
   '/church-change-requests/:requestId/decision',
@@ -213,5 +219,30 @@ router.put('/users/:id', asyncHandler(updateUser));
 router.post('/users/:id/reset-password', asyncHandler(passwordAdminController.superadminResetUserPassword));
 router.delete('/users/:id', asyncHandler(deleteUser));
 router.post('/users/superadmin', requireSuperadminOnly(), asyncHandler(createSuperadminUser));
+
+router.get('/accounting/ledger', asyncHandler(ledgerController.getLedgerAccounts));
+router.get('/accounting/ledger/entries', asyncHandler(ledgerController.getJournalEntries));
+router.get('/accounting/ledger/cashbook-summary', asyncHandler(ledgerController.getCashBookSummary));
+router.get('/accounting/ledger/:accountId', asyncHandler(ledgerController.getLedgerAccountById));
+router.get('/accounting/ledger/:accountId/transactions', asyncHandler(ledgerController.getAccountTransactions));
+router.post('/accounting/ledger', superadminFinanceReadOnly);
+router.put('/accounting/ledger/:accountId', superadminFinanceReadOnly);
+router.put('/accounting/ledger/entries/:entryId/verify', superadminFinanceReadOnly);
+router.put('/accounting/ledger/entries/:entryId/reject', superadminFinanceReadOnly);
+
+router.get('/accounting/budget', asyncHandler(budgetController.getBudgets));
+router.get('/accounting/budget/summary', asyncHandler(budgetController.getBudgetSummary));
+router.get('/accounting/budget/vs-actual', asyncHandler(budgetController.getBudgetVsActualReport));
+router.get('/accounting/budget/:budgetId', asyncHandler(budgetController.getBudgetById));
+router.post('/accounting/budget', superadminFinanceReadOnly);
+router.put('/accounting/budget/:budgetId', superadminFinanceReadOnly);
+router.put('/accounting/budget/:budgetId/approve', superadminFinanceReadOnly);
+router.put('/accounting/budget/:budgetId/activate', superadminFinanceReadOnly);
+router.post('/accounting/budget/:budgetId/refresh-actuals', asyncHandler(budgetController.refreshBudgetActuals));
+
+router.get('/accounting/global-payments/members', asyncHandler(globalPaymentController.listMembers));
+router.get('/accounting/global-payments/members/:memberId', asyncHandler(globalPaymentController.getMemberFinancialSummary));
+router.post('/accounting/global-payments/members/:memberId/deposit', superadminFinanceReadOnly);
+router.post('/accounting/global-payments/members/:memberId/pay', superadminFinanceReadOnly);
 
 module.exports = router;

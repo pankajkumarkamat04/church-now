@@ -109,6 +109,44 @@ export function LeadershipMemberPickerModal({
     return subs.filter((c) => conferenceIdFromChurch(c) === conferenceId);
   }, [isMain, churches, conferenceId]);
 
+  const mergePastorDirectoryFallback = useCallback(
+    async (rows: RosterUser[]): Promise<RosterUser[]> => {
+      if (!token || pool !== 'pastors') return rows;
+      try {
+        type PastorRow = {
+          member?: RosterUser & { _id?: string };
+          church?: RosterUser['church'];
+        };
+        const directory = await apiFetch<PastorRow[] | Paginated<PastorRow>>(
+          '/api/superadmin/pastors?limit=3000',
+          { token }
+        );
+        const byId = new Map<string, RosterUser>();
+        for (const u of rows) {
+          const id = String(u.id || u._id || '');
+          if (id) byId.set(id, u);
+        }
+        for (const entry of unwrapPaginatedArray(directory)) {
+          const member = entry.member;
+          if (!member || typeof member !== 'object') continue;
+          const id = String(member._id || member.id || '');
+          if (!id || byId.has(id)) continue;
+          byId.set(id, {
+            ...member,
+            id,
+            _id: id,
+            memberCategory: member.memberCategory || 'PASTOR',
+            church: entry.church ?? member.church,
+          });
+        }
+        return [...byId.values()];
+      } catch {
+        return rows;
+      }
+    },
+    [token, pool]
+  );
+
   const loadMainRoster = useCallback(async () => {
     if (!token || !open || !isMain) return;
     setLoadingMembers(true);
@@ -117,6 +155,10 @@ export function LeadershipMemberPickerModal({
       let rows: RosterUser[] = [];
       const raw = await apiFetch<RosterUser[]>(`/api/superadmin/leadership-roster?pool=${pool}`, { token });
       rows = Array.isArray(raw) ? raw : [];
+
+      if (pool === 'pastors') {
+        rows = await mergePastorDirectoryFallback(rows);
+      }
 
       if (rows.length === 0) {
         const params = new URLSearchParams({
@@ -130,6 +172,9 @@ export function LeadershipMemberPickerModal({
           { token }
         );
         rows = unwrapPaginatedArray(fallback);
+        if (pool === 'pastors') {
+          rows = await mergePastorDirectoryFallback(rows);
+        }
       }
 
       setAllMembers(rows.map(mapUserToLeadershipOption).filter((m) => m.id));
@@ -139,7 +184,7 @@ export function LeadershipMemberPickerModal({
     } finally {
       setLoadingMembers(false);
     }
-  }, [token, open, isMain, pool]);
+  }, [token, open, isMain, pool, mergePastorDirectoryFallback]);
 
   const loadFixedChurchMembers = useCallback(async () => {
     if (!token || !open || isMain || !fixedChurchId) return;

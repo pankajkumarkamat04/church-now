@@ -70,8 +70,9 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
- * Global session provider: restores JWT from storage, exposes `user` / `token`,
- * and implements `login`, `register`, `logout`, `refreshUser`.
+ * Global session provider: restores JWT from sessionStorage (tab session only — not
+ * after the browser is fully closed), exposes `user` / `token`, and implements
+ * `login`, `register`, `logout`, `refreshUser`.
  * Mount once in `app/layout.tsx`. Use `ProtectedRoute` for route guards.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {

@@ -49,6 +49,14 @@ const expenseSchema = new mongoose.Schema(
       viceDeacon: { type: Boolean, default: false },
       deacon: { type: Boolean, default: false },
     },
+    receiptNumber: { type: String, trim: true, default: '', index: true },
+    journalEntry: { type: mongoose.Schema.Types.ObjectId, ref: 'JournalEntry', default: null },
+    sourceProcurement: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Procurement',
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

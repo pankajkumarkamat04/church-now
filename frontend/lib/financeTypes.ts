@@ -15,6 +15,8 @@ export type FinanceTx = {
   description: string;
   status: string;
   reference: string;
+  receiptNumber?: string | null;
+  paymentMethod?: string | null;
   churchId: string | null;
   churchName: string | null;
 };

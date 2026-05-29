@@ -9,14 +9,20 @@ export type SystemSettings = {
   copyrightText: string;
 };
 
+/** Fixed footer contact (not editable in settings). */
+export const FOOTER_SUPPORT_PHONE = '+263775656571';
+
+/** Second footer line (branding). */
+export const FOOTER_TAGLINE = 'UCCZ Digital Connect powered by Mandvis Tech Solutions';
+
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   systemName: 'UCCZ CONNECT',
   systemLogoUrl: '',
   supportEmail: '',
-  supportPhone: '+263775656571',
+  supportPhone: FOOTER_SUPPORT_PHONE,
   websiteUrl: '',
   address: '',
-  footerText: 'UCCZ Digital Connect powered by Mandvis Tech Solutions',
+  footerText: FOOTER_TAGLINE,
   copyrightText: '',
 };
 

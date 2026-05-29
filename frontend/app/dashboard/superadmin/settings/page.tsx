@@ -53,7 +53,11 @@ export default function SuperadminSystemSettingsPage() {
     setSaveState('saving');
     setMessage('');
     try {
-      const payload = normalizeSystemSettings({ ...form, copyrightText: '' });
+      const payload = normalizeSystemSettings({
+        ...form,
+        copyrightText: '',
+        footerText: '',
+      });
       const next = await apiFetch<SystemSettings>('/api/superadmin/system-settings', {
         method: 'PUT',
         token,
@@ -120,8 +124,11 @@ export default function SuperadminSystemSettingsPage() {
               value={form.supportPhone}
               onChange={(e) => setForm((prev) => ({ ...prev, supportPhone: e.target.value }))}
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-              placeholder="+1 555 000 0000"
+              placeholder="+263 77 565 6571"
             />
+            <p className="mt-1 text-xs text-neutral-500">
+              Used on reports and church branding. The site footer always shows +263 77 565 6571.
+            </p>
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-1 block text-sm font-medium text-neutral-700">Website URL</span>
@@ -141,19 +148,10 @@ export default function SuperadminSystemSettingsPage() {
               placeholder="Organization address"
             />
           </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Footer text</span>
-            <input
-              value={form.footerText}
-              onChange={(e) => setForm((prev) => ({ ...prev, footerText: e.target.value }))}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-              placeholder="Optional line shown in footer"
-            />
-            <p className="mt-1 text-xs text-neutral-500">
-              Copyright (© current year and system name) is added automatically above this line.
-            </p>
-          </label>
         </div>
+        <p className="text-xs text-neutral-500">
+          Site footer copyright and tagline are fixed; footer contact is always +263 77 565 6571.
+        </p>
         {form.systemLogoUrl ? (
           <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
             <p className="mb-2 text-xs font-medium text-neutral-600">Current logo preview</p>

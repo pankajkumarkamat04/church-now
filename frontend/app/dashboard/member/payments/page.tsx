@@ -28,6 +28,7 @@ type PaymentRow = {
   note?: string;
   paidAt?: string;
   source: string;
+  receiptNumber?: string;
 };
 
 export default function MemberPaymentsPage() {
@@ -43,6 +44,7 @@ export default function MemberPaymentsPage() {
   const [balance, setBalance] = useState(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
 
   useEffect(() => {
     if (codes.length) setAmountsByOption(emptyAmountsForCodes(codes));
@@ -101,6 +103,7 @@ export default function MemberPaymentsPage() {
     e.preventDefault();
     if (!token) return;
     setErr(null);
+    setReceiptNumber(null);
     setBusy(true);
     try {
       const normalizedAmounts = codes.reduce(
@@ -125,7 +128,7 @@ export default function MemberPaymentsPage() {
       if (previewUsd > balanceUsd + 1e-9) {
         throw new Error('Insufficient balance. Ask treasurer to deposit funds first.');
       }
-      await apiFetch('/api/member/payments/pay', {
+      const res = await apiFetch<{ receiptNumber?: string | null }>('/api/member/payments/pay', {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -135,6 +138,7 @@ export default function MemberPaymentsPage() {
           note,
         }),
       });
+      setReceiptNumber(res.receiptNumber || null);
       setAmountsByOption(emptyAmountsForCodes(codes));
       setNote('');
       await load();
@@ -152,6 +156,11 @@ export default function MemberPaymentsPage() {
       <h1 className="text-2xl font-semibold text-neutral-900">Payments</h1>
       <p className="mt-1 text-sm text-neutral-600">Use available balance deposited by treasurer, then allocate it across payment types.</p>
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
+      {receiptNumber ? (
+        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          Payment recorded. Receipt: <strong>{receiptNumber}</strong>
+        </p>
+      ) : null}
       {ratesErr ? <p className="mt-2 text-xs text-amber-800">{ratesErr} (USD amounts still work.)</p> : null}
       <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-violet-700">Available balance</p>
@@ -225,6 +234,7 @@ export default function MemberPaymentsPage() {
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Payment types and amounts</th>
               <th className="px-4 py-2 font-medium">Total</th>
+              <th className="px-4 py-2 font-medium">Receipt</th>
               <th className="px-4 py-2 font-medium">Note</th>
             </tr>
           </thead>
@@ -246,6 +256,7 @@ export default function MemberPaymentsPage() {
                     </span>
                   ) : null}
                 </td>
+                <td className="px-4 py-2 font-mono text-xs">{r.receiptNumber || '—'}</td>
                 <td className="px-4 py-2">{r.note || '—'}</td>
               </tr>
             ))}

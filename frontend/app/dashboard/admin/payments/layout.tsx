@@ -7,6 +7,7 @@ import { hasTreasurerPrivileges } from './_lib/treasurer-shared';
 
 const NAV = [
   { href: '/dashboard/admin/payments', label: 'Overview', match: 'exact' as const },
+  { href: '/dashboard/admin/finance/global-payments', label: 'Global payments', match: 'prefix' as const, requiresTreasurer: true },
   { href: '/dashboard/admin/payments/balance', label: 'Balances & deposits', match: 'prefix' as const, requiresTreasurer: true },
   { href: '/dashboard/admin/payments/on-behalf', label: 'Pay on behalf', match: 'prefix' as const, requiresTreasurer: true },
   { href: '/dashboard/admin/payments/history', label: 'History', match: 'prefix' as const },

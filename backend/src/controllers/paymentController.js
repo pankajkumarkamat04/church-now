@@ -1,7 +1,6 @@
 const { Payment, PAYMENT_OPTIONS } = require('../models/Payment');
 const MemberBalanceDeposit = require('../models/MemberBalanceDeposit');
 const User = require('../models/User');
-const { normalizeDisplayCurrency, convertDisplayAmountToUsd } = require('../utils/displayCurrency');
 const { ensureTreasurerAccess } = require('../utils/treasurerAccess');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
 const {
@@ -10,37 +9,13 @@ const {
   serializeDeletionRequest,
 } = require('../utils/transactionDeletion');
 const {
-  getActivePaymentTypeCodes,
-  normalizeAmountsByOption,
-  validatePaymentLineTypes,
-  normalizeCode,
-} = require('../utils/paymentTypes');
+  churchPeopleFilter,
+  executeWalletDeposit,
+  executeCongregationPayment,
+} = require('../utils/churchPaymentFlow');
 
 function churchId(req) {
   return req.user?.church;
-}
-
-/** Same people scope as congregation list: members + church-linked admins (treasurer, etc.). */
-function churchPeopleFilter(churchId) {
-  if (!churchId) return { _id: null };
-  return {
-    $or: [
-      { church: churchId, role: 'MEMBER' },
-      { role: 'ADMIN', $or: [{ church: churchId }, { adminChurches: churchId }] },
-    ],
-  };
-}
-
-function normalizeOption(option) {
-  return normalizeCode(option);
-}
-
-function validatePayloadAmount({ amount }) {
-  const numericAmount = Number(amount);
-  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-    return 'Valid amount is required';
-  }
-  return null;
 }
 
 async function listMemberPayments(req, res) {
@@ -61,73 +36,21 @@ async function getMemberPaymentBalance(req, res) {
 async function payMember(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const payload = req.body || {};
-  const activeCodes = await getActivePaymentTypeCodes(cid);
-  const amountsByOption = normalizeAmountsByOption(payload.amountsByOption, activeCodes);
-  const entries = Object.entries(amountsByOption).filter(([, amount]) => amount > 0);
 
-  if (entries.length === 0) {
-    const amountErr = validatePayloadAmount(payload);
-    if (amountErr) return res.status(400).json({ message: 'Enter at least one payment amount' });
-    entries.push([normalizeOption(payload.paymentType || payload.paymentOption), Number(payload.amount)]);
-  }
-
-  const typeErr = validatePaymentLineTypes(
-    entries.map(([paymentType]) => paymentType),
-    activeCodes
-  );
-  if (typeErr) return res.status(400).json({ message: typeErr });
-
-  const paidAt = payload.paidAt ? new Date(payload.paidAt) : new Date();
-  const display = normalizeDisplayCurrency(payload.displayCurrency ?? payload.currency);
-  const note = String(payload.note || '').trim();
-  const paymentLinesDisplay = entries.map(([paymentType, amount]) => ({
-    paymentType,
-    amount: Number(amount),
-  }));
-  const totalDisplay = paymentLinesDisplay.reduce((sum, line) => sum + line.amount, 0);
-  let conv;
-  try {
-    conv = await convertDisplayAmountToUsd(display, totalDisplay);
-  } catch (e) {
-    const code = e.statusCode || 400;
-    return res.status(code).json({ message: e.message || 'Currency conversion failed' });
-  }
-  const factor = totalDisplay > 0 ? conv.amountUsd / totalDisplay : 0;
-  const paymentLines = paymentLinesDisplay.map((line) => ({
-    paymentType: line.paymentType,
-    amount: line.amount * factor,
-  }));
-  const totalAmount = conv.amountUsd;
-  const updatedMember = await User.findOneAndUpdate(
-    {
-      _id: req.user._id,
-      church: cid,
-      walletBalance: { $gte: totalAmount },
-    },
-    { $inc: { walletBalance: -totalAmount } },
-    { new: true }
-  ).select('walletBalance');
-  if (!updatedMember) {
-    return res.status(400).json({ message: 'Insufficient balance. Ask treasurer to deposit funds first.' });
-  }
-  const row = await Payment.create({
-    church: cid,
-    user: req.user._id,
-    paymentLines,
-    amount: totalAmount,
-    currency: 'USD',
-    displayCurrency: conv.displayCurrency,
-    fxUsdPerUnit: conv.fxUsdPerUnit,
-    amountDisplayTotal: conv.amountDisplay,
-    note,
-    paidAt,
+  const result = await executeCongregationPayment({
+    churchId: cid,
+    targetUserId: String(req.user._id),
+    payload: req.body || {},
     source: 'MEMBER',
     createdBy: req.user._id,
+    paymentMethod: 'Wallet',
   });
+  if (result.error) return res.status(result.statusCode || 400).json({ message: result.error });
+
   return res.status(201).json({
-    ...row.toObject(),
-    remainingBalance: Number(updatedMember.walletBalance || 0),
+    ...result.payment.toObject(),
+    remainingBalance: result.remainingBalance,
+    receiptNumber: result.receiptNumber,
   });
 }
 
@@ -159,96 +82,28 @@ async function listAdminPayments(req, res) {
   return res.json(paginatedResponse(data, total, page, limit));
 }
 
-/** Treasurer allocates payment types from a recipient's wallet (same rules as member self-pay). */
 async function payOnBehalf(req, res) {
   if (!(await ensureTreasurerAccess(req, res))) return;
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
-  const payload = req.body || {};
-  const targetUserId = String(payload.memberId || payload.userId || '').trim();
-  if (!targetUserId) {
-    return res.status(400).json({ message: 'memberId is required' });
-  }
 
-  const recipientOk = await User.findOne({
-    _id: targetUserId,
-    ...churchPeopleFilter(cid),
-  }).select('_id');
-  if (!recipientOk) {
-    return res.status(404).json({ message: 'Recipient not found in your church' });
-  }
+  const targetUserId = String(req.body?.memberId || req.body?.userId || '').trim();
+  if (!targetUserId) return res.status(400).json({ message: 'memberId is required' });
 
-  const activeCodes = await getActivePaymentTypeCodes(cid);
-  const amountsByOption = normalizeAmountsByOption(payload.amountsByOption, activeCodes);
-  const entries = Object.entries(amountsByOption).filter(([, amount]) => amount > 0);
-
-  if (entries.length === 0) {
-    const amountErr = validatePayloadAmount(payload);
-    if (amountErr) return res.status(400).json({ message: 'Enter at least one payment amount' });
-    entries.push([normalizeOption(payload.paymentType || payload.paymentOption), Number(payload.amount)]);
-  }
-
-  const typeErr = validatePaymentLineTypes(
-    entries.map(([paymentType]) => paymentType),
-    activeCodes
-  );
-  if (typeErr) return res.status(400).json({ message: typeErr });
-
-  const paidAt = payload.paidAt ? new Date(payload.paidAt) : new Date();
-  const display = normalizeDisplayCurrency(payload.displayCurrency ?? payload.currency);
-  const note = String(payload.note || '').trim();
-  const paymentLinesDisplay = entries.map(([paymentType, amount]) => ({
-    paymentType,
-    amount: Number(amount),
-  }));
-  const totalDisplay = paymentLinesDisplay.reduce((sum, line) => sum + line.amount, 0);
-  let conv;
-  try {
-    conv = await convertDisplayAmountToUsd(display, totalDisplay);
-  } catch (e) {
-    const code = e.statusCode || 400;
-    return res.status(code).json({ message: e.message || 'Currency conversion failed' });
-  }
-  const factor = totalDisplay > 0 ? conv.amountUsd / totalDisplay : 0;
-  const paymentLines = paymentLinesDisplay.map((line) => ({
-    paymentType: line.paymentType,
-    amount: line.amount * factor,
-  }));
-  const totalAmount = conv.amountUsd;
-
-  const updatedMember = await User.findOneAndUpdate(
-    {
-      _id: targetUserId,
-      ...churchPeopleFilter(cid),
-      walletBalance: { $gte: totalAmount },
-    },
-    { $inc: { walletBalance: -totalAmount } },
-    { new: true }
-  ).select('walletBalance');
-  if (!updatedMember) {
-    return res.status(400).json({
-      message: 'Insufficient balance for this account. Deposit funds first.',
-    });
-  }
-
-  const row = await Payment.create({
-    church: cid,
-    user: targetUserId,
-    paymentLines,
-    amount: totalAmount,
-    currency: 'USD',
-    displayCurrency: conv.displayCurrency,
-    fxUsdPerUnit: conv.fxUsdPerUnit,
-    amountDisplayTotal: conv.amountDisplay,
-    note,
-    paidAt,
+  const result = await executeCongregationPayment({
+    churchId: cid,
+    targetUserId,
+    payload: req.body || {},
     source: 'ADMIN',
     createdBy: req.user._id,
+    paymentMethod: req.body?.paymentMethod || 'Wallet',
   });
+  if (result.error) return res.status(result.statusCode || 400).json({ message: result.error });
 
   return res.status(201).json({
-    ...row.toObject(),
-    remainingBalance: Number(updatedMember.walletBalance || 0),
+    ...result.payment.toObject(),
+    remainingBalance: result.remainingBalance,
+    receiptNumber: result.receiptNumber,
   });
 }
 
@@ -276,47 +131,34 @@ async function depositMemberBalance(req, res) {
   if (!(await ensureTreasurerAccess(req, res))) return;
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
+
   const memberId = String(req.body?.memberId || '').trim();
   const amountRaw = Number(req.body?.amount);
   if (!memberId) return res.status(400).json({ message: 'memberId is required' });
   if (!Number.isFinite(amountRaw) || amountRaw <= 0) {
     return res.status(400).json({ message: 'Valid deposit amount is required' });
   }
-  const display = normalizeDisplayCurrency(req.body?.displayCurrency ?? req.body?.currency);
-  let conv;
-  try {
-    conv = await convertDisplayAmountToUsd(display, amountRaw);
-  } catch (e) {
-    const code = e.statusCode || 400;
-    return res.status(code).json({ message: e.message || 'Currency conversion failed' });
-  }
-  const updated = await User.findOneAndUpdate(
-    { _id: memberId, ...churchPeopleFilter(cid) },
-    { $inc: { walletBalance: conv.amountUsd } },
-    { new: true, runValidators: true }
-  ).select('fullName email walletBalance');
-  if (!updated) return res.status(404).json({ message: 'Person not found in your church' });
-  const depositLog = await MemberBalanceDeposit.create({
-    church: cid,
-    member: updated._id,
-    amount: conv.amountUsd,
-    currency: 'USD',
-    displayCurrency: conv.displayCurrency,
-    fxUsdPerUnit: conv.fxUsdPerUnit,
-    amountDisplay: conv.amountDisplay,
-    depositedBy: req.user._id,
-    depositedAt: new Date(),
+
+  const result = await executeWalletDeposit({
+    churchId: cid,
+    memberId,
+    amountRaw,
+    displayCurrency: req.body?.displayCurrency ?? req.body?.currency,
+    paymentMethod: req.body?.paymentMethod || 'Cash',
+    userId: req.user._id,
   });
+  if (result.error) return res.status(result.statusCode || 400).json({ message: result.error });
+
   return res.json({
-    _id: updated._id,
-    fullName: updated.fullName || '',
-    email: updated.email || '',
-    walletBalance: Number(updated.walletBalance || 0),
-    depositId: depositLog._id,
+    _id: result.member._id,
+    fullName: result.member.fullName || '',
+    email: result.member.email || '',
+    walletBalance: Number(result.member.walletBalance || 0),
+    depositId: result.deposit._id,
+    receiptNumber: result.receiptNumber,
   });
 }
 
-/** Treasurer view: payments + deposits for one congregation member (same scope as member list). */
 async function listMemberStatementForAdmin(req, res) {
   const cid = churchId(req);
   if (!cid) return res.status(400).json({ message: 'No church assigned' });
@@ -380,7 +222,6 @@ async function listSuperadminPayments(req, res) {
   return res.json(paginatedResponse(rows, total, page, limit));
 }
 
-/** Platform-wide treasurer deposits (all congregations). */
 async function listSuperadminDepositHistory(req, res) {
   const { page, limit, skip } = getPaginationParams(req.query);
   const [total, rows] = await Promise.all([

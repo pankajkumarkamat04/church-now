@@ -36,6 +36,7 @@ export default function AdminPaymentsOnBehalfPage() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
   const canManagePayments = hasTreasurerPrivileges(user);
 
   const loadMembers = useCallback(async () => {
@@ -96,6 +97,7 @@ export default function AdminPaymentsOnBehalfPage() {
       return;
     }
     setErr(null);
+    setReceiptNumber(null);
     setBusy(true);
     try {
       const normalizedAmounts = activeCodes.reduce(
@@ -116,7 +118,7 @@ export default function AdminPaymentsOnBehalfPage() {
       if (totalPreviewUsd > balanceUsd + 1e-9) {
         throw new Error('Insufficient balance for this person. Deposit funds on the Balances tab first.');
       }
-      await apiFetch('/api/admin/payments/pay-on-behalf', {
+      const res = await apiFetch<{ receiptNumber?: string | null }>('/api/admin/payments/pay-on-behalf', {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -127,6 +129,7 @@ export default function AdminPaymentsOnBehalfPage() {
           note,
         }),
       });
+      setReceiptNumber(res.receiptNumber || null);
       setAmountsByOption(emptyAmountsForCodes(activeCodes));
       setNote('');
       await loadMembers();
@@ -151,6 +154,11 @@ export default function AdminPaymentsOnBehalfPage() {
         </p>
       ) : null}
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
+      {receiptNumber ? (
+        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          Payment recorded. Receipt: <strong>{receiptNumber}</strong>
+        </p>
+      ) : null}
       {ratesErr ? <p className="mt-2 text-xs text-amber-800">{ratesErr} (USD amounts still work.)</p> : null}
 
       <div className="mt-4">

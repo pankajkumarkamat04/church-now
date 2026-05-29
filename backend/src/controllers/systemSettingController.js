@@ -86,8 +86,6 @@ async function updateSystemSettings(req, res) {
       'supportPhone',
       'websiteUrl',
       'address',
-      'footerText',
-      'copyrightText',
     ];
     const updates = {};
     for (const key of allowedKeys) {
@@ -98,6 +96,8 @@ async function updateSystemSettings(req, res) {
     if (updates.systemName !== undefined && !updates.systemName) {
       return res.status(400).json({ message: 'System name is required' });
     }
+    updates.footerText = DEFAULT_SETTINGS.footerText;
+    updates.copyrightText = '';
     const row = await SystemSetting.findOneAndUpdate(
       { singletonKey: 'default' },
       { $set: updates, $setOnInsert: { singletonKey: 'default' } },

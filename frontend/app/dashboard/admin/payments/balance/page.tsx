@@ -36,6 +36,8 @@ export default function AdminPaymentsBalancePage() {
   const [depositAmount, setDepositAmount] = useState('');
   const [depositCurrency, setDepositCurrency] = useState<DisplayCurrency>('USD');
   const [depositBusy, setDepositBusy] = useState(false);
+  const [depositReceipt, setDepositReceipt] = useState<string | null>(null);
+  const [depositMethod, setDepositMethod] = useState('Cash');
   const [rates, setRates] = useState<PublicCurrencyRates | null>(null);
   const [listDisplay, setListDisplay] = useState<DisplayCurrency>('USD');
   const [err, setErr] = useState<string | null>(null);
@@ -75,8 +77,9 @@ export default function AdminPaymentsBalancePage() {
     }
     setDepositBusy(true);
     setErr(null);
+    setDepositReceipt(null);
     try {
-      await apiFetch('/api/admin/payments/deposit', {
+      const res = await apiFetch<{ receiptNumber?: string | null }>('/api/admin/payments/deposit', {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -84,8 +87,10 @@ export default function AdminPaymentsBalancePage() {
           amount,
           displayCurrency: depositCurrency,
           currency: depositCurrency,
+          paymentMethod: depositMethod,
         }),
       });
+      setDepositReceipt(res.receiptNumber || null);
       setDepositAmount('');
       await load();
     } catch (e) {
@@ -116,7 +121,12 @@ export default function AdminPaymentsBalancePage() {
         </p>
       ) : null}
       {err ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
-      <form onSubmit={onDeposit} className="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm md:grid-cols-4">
+      {depositReceipt ? (
+        <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          Deposit recorded. Receipt: <strong>{depositReceipt}</strong> — verify in Finance → Ledger to post cash balances.
+        </p>
+      ) : null}
+      <form onSubmit={onDeposit} className="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm md:grid-cols-5">
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-600">Recipient</label>
           <select
@@ -159,6 +169,21 @@ export default function AdminPaymentsBalancePage() {
                 {o.label}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">Payment method</label>
+          <select
+            value={depositMethod}
+            onChange={(e) => setDepositMethod(e.target.value)}
+            disabled={!canManagePayments}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          >
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Cheque">Cheque</option>
+            <option value="EcoCash">EcoCash</option>
+            <option value="Mobile Money">Mobile Money</option>
           </select>
         </div>
         <button

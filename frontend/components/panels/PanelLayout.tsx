@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
+  BookOpen,
   Building2,
   Calendar,
   ChevronDown,
+  CircleDollarSign,
   Clock,
   FolderOpen,
   Landmark,
@@ -15,6 +17,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  PieChart,
   Shield,
   UserCheck,
   Settings,
@@ -23,10 +26,12 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { hasTreasurerPrivileges } from '@/app/dashboard/admin/payments/_lib/treasurer-shared';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import { PortalToggle } from '@/components/dashboard/PortalToggle';
 import { BrandIdentity } from '@/components/branding/BrandIdentity';
 import { isDualPortalUser } from '@/lib/dashboardRouting';
+import { financeNavItems, isFinanceNavItemActive, isFinanceSectionActive } from '@/lib/financeNav';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { AppFooter } from '@/components/layout/AppFooter';
 import type { Role } from '@/lib/api';
@@ -111,19 +116,11 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (href === '/dashboard/admin/members') {
       return pathname === href || pathname.startsWith('/dashboard/admin/members/');
     }
-    if (href === '/dashboard/admin/finance') {
-      return pathname === '/dashboard/admin/finance';
+    if (href.includes('/finance') || href.includes('/payments')) {
+      return isFinanceNavItemActive(pathname, href, 'admin');
     }
     if (href === '/dashboard/member') {
       return pathname === href || pathname.startsWith('/dashboard/member/');
-    }
-    if (
-      href === '/dashboard/admin/finance/reports' ||
-      href === '/dashboard/admin/finance/expenses' ||
-      href === '/dashboard/admin/finance/assets' ||
-      href === '/dashboard/admin/payments'
-    ) {
-      return pathname === href || pathname.startsWith(`${href}/`);
     }
     return pathname === href;
   }
@@ -131,17 +128,8 @@ function isNavActive(pathname: string, href: string, variant: PanelVariant) {
     if (href === '/dashboard/superadmin') {
       return pathname === '/dashboard/superadmin';
     }
-    if (href === '/dashboard/superadmin/finance') {
-      return pathname === '/dashboard/superadmin/finance';
-    }
-    if (
-      href === '/dashboard/superadmin/finance/reports' ||
-      href === '/dashboard/superadmin/finance/expenses' ||
-      href === '/dashboard/superadmin/finance/assets' ||
-      href === '/dashboard/superadmin/finance/remittances' ||
-      href === '/dashboard/superadmin/payments'
-    ) {
-      return pathname === href || pathname.startsWith(`${href}/`);
+    if (href.includes('/finance') || href.includes('/payments')) {
+      return isFinanceNavItemActive(pathname, href, 'superadmin');
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   }
@@ -162,6 +150,35 @@ const SUPER_SETTINGS_LINK: NavItem = {
   label: 'Settings',
   icon: <UserCog className="size-4 shrink-0 opacity-80" aria-hidden />,
 };
+
+function financeSidebarIcon(href: string): React.ReactNode {
+  const cls = 'size-3.5 opacity-70';
+  if (href.includes('/ledger')) return <BookOpen className={cls} aria-hidden />;
+  if (href.includes('/cashbook')) return <Wallet className={cls} aria-hidden />;
+  if (href.includes('/budget')) return <PieChart className={cls} aria-hidden />;
+  if (href.includes('/global-payments')) return <CircleDollarSign className={cls} aria-hidden />;
+  if (href.includes('/reports')) return <BarChart3 className={cls} aria-hidden />;
+  if (href.includes('/remittances')) return <Wallet className={cls} aria-hidden />;
+  if (href.includes('/procurement')) return <Wallet className={cls} aria-hidden />;
+  if (href.includes('/expenses')) return <Wallet className={cls} aria-hidden />;
+  if (href.includes('/assets')) return <Building2 className={cls} aria-hidden />;
+  if (href.includes('/payments')) return <Wallet className={cls} aria-hidden />;
+  return <LayoutDashboard className={cls} aria-hidden />;
+}
+
+function financeNavGroup(variant: PanelVariant): AdminNavGroup {
+  const navVariant = variant === 'admin' ? 'admin' : 'superadmin';
+  return {
+    id: 'finance',
+    label: 'Finance',
+    icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
+    children: financeNavItems(navVariant).map((item) => ({
+      href: item.href,
+      label: item.label,
+      icon: financeSidebarIcon(item.href),
+    })),
+  };
+}
 
 function superadminNavGroups(): AdminNavGroup[] {
   return [
@@ -224,19 +241,7 @@ function superadminNavGroups(): AdminNavGroup[] {
       icon: <Megaphone className="size-4 shrink-0 opacity-80" aria-hidden />,
       children: [{ href: '/dashboard/superadmin/announcements', label: 'Announcements', icon: <Megaphone className="size-3.5 opacity-70" /> }],
     },
-    {
-      id: 'finance',
-      label: 'Finance',
-      icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
-      children: [
-        { href: '/dashboard/superadmin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/finance/remittances', label: 'Remittances', icon: <Wallet className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/finance/assets', label: 'Assets', icon: <Building2 className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/superadmin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
-      ],
-    },
+    financeNavGroup('superadmin'),
   ];
 }
 
@@ -277,30 +282,13 @@ function superadminPathInGroup(
     return pathname.startsWith('/dashboard/superadmin/announcements');
   }
   if (groupId === 'finance') {
-    return (
-      pathname === '/dashboard/superadmin/finance' ||
-      pathname.startsWith('/dashboard/superadmin/finance/') ||
-      pathname.startsWith('/dashboard/superadmin/payments')
-    );
+    return isFinanceSectionActive(pathname, 'superadmin');
   }
   return false;
 }
 
 function adminNavGroups(): AdminNavGroup[] {
-  return [
-    {
-      id: 'finance',
-      label: 'Finance',
-      icon: <Wallet className="size-4 shrink-0 opacity-80" aria-hidden />,
-      children: [
-        { href: '/dashboard/admin/finance', label: 'Overview', icon: <LayoutDashboard className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/payments', label: 'Payments', icon: <Wallet className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/finance/expenses', label: 'Expenses', icon: <Wallet className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/finance/assets', label: 'Assets', icon: <Building2 className="size-3.5 opacity-70" /> },
-        { href: '/dashboard/admin/finance/reports', label: 'Reports', icon: <BarChart3 className="size-3.5 opacity-70" /> },
-      ],
-    },
-  ];
+  return [financeNavGroup('admin')];
 }
 
 const ADMIN_DASHBOARD_LINK: NavItem = {
@@ -387,10 +375,8 @@ export function PanelLayout({
     variant === 'superadmin' && user ? panelRoleLabel(user.role) : meta.badge;
   const adminChurchRoleLabel = variant === 'admin' ? resolveAdminChurchRole(user || {}) : '';
 
-  const adminPathFinance =
-    pathname === '/dashboard/admin/finance' ||
-    pathname.startsWith('/dashboard/admin/finance/') ||
-    pathname.startsWith('/dashboard/admin/payments');
+  const adminPathFinance = isFinanceSectionActive(pathname, 'admin');
+  const showAdminFinance = variant === 'admin' && hasTreasurerPrivileges(user);
 
   useEffect(() => {
     if (loading) return;
@@ -523,8 +509,9 @@ export function PanelLayout({
                   </Link>
                 ) : null}
 
-                {/* Finance accordion */}
-                {adminGroups.map((group) => {
+                {/* Finance accordion — treasurers and vice treasurers only */}
+                {showAdminFinance
+                  ? adminGroups.map((group) => {
                   const isOpen = adminFinanceOpen;
                   const groupHasActive = adminPathFinance;
                   return (
@@ -564,7 +551,8 @@ export function PanelLayout({
                       )}
                     </div>
                   );
-                })}
+                  })
+                  : null}
 
                 {/* Divider */}
                 <div className="my-2 border-t border-neutral-100 dark:border-neutral-800" />

@@ -22,6 +22,7 @@ const GlobalCouncil = require('../models/GlobalCouncil');
 const PastorTerm = require('../models/PastorTerm');
 const Event = require('../models/Event');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
+const { collectPastorUserIdsForRoster } = require('../utils/leadershipRosterPastors');
 const { resolveMemberIdForChurch } = require('../utils/memberId');
 const { validateNewPassword } = require('../utils/passwordPolicy');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
@@ -1084,8 +1085,16 @@ async function listLeadershipRoster(req, res) {
     const pool = String(req.query.pool || '').trim().toLowerCase();
     const filter = { role: { $in: ['MEMBER', 'ADMIN'] }, isActive: { $ne: false } };
     if (pool === 'pastors') {
-      filter.memberCategory = 'PASTOR';
+      const pastorIds = await collectPastorUserIdsForRoster();
+      if (pastorIds.length === 0) {
+        return res.json([]);
+      }
+      filter._id = { $in: pastorIds };
     } else if (pool === 'lay') {
+      const pastorIds = await collectPastorUserIdsForRoster();
+      if (pastorIds.length > 0) {
+        filter._id = { $nin: pastorIds };
+      }
       filter.memberCategory = { $ne: 'PASTOR' };
     } else {
       return res.status(400).json({ message: 'pool must be pastors or lay' });
@@ -1105,12 +1114,14 @@ async function listLeadershipRoster(req, res) {
     return res.json(
       users.map((u) => ({
         id: u._id,
+        _id: u._id,
         email: u.email,
         fullName: u.fullName,
         firstName: u.firstName || '',
         surname: u.surname || '',
         memberId: u.memberId || '',
         memberCategory: u.memberCategory,
+        pastorServiceScope: u.pastorServiceScope || null,
         church: u.church,
       }))
     );

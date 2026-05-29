@@ -25,6 +25,8 @@ export type PaymentRow = {
   };
   createdBy?: { fullName?: string; email?: string };
   pendingDeletion?: PendingDeletion | null;
+  receiptNumber?: string;
+  paymentMethod?: string;
 };
 
 export type MemberBalanceRow = {
@@ -55,6 +57,8 @@ export type DepositHistoryRow = {
     role?: string;
   };
   depositedBy?: { fullName?: string; email?: string };
+  receiptNumber?: string;
+  paymentMethod?: string;
 };
 
 export function memberStatementHref(id?: string | null): string | null {

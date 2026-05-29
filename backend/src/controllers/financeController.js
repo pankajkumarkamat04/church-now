@@ -1,5 +1,6 @@
 const { Payment } = require('../models/Payment');
 const Expense = require('../models/Expense');
+const MemberBalanceDeposit = require('../models/MemberBalanceDeposit');
 const Church = require('../models/Church');
 
 const MAX_TRANSACTION_ROWS = 3500;
@@ -40,6 +41,8 @@ function mapPaymentRow(p, churchLabel) {
     description: (p.note && String(p.note).trim()) || breakdownText || `${type} payment`,
     status: breakdown.length > 1 ? 'COMBINED' : option,
     reference: String(p._id),
+    receiptNumber: p.receiptNumber ? String(p.receiptNumber) : null,
+    paymentMethod: p.paymentMethod ? String(p.paymentMethod) : null,
     churchId: p.church ? String(p.church) : null,
     churchName: churchLabel || (p.church && p.church.name) || null,
   };
@@ -61,8 +64,31 @@ function mapExpenseRow(e, churchLabel) {
     description: e.description ? String(e.description).slice(0, 200) : e.title,
     status: e.category || '—',
     reference: String(e._id),
+    receiptNumber: e.receiptNumber ? String(e.receiptNumber) : null,
     churchId: e.church ? String(e.church) : null,
     churchName: churchLabel || (e.church && e.church.name) || null,
+  };
+}
+
+function mapDepositRow(d, churchLabel) {
+  return {
+    id: `deposit-${d._id}`,
+    kind: 'DEPOSIT',
+    paymentType: 'Wallet deposit',
+    paymentWay: d.paymentMethod ? String(d.paymentMethod) : 'Cash',
+    amount: Number(d.amount || 0),
+    currency: 'USD',
+    displayCurrency: String(d.displayCurrency || 'USD').toUpperCase(),
+    fxUsdPerUnit: d.fxUsdPerUnit != null ? Number(d.fxUsdPerUnit) : null,
+    amountDisplayTotal: d.amountDisplay != null ? Number(d.amountDisplay) : null,
+    date: d.depositedAt ? new Date(d.depositedAt).toISOString() : null,
+    party: (d.member && d.member.fullName) || (d.member && d.member.email) || '—',
+    description: 'Treasurer wallet deposit',
+    status: 'DEPOSIT',
+    reference: String(d._id),
+    receiptNumber: d.receiptNumber ? String(d.receiptNumber) : null,
+    churchId: d.church ? String(d.church) : null,
+    churchName: churchLabel || (d.church && d.church.name) || null,
   };
 }
 
@@ -81,24 +107,30 @@ function filterKinds(rows, kindsParam) {
 async function buildTransactionRowsForChurch(churchId, fromStr, toStr, kindsParam) {
   const payQ = { church: churchId, ...buildDateRange('paidAt', fromStr, toStr) };
   const expQ = { church: churchId, ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
+  const depQ = { church: churchId, ...buildDateRange('depositedAt', fromStr, toStr) };
 
-  const [payments, exps] = await Promise.all([
+  const [payments, exps, deposits] = await Promise.all([
     Payment.find(payQ)
       .populate('user', 'fullName email')
       .select(
-        'amount currency displayCurrency fxUsdPerUnit amountDisplayTotal paidAt paymentLines note user church source donorName donorEmail'
+        'amount currency displayCurrency fxUsdPerUnit amountDisplayTotal paidAt paymentLines note user church source donorName donorEmail paymentMethod receiptNumber'
       )
       .lean(),
     Expense.find(expQ)
       .select(
-        'title amount currency displayCurrency fxUsdPerUnit amountDisplayTotal expenseDate category description church'
+        'title amount currency displayCurrency fxUsdPerUnit amountDisplayTotal expenseDate category description church receiptNumber'
       )
+      .lean(),
+    MemberBalanceDeposit.find(depQ)
+      .populate('member', 'fullName email')
+      .select('amount currency displayCurrency fxUsdPerUnit amountDisplay depositedAt member church paymentMethod receiptNumber')
       .lean(),
   ]);
 
   const rows = [];
   for (const p of payments) rows.push(mapPaymentRow(p, null));
   for (const e of exps) rows.push(mapExpenseRow(e, null));
+  for (const d of deposits) rows.push(mapDepositRow(d, null));
 
   rows.sort((a, b) => {
     const ta = a.date ? new Date(a.date).getTime() : 0;
@@ -116,20 +148,26 @@ async function buildTransactionRowsForChurch(churchId, fromStr, toStr, kindsPara
 async function buildTransactionRowsAllChurches(fromStr, toStr, kindsParam) {
   const payQ = { ...buildDateRange('paidAt', fromStr, toStr) };
   const expQ = { ...postedExpenseFilter, ...buildDateRange('expenseDate', fromStr, toStr) };
+  const depQ = { ...buildDateRange('depositedAt', fromStr, toStr) };
 
-  const [payments, exps] = await Promise.all([
+  const [payments, exps, deposits] = await Promise.all([
     Payment.find(payQ)
       .populate('user', 'fullName email')
       .populate('church', 'name')
       .select(
-        'amount currency displayCurrency fxUsdPerUnit amountDisplayTotal paidAt paymentLines note user church source donorName donorEmail'
+        'amount currency displayCurrency fxUsdPerUnit amountDisplayTotal paidAt paymentLines note user church source donorName donorEmail paymentMethod receiptNumber'
       )
       .lean(),
     Expense.find(expQ)
       .populate('church', 'name')
       .select(
-        'title amount currency displayCurrency fxUsdPerUnit amountDisplayTotal expenseDate category description church'
+        'title amount currency displayCurrency fxUsdPerUnit amountDisplayTotal expenseDate category description church receiptNumber'
       )
+      .lean(),
+    MemberBalanceDeposit.find(depQ)
+      .populate('member', 'fullName email')
+      .populate('church', 'name')
+      .select('amount currency displayCurrency fxUsdPerUnit amountDisplay depositedAt member church paymentMethod receiptNumber')
       .lean(),
   ]);
 
@@ -141,6 +179,10 @@ async function buildTransactionRowsAllChurches(fromStr, toStr, kindsParam) {
   for (const e of exps) {
     const name = e.church && e.church.name;
     rows.push(mapExpenseRow(e, name));
+  }
+  for (const d of deposits) {
+    const name = d.church && d.church.name;
+    rows.push(mapDepositRow(d, name));
   }
 
   rows.sort((a, b) => {

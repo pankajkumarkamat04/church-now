@@ -7,6 +7,7 @@ const eventController = require('../controllers/eventController');
 const paymentController = require('../controllers/paymentController');
 const paymentTypeController = require('../controllers/paymentTypeController');
 const expenseController = require('../controllers/expenseController');
+const procurementController = require('../controllers/procurementController');
 const financeController = require('../controllers/financeController');
 const assetController = require('../controllers/assetController');
 const pastorController = require('../controllers/pastorController');
@@ -17,6 +18,9 @@ const churchLogoController = require('../controllers/churchLogoController');
 const passwordAdminController = require('../controllers/passwordAdminController');
 const remittanceController = require('../controllers/remittanceController');
 const transactionDeletionController = require('../controllers/transactionDeletionController');
+const ledgerController = require('../controllers/ledgerController');
+const budgetController = require('../controllers/budgetController');
+const globalPaymentController = require('../controllers/globalPaymentController');
 
 const router = express.Router();
 
@@ -101,6 +105,13 @@ router.put('/expenses/:expenseId', asyncHandler(expenseController.updateAdminExp
 router.post('/expenses/:expenseId/verify', asyncHandler(expenseController.verifyAdminExpense));
 router.post('/expenses/:expenseId/notice-approval', asyncHandler(expenseController.approveAdminExpenseNotice));
 router.delete('/expenses/:expenseId', asyncHandler(expenseController.removeAdminExpense));
+router.get('/procurements', asyncHandler(procurementController.listAdminProcurements));
+router.post('/procurements', asyncHandler(procurementController.createAdminProcurement));
+router.get('/procurements/:procurementId', asyncHandler(procurementController.getAdminProcurement));
+router.put('/procurements/:procurementId', asyncHandler(procurementController.updateAdminProcurement));
+router.post('/procurements/:procurementId/submit', asyncHandler(procurementController.submitAdminProcurement));
+router.post('/procurements/:procurementId/approve', asyncHandler(procurementController.approveAdminProcurement));
+router.post('/procurements/:procurementId/reject', asyncHandler(procurementController.rejectAdminProcurement));
 router.get('/finance/remittances/church', asyncHandler(remittanceController.listAdminChurchRemittances));
 router.get('/finance/remittances/church/details', asyncHandler(remittanceController.getAdminChurchRemittanceDetails));
 router.get('/finance/remittances/audit', asyncHandler(remittanceController.listAdminChurchRemittanceAudit));
@@ -117,4 +128,30 @@ router.delete(
   '/transaction-deletions/:requestId',
   asyncHandler(transactionDeletionController.cancelAdminTransactionDeletion)
 );
+
+router.get('/accounting/ledger', asyncHandler(ledgerController.getLedgerAccounts));
+router.post('/accounting/ledger', asyncHandler(ledgerController.createLedgerAccount));
+router.get('/accounting/ledger/entries', asyncHandler(ledgerController.getJournalEntries));
+router.get('/accounting/ledger/cashbook-summary', asyncHandler(ledgerController.getCashBookSummary));
+router.get('/accounting/ledger/:accountId', asyncHandler(ledgerController.getLedgerAccountById));
+router.put('/accounting/ledger/:accountId', asyncHandler(ledgerController.updateLedgerAccount));
+router.get('/accounting/ledger/:accountId/transactions', asyncHandler(ledgerController.getAccountTransactions));
+router.put('/accounting/ledger/entries/:entryId/verify', asyncHandler(ledgerController.verifyTransaction));
+router.put('/accounting/ledger/entries/:entryId/reject', asyncHandler(ledgerController.rejectTransaction));
+
+router.get('/accounting/budget', asyncHandler(budgetController.getBudgets));
+router.get('/accounting/budget/summary', asyncHandler(budgetController.getBudgetSummary));
+router.get('/accounting/budget/vs-actual', asyncHandler(budgetController.getBudgetVsActualReport));
+router.post('/accounting/budget', asyncHandler(budgetController.createBudget));
+router.get('/accounting/budget/:budgetId', asyncHandler(budgetController.getBudgetById));
+router.put('/accounting/budget/:budgetId', asyncHandler(budgetController.updateBudget));
+router.put('/accounting/budget/:budgetId/approve', asyncHandler(budgetController.approveBudget));
+router.put('/accounting/budget/:budgetId/activate', asyncHandler(budgetController.activateBudget));
+router.post('/accounting/budget/:budgetId/refresh-actuals', asyncHandler(budgetController.refreshBudgetActuals));
+
+router.get('/accounting/global-payments/members', asyncHandler(globalPaymentController.listMembers));
+router.get('/accounting/global-payments/members/:memberId', asyncHandler(globalPaymentController.getMemberFinancialSummary));
+router.post('/accounting/global-payments/members/:memberId/deposit', asyncHandler(globalPaymentController.recordGlobalDeposit));
+router.post('/accounting/global-payments/members/:memberId/pay', asyncHandler(globalPaymentController.recordGlobalPayment));
+
 module.exports = router;

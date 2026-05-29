@@ -106,6 +106,23 @@ const paymentSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      default: 'Wallet',
+      maxlength: 64,
+    },
+    receiptNumber: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
+    journalEntry: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'JournalEntry',
+      default: null,
+    },
   },
   { timestamps: true }
 );

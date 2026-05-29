@@ -35,6 +35,23 @@ const memberBalanceDepositSchema = new mongoose.Schema(
       default: Date.now,
       index: true,
     },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      default: 'Cash',
+      maxlength: 64,
+    },
+    receiptNumber: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
+    journalEntry: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'JournalEntry',
+      default: null,
+    },
   },
   { timestamps: true }
 );

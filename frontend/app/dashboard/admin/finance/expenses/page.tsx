@@ -14,7 +14,7 @@ import {
   normalizeDisplayCurrencyInput,
 } from '@/lib/currency';
 
-const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'OTHERS'];
+const CATEGORIES = ['SALARIES', 'BUILDING', 'PROJECTS - GU', 'PROJECTS - WATER VIEW', 'RATES', 'COUNCILS', 'PROCUREMENT', 'OTHERS'];
 
 type ExpenseRow = {
   _id: string;
