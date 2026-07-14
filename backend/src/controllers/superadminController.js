@@ -315,8 +315,29 @@ function toUserListItem(u, churchLeanForRoles = null) {
     contactPhone: u.contactPhone || '',
     gender: u.gender ?? '',
     dateOfBirth: optionalDateInputForClient(u.dateOfBirth),
+    isFullMember: Boolean(u.isFullMember),
     membershipDate: optionalDateInputForClient(u.membershipDate),
+    admittedBy: u.admittedBy || '',
     baptismDate: optionalDateInputForClient(u.baptismDate),
+    baptismBy: u.baptismBy || '',
+    baptismPlace: u.baptismPlace || '',
+    councilBadges: Array.isArray(u.councilBadges)
+      ? u.councilBadges.map((row) => ({
+          councilId: row.councilId != null ? String(row.councilId) : '',
+          badgedVolunteerDate: optionalDateInputForClient(row.badgedVolunteerDate),
+          badgedRuwadzanoDate: optionalDateInputForClient(row.badgedRuwadzanoDate),
+        }))
+      : [],
+    positionsHeld: Array.isArray(u.positionsHeld)
+      ? u.positionsHeld.map((row) => ({
+          _id: row._id != null ? String(row._id) : undefined,
+          title: row.title || '',
+          organization: row.organization || '',
+          fromDate: optionalDateInputForClient(row.fromDate),
+          toDate: optionalDateInputForClient(row.toDate),
+          notes: row.notes || '',
+        }))
+      : [],
     address:
       u.address && typeof u.address === 'object'
         ? {
@@ -685,10 +706,16 @@ async function updateUser(req, res) {
       const profileKeys = [
         'gender',
         'dateOfBirth',
+        'isFullMember',
         'membershipDate',
         'membership_date',
+        'admittedBy',
         'baptismDate',
         'baptism_date',
+        'baptismBy',
+        'baptismPlace',
+        'councilBadges',
+        'positionsHeld',
         'address',
         'firstName',
         'surname',
@@ -967,7 +994,7 @@ async function createMemberUser(req, res) {
     const normalizedFirstName = String(firstName || '').trim();
     const normalizedSurname = String(surname || '').trim();
     const mshipRaw = membershipDate !== undefined ? membershipDate : membership_date;
-    let membershipDateVal = new Date();
+    let membershipDateVal = null;
     if (mshipRaw !== undefined && mshipRaw !== null && mshipRaw !== '') {
       const parsed = parseChurchRecordDate(mshipRaw);
       if (!parsed) {
@@ -1000,6 +1027,7 @@ async function createMemberUser(req, res) {
       gender: gender || undefined,
       dateOfBirth: dobVal,
       address: address || {},
+      isFullMember: Boolean(membershipDateVal),
       membershipDate: membershipDateVal,
       baptismDate: baptismDateVal,
       memberBadgeType: normalizeMemberBadgeType(memberBadgeType),

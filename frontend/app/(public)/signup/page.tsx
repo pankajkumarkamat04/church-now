@@ -7,6 +7,7 @@ import { Church, Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { ProvinceField } from '@/components/forms/ProvinceField';
 import { validatePassword } from '@/lib/passwordPolicy';
 import { apiFetch, type Gender } from '@/lib/api';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
@@ -41,20 +42,14 @@ export default function SignupPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [membershipDate, setMembershipDate] = useState('');
-  const [baptismDate, setBaptismDate] = useState('');
   const [gender, setGender] = useState<Gender>('MALE');
-  const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
-  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR'>('MEMBER');
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
   const [city, setCity] = useState('');
   const [stateOrProvince, setStateOrProvince] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry] = useState('');
+  const [country, setCountry] = useState('Zimbabwe');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   function toggleCouncil(id: string) {
     setCouncilIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -116,7 +111,6 @@ export default function SignupPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
     if (!conferenceId) {
       setError('Select a conference');
       return;
@@ -133,8 +127,8 @@ export default function SignupPage() {
       setError('Date of birth is required');
       return;
     }
-    if (!line1.trim() || !city.trim() || !stateOrProvince.trim() || !postalCode.trim() || !country.trim()) {
-      setError('Complete your residential address (line 1, city, state/province, postal code, country)');
+    if (!line1.trim() || !city.trim() || !stateOrProvince.trim() || !country.trim()) {
+      setError('Complete your residential address (line 1, city, province, country)');
       return;
     }
     const policyErr = validatePassword(password);
@@ -144,32 +138,27 @@ export default function SignupPage() {
     }
     setBusy(true);
     try {
-      const res = await register({
+      await register({
         email,
         password,
         churchId,
         conferenceIds: [conferenceId],
         councilIds,
-        memberCategory,
         firstName,
         surname,
         idNumber,
         dateOfBirth,
         gender,
         contactPhone,
-        membershipDate: membershipDate || undefined,
-        baptismDate: baptismDate || undefined,
-        memberBadgeType,
         address: {
           line1,
           line2,
           city,
           stateOrProvince,
-          postalCode,
           country,
         },
       });
-      setSuccess(res.message || 'Registration submitted. Wait for church admin approval.');
+      router.replace('/login?registered=1');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -186,8 +175,8 @@ export default function SignupPage() {
       </div>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Member registration</h1>
       <p className="mt-3 text-center text-sm text-neutral-600">
-        Choose conference and congregation, select councils, then enter the same profile details your administrator would
-        use when adding a member.
+        Enter your congregation and contact details to create an account. Baptism, full membership, and council
+        badging can be completed later after approval.
       </p>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -208,7 +197,6 @@ export default function SignupPage() {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-neutral-500">Regional conference you belong to.</p>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium text-neutral-700">Congregation (church)</label>
@@ -263,7 +251,9 @@ export default function SignupPage() {
               {councils.length === 0 ? (
                 <p className="text-xs text-neutral-500">No global councils are configured yet.</p>
               ) : (
-                <p className="mt-2 text-xs text-neutral-500">Select one or more councils.</p>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Select one or more councils. Badge dates (Volunteer / Ruwadzano) can be added later on your account.
+                </p>
               )}
             </div>
           </div>
@@ -304,22 +294,13 @@ export default function SignupPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">Date of birth</label>
-            <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} required className={inputClass} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Membership date</label>
             <input
               type="date"
-              value={membershipDate}
-              onChange={(e) => setMembershipDate(e.target.value)}
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              required
               className={inputClass}
-              title="Leave empty to use today’s date"
             />
-            <p className="mt-0.5 text-xs text-neutral-500">Optional — defaults to today at signup if left blank</p>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Baptism date</label>
-            <input type="date" value={baptismDate} onChange={(e) => setBaptismDate(e.target.value)} className={inputClass} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">Gender</label>
@@ -332,32 +313,6 @@ export default function SignupPage() {
               <option value="FEMALE">Female</option>
               <option value="OTHER">Other</option>
               <option value="PREFER_NOT_SAY">Prefer not to say</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Congregation badge</label>
-            <select
-              value={memberBadgeType}
-              onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
-              className={inputClass}
-            >
-              <option value="NON_BADGED">Non-badged</option>
-              <option value="BADGED">Badged</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Member role option</label>
-            <select
-              value={memberCategory}
-              onChange={(e) =>
-                setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR')
-              }
-              className={inputClass}
-            >
-              <option value="MEMBER">Member</option>
-              <option value="PRESIDENT">President</option>
-              <option value="MODERATOR">Moderator</option>
-              <option value="PASTOR">Pastor</option>
             </select>
           </div>
           <div>
@@ -376,14 +331,12 @@ export default function SignupPage() {
             <label className="mb-1 block text-sm font-medium text-neutral-700">City</label>
             <input value={city} onChange={(e) => setCity(e.target.value)} required className={inputClass} />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">State / Province</label>
-            <input value={stateOrProvince} onChange={(e) => setStateOrProvince(e.target.value)} required className={inputClass} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Postal code</label>
-            <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required className={inputClass} />
-          </div>
+          <ProvinceField
+            value={stateOrProvince}
+            onChange={setStateOrProvince}
+            required
+            className={inputClass}
+          />
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">Country</label>
             <input value={country} onChange={(e) => setCountry(e.target.value)} required className={inputClass} />
@@ -391,11 +344,6 @@ export default function SignupPage() {
         </div>
         {error ? (
           <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">{error}</p>
-        ) : null}
-        {success ? (
-          <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-200">
-            {success}
-          </p>
         ) : null}
         <button
           type="submit"

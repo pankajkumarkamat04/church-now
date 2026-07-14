@@ -4,7 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
+import { ProvinceField } from '@/components/forms/ProvinceField';
+import { MemberChurchRecordsFields } from '@/components/forms/MemberChurchRecordsFields';
+import {
+  apiFetch,
+  type AuthUser,
+  type CouncilBadge,
+  type Gender,
+  type MemberAddress,
+  type PositionHeld,
+} from '@/lib/api';
 import { canAccessMemberPortal, getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 
 const field =
@@ -15,7 +24,6 @@ const emptyAddress: MemberAddress = {
   line2: '',
   city: '',
   stateOrProvince: '',
-  postalCode: '',
   country: '',
 };
 
@@ -67,6 +75,14 @@ export default function MemberAccountPage() {
   const [gender, setGender] = useState<Gender | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [address, setAddress] = useState<MemberAddress>(emptyAddress);
+  const [isFullMember, setIsFullMember] = useState(false);
+  const [membershipDate, setMembershipDate] = useState('');
+  const [admittedBy, setAdmittedBy] = useState('');
+  const [baptismDate, setBaptismDate] = useState('');
+  const [baptismBy, setBaptismBy] = useState('');
+  const [baptismPlace, setBaptismPlace] = useState('');
+  const [councilBadges, setCouncilBadges] = useState<CouncilBadge[]>([]);
+  const [positionsHeld, setPositionsHeld] = useState<PositionHeld[]>([]);
   const [churches, setChurches] = useState<ChurchOption[]>([]);
   const [conferences, setConferences] = useState<ConferenceOption[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChurchChangeRequest[]>([]);
@@ -99,6 +115,14 @@ export default function MemberAccountPage() {
     setGender((p.gender as Gender) || '');
     setDateOfBirth(p.dateOfBirth || '');
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
+    setIsFullMember(Boolean(p.isFullMember || p.membershipDate));
+    setMembershipDate(p.membershipDate || p.membership_date || '');
+    setAdmittedBy(p.admittedBy || '');
+    setBaptismDate(p.baptismDate || p.baptism_date || '');
+    setBaptismBy(p.baptismBy || '');
+    setBaptismPlace(p.baptismPlace || '');
+    setCouncilBadges(Array.isArray(p.councilBadges) ? p.councilBadges : []);
+    setPositionsHeld(Array.isArray(p.positionsHeld) ? p.positionsHeld : []);
     const currentChurchId =
       p.church && typeof p.church === 'object' && '_id' in p.church ? String(p.church._id) : '';
     const currentConferenceId = extractConferenceIdFromChurch(p.church);
@@ -165,6 +189,14 @@ export default function MemberAccountPage() {
           gender: gender || null,
           dateOfBirth: dateOfBirth || null,
           address,
+          isFullMember,
+          membershipDate: membershipDate || null,
+          admittedBy,
+          baptismDate: baptismDate || null,
+          baptismBy,
+          baptismPlace,
+          councilBadges,
+          positionsHeld,
         }),
       });
       await Promise.all([load(), refreshUser()]);
@@ -225,13 +257,18 @@ export default function MemberAccountPage() {
     return Boolean(conferenceMatches) && church._id !== currentChurchId;
   });
 
+  const councilOptions = (profile.councils || []).map((c) => ({ _id: c._id, name: c.name }));
+  const councilIds = Array.isArray(profile.councilIds) ? profile.councilIds : councilOptions.map((c) => c._id);
+
   return (
     <div className="dashboard-page w-full min-w-0">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
           Account details
         </h1>
-        <p className="mt-1 text-sm text-neutral-600">Manage your member profile and residential address.</p>
+        <p className="mt-1 text-sm text-neutral-600">
+          Manage your profile, address, and optional church records (baptism, membership, badges, positions).
+        </p>
         <Link
           href="/dashboard/member/password"
           className="mt-2 inline-flex text-sm font-medium text-emerald-700 hover:text-emerald-900"
@@ -241,109 +278,123 @@ export default function MemberAccountPage() {
       </div>
 
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Surname</label>
-            <input value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">ID</label>
-            <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={field} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>
-            <input
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Display name</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
-            <select value={gender} onChange={(e) => setGender(e.target.value as Gender | '')} className={field}>
-              <option value="">—</option>
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
-              <option value="PREFER_NOT_SAY">Prefer not to say</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
-            <input
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-              className={field}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
-            <input
-              value={address.line1}
-              onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
-            <input
-              value={address.line2}
-              onChange={(e) => setAddress({ ...address, line2: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
-            <input
-              value={address.city}
-              onChange={(e) => setAddress({ ...address, city: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
-            <input
+        <form className="space-y-8" onSubmit={onSubmit}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Surname</label>
+              <input value={surname} onChange={(e) => setSurname(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">ID</label>
+              <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>
+              <input
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Display name</label>
+              <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+              <select value={gender} onChange={(e) => setGender(e.target.value as Gender | '')} className={field}>
+                <option value="">—</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+                <option value="PREFER_NOT_SAY">Prefer not to say</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className={field}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
+              <input
+                value={address.line1}
+                onChange={(e) => setAddress({ ...address, line1: e.target.value })}
+                className={field}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
+              <input
+                value={address.line2}
+                onChange={(e) => setAddress({ ...address, line2: e.target.value })}
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
+              <input
+                value={address.city}
+                onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                className={field}
+              />
+            </div>
+            <ProvinceField
               value={address.stateOrProvince}
-              onChange={(e) => setAddress({ ...address, stateOrProvince: e.target.value })}
+              onChange={(stateOrProvince) => setAddress({ ...address, stateOrProvince })}
               className={field}
+              labelClassName="mb-1 block text-xs font-medium text-neutral-600"
             />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
+              <input
+                value={address.country}
+                onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                className={field}
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
-            <input
-              value={address.postalCode}
-              onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
-            <input
-              value={address.country}
-              onChange={(e) => setAddress({ ...address, country: e.target.value })}
-              className={field}
+
+          <div className="border-t border-neutral-100 pt-6">
+            <MemberChurchRecordsFields
+              fieldClass={field}
+              councilOptions={councilOptions}
+              councilIds={councilIds}
+              isFullMember={isFullMember}
+              onIsFullMemberChange={setIsFullMember}
+              membershipDate={membershipDate}
+              onMembershipDateChange={setMembershipDate}
+              admittedBy={admittedBy}
+              onAdmittedByChange={setAdmittedBy}
+              baptismDate={baptismDate}
+              onBaptismDateChange={setBaptismDate}
+              baptismBy={baptismBy}
+              onBaptismByChange={setBaptismBy}
+              baptismPlace={baptismPlace}
+              onBaptismPlaceChange={setBaptismPlace}
+              councilBadges={councilBadges}
+              onCouncilBadgesChange={setCouncilBadges}
+              positionsHeld={positionsHeld}
+              onPositionsHeldChange={setPositionsHeld}
             />
           </div>
 
           {err ? (
-            <p className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {err}
-            </p>
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>
           ) : null}
 
           <button
             type="submit"
             disabled={busy}
-            className="md:col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
           >
             {busy ? <Loader2 className="size-4 animate-spin" /> : null}
             Save details

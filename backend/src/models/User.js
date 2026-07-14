@@ -22,6 +22,28 @@ const addressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/** Per-council badging dates (optional; completed after initial registration). */
+const councilBadgeSchema = new mongoose.Schema(
+  {
+    councilId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    badgedVolunteerDate: { type: Date, default: null },
+    badgedRuwadzanoDate: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
+/** Historical offices / positions held in church life. */
+const positionHeldSchema = new mongoose.Schema(
+  {
+    title: { type: String, trim: true, default: '' },
+    organization: { type: String, trim: true, default: '' },
+    fromDate: { type: Date, default: null },
+    toDate: { type: Date, default: null },
+    notes: { type: String, trim: true, default: '' },
+  },
+  { _id: true }
+);
+
 const userSchema = new mongoose.Schema(
   {
     email: {
@@ -42,10 +64,20 @@ const userSchema = new mongoose.Schema(
       enum: GENDERS,
     },
     dateOfBirth: { type: Date, default: null },
-    /** When the person was received / joined the congregation (record-keeping). */
+    /** Full membership attained (optional at signup; complete later). */
+    isFullMember: { type: Boolean, default: false },
+    /** Date of full membership (when received into full membership). */
     membershipDate: { type: Date, default: null },
-    /** Baptism date if applicable. */
+    /** Mufundisi (minister) who admitted the member into full membership. */
+    admittedBy: { type: String, trim: true, default: '' },
+    /** Baptism record (optional at signup). */
     baptismDate: { type: Date, default: null },
+    baptismBy: { type: String, trim: true, default: '' },
+    baptismPlace: { type: String, trim: true, default: '' },
+    /** Per-council Volunteer / Ruwadzano badge dates. */
+    councilBadges: { type: [councilBadgeSchema], default: [] },
+    /** Historical positions held (committee, office, etc.). */
+    positionsHeld: { type: [positionHeldSchema], default: [] },
     address: { type: addressSchema, default: () => ({}) },
     role: {
       type: String,

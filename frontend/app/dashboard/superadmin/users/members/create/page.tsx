@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch, type Gender, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { ProvinceField } from '@/components/forms/ProvinceField';
 import { useAuth } from '@/contexts/AuthContext';
 
 const field =
@@ -42,8 +43,7 @@ export default function SuperadminMemberCreatePage() {
   const [line2, setLine2] = useState('');
   const [city, setCity] = useState('');
   const [stateOrProvince, setStateOrProvince] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry] = useState('');
+  const [country, setCountry] = useState('Zimbabwe');
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [churches, setChurches] = useState<Church[]>([]);
   const [councils, setCouncils] = useState<Council[]>([]);
@@ -128,7 +128,7 @@ export default function SuperadminMemberCreatePage() {
           dateOfBirth: dateOfBirth || undefined,
           membershipDate: membershipDate || undefined,
           baptismDate: baptismDate || undefined,
-          address: { line1, line2, city, stateOrProvince, postalCode, country },
+          address: { line1, line2, city, stateOrProvince, country },
         }),
       });
       router.replace('/dashboard/superadmin/users');
@@ -236,15 +236,14 @@ export default function SuperadminMemberCreatePage() {
               <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Full membership date</label>
               <input
                 type="date"
                 value={membershipDate}
                 onChange={(e) => setMembershipDate(e.target.value)}
                 className={field}
-                title="Leave empty to use today’s date"
               />
-              <p className="mt-0.5 text-xs text-neutral-500">Optional — defaults to today if left blank</p>
+              <p className="mt-0.5 text-xs text-neutral-500">Optional — leave blank if not yet a full member</p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
@@ -301,14 +300,12 @@ export default function SuperadminMemberCreatePage() {
               <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
               <input value={city} onChange={(e) => setCity(e.target.value)} className={field} />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
-              <input value={stateOrProvince} onChange={(e) => setStateOrProvince(e.target.value)} className={field} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
-              <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={field} />
-            </div>
+            <ProvinceField
+              value={stateOrProvince}
+              onChange={setStateOrProvince}
+              className={field}
+              labelClassName="mb-1 block text-xs font-medium text-neutral-600"
+            />
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
               <input value={country} onChange={(e) => setCountry(e.target.value)} className={field} />

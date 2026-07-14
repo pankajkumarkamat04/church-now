@@ -46,7 +46,7 @@ type RegisterInput = {
     line2?: string;
     city: string;
     stateOrProvince: string;
-    postalCode: string;
+    postalCode?: string;
     country: string;
   };
 };

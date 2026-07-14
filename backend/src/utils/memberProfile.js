@@ -13,6 +13,34 @@ const GlobalCouncil = require('../models/GlobalCouncil');
 const { collectCongregationRoleLabelsForUser } = require('./churchMemberRoles');
 const { isTreasurerOrViceTreasurer } = require('./treasurerAccess');
 
+function toDateOnly(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function serializeCouncilBadges(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((row) => ({
+    councilId: row.councilId != null ? String(row.councilId) : '',
+    badgedVolunteerDate: toDateOnly(row.badgedVolunteerDate),
+    badgedRuwadzanoDate: toDateOnly(row.badgedRuwadzanoDate),
+  }));
+}
+
+function serializePositionsHeld(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((row) => ({
+    _id: row._id != null ? String(row._id) : undefined,
+    title: row.title || '',
+    organization: row.organization || '',
+    fromDate: toDateOnly(row.fromDate),
+    toDate: toDateOnly(row.toDate),
+    notes: row.notes || '',
+  }));
+}
+
 /**
  * Safe JSON shape for member / profile responses (no secrets).
  */
@@ -52,9 +80,9 @@ function toProfileResponse(userDoc) {
 
   const confList = Array.isArray(u.conferences) ? u.conferences : [];
   const conference = confList[0] && typeof confList[0] === 'object' ? confList[0] : null;
-  const dob = u.dateOfBirth ? u.dateOfBirth.toISOString().slice(0, 10) : null;
-  const mship = u.membershipDate ? u.membershipDate.toISOString().slice(0, 10) : null;
-  const bap = u.baptismDate ? u.baptismDate.toISOString().slice(0, 10) : null;
+  const dob = toDateOnly(u.dateOfBirth);
+  const mship = toDateOnly(u.membershipDate);
+  const bap = toDateOnly(u.baptismDate);
 
   return {
     id: u._id,
@@ -73,10 +101,16 @@ function toProfileResponse(userDoc) {
     gender: u.gender ?? null,
     dateOfBirth: dob,
     date_of_birth: dob,
+    isFullMember: Boolean(u.isFullMember),
     membershipDate: mship,
     membership_date: mship,
+    admittedBy: u.admittedBy || '',
     baptismDate: bap,
     baptism_date: bap,
+    baptismBy: u.baptismBy || '',
+    baptismPlace: u.baptismPlace || '',
+    councilBadges: serializeCouncilBadges(u.councilBadges),
+    positionsHeld: serializePositionsHeld(u.positionsHeld),
     address: u.address
       ? {
           line1: u.address.line1 || '',
@@ -158,6 +192,65 @@ function mergeAddress(existing, patch) {
   return base;
 }
 
+function normalizeCouncilBadges(input) {
+  if (!Array.isArray(input)) return { error: 'councilBadges must be an array' };
+  const out = [];
+  const seen = new Set();
+  for (const row of input) {
+    if (!row || typeof row !== 'object') continue;
+    const councilId = String(row.councilId || '').trim();
+    if (!councilId) continue;
+    if (seen.has(councilId)) continue;
+    seen.add(councilId);
+    const volRaw = row.badgedVolunteerDate;
+    const ruwRaw = row.badgedRuwadzanoDate;
+    let badgedVolunteerDate = null;
+    let badgedRuwadzanoDate = null;
+    if (volRaw !== undefined && volRaw !== null && volRaw !== '') {
+      badgedVolunteerDate = parseChurchRecordDate(volRaw);
+      if (badgedVolunteerDate === undefined) {
+        return { error: 'Invalid badged Volunteer date' };
+      }
+    }
+    if (ruwRaw !== undefined && ruwRaw !== null && ruwRaw !== '') {
+      badgedRuwadzanoDate = parseChurchRecordDate(ruwRaw);
+      if (badgedRuwadzanoDate === undefined) {
+        return { error: 'Invalid badged Ruwadzano date' };
+      }
+    }
+    out.push({ councilId, badgedVolunteerDate, badgedRuwadzanoDate });
+  }
+  return { value: out };
+}
+
+function normalizePositionsHeld(input) {
+  if (!Array.isArray(input)) return { error: 'positionsHeld must be an array' };
+  const out = [];
+  for (const row of input) {
+    if (!row || typeof row !== 'object') continue;
+    const title = String(row.title || '').trim();
+    if (!title) continue;
+    let fromDate = null;
+    let toDate = null;
+    if (row.fromDate !== undefined && row.fromDate !== null && row.fromDate !== '') {
+      fromDate = parseChurchRecordDate(row.fromDate);
+      if (fromDate === undefined) return { error: 'Invalid position start date' };
+    }
+    if (row.toDate !== undefined && row.toDate !== null && row.toDate !== '') {
+      toDate = parseChurchRecordDate(row.toDate);
+      if (toDate === undefined) return { error: 'Invalid position end date' };
+    }
+    out.push({
+      title,
+      organization: String(row.organization || '').trim(),
+      fromDate,
+      toDate,
+      notes: String(row.notes || '').trim(),
+    });
+  }
+  return { value: out };
+}
+
 /**
  * Apply allowed profile fields from body onto user document.
  * Returns { error: string } on validation failure, or {} on success.
@@ -219,6 +312,10 @@ function applyMemberProfilePatch(user, body, options = {}) {
     user.dateOfBirth = d;
   }
 
+  if (body.isFullMember !== undefined) {
+    user.isFullMember = Boolean(body.isFullMember);
+  }
+
   const mshipIn = body.membershipDate !== undefined ? body.membershipDate : body.membership_date;
   if (mshipIn !== undefined) {
     const d = parseChurchRecordDate(mshipIn);
@@ -226,7 +323,13 @@ function applyMemberProfilePatch(user, body, options = {}) {
       return { error: 'Invalid membership date' };
     }
     user.membershipDate = d;
+    if (d) user.isFullMember = true;
   }
+
+  if (body.admittedBy !== undefined) {
+    user.admittedBy = String(body.admittedBy ?? '').trim();
+  }
+
   const bapIn = body.baptismDate !== undefined ? body.baptismDate : body.baptism_date;
   if (bapIn !== undefined) {
     const d = parseChurchRecordDate(bapIn);
@@ -234,6 +337,25 @@ function applyMemberProfilePatch(user, body, options = {}) {
       return { error: 'Invalid baptism date' };
     }
     user.baptismDate = d;
+  }
+
+  if (body.baptismBy !== undefined) {
+    user.baptismBy = String(body.baptismBy ?? '').trim();
+  }
+  if (body.baptismPlace !== undefined) {
+    user.baptismPlace = String(body.baptismPlace ?? '').trim();
+  }
+
+  if (body.councilBadges !== undefined) {
+    const normalized = normalizeCouncilBadges(body.councilBadges);
+    if (normalized.error) return { error: normalized.error };
+    user.councilBadges = normalized.value;
+  }
+
+  if (body.positionsHeld !== undefined) {
+    const normalized = normalizePositionsHeld(body.positionsHeld);
+    if (normalized.error) return { error: normalized.error };
+    user.positionsHeld = normalized.value;
   }
 
   if (body.address !== undefined) {
@@ -261,14 +383,20 @@ function applyMemberProfilePatch(user, body, options = {}) {
  */
 async function attachCouncilNamesToProfile(profile) {
   const ids = Array.isArray(profile.councilIds) ? profile.councilIds.map(String) : [];
-  if (ids.length === 0) {
-    return { ...profile, councils: [] };
+  const badgeCouncilIds = (profile.councilBadges || []).map((b) => String(b.councilId || '')).filter(Boolean);
+  const allIds = [...new Set([...ids, ...badgeCouncilIds])];
+  if (allIds.length === 0) {
+    return { ...profile, councils: [], councilBadges: profile.councilBadges || [] };
   }
-  const rows = await GlobalCouncil.find({ _id: { $in: ids } }).select('_id name').lean();
+  const rows = await GlobalCouncil.find({ _id: { $in: allIds } }).select('_id name').lean();
   const nameBy = new Map(rows.map((r) => [String(r._id), r.name || '—']));
   return {
     ...profile,
     councils: ids.map((id) => ({ _id: id, name: nameBy.get(String(id)) || '—' })),
+    councilBadges: (profile.councilBadges || []).map((b) => ({
+      ...b,
+      councilName: nameBy.get(String(b.councilId)) || '—',
+    })),
   };
 }
 
@@ -278,15 +406,22 @@ async function attachCouncilNamesToProfiles(profiles) {
   const all = new Set();
   for (const p of profiles) {
     (p.councilIds || []).forEach((id) => all.add(String(id)));
+    (p.councilBadges || []).forEach((b) => {
+      if (b?.councilId) all.add(String(b.councilId));
+    });
   }
   if (all.size === 0) {
-    return profiles.map((p) => ({ ...p, councils: [] }));
+    return profiles.map((p) => ({ ...p, councils: [], councilBadges: p.councilBadges || [] }));
   }
   const rows = await GlobalCouncil.find({ _id: { $in: [...all] } }).select('_id name').lean();
   const nameBy = new Map(rows.map((r) => [String(r._id), r.name || '—']));
   return profiles.map((p) => ({
     ...p,
     councils: (p.councilIds || []).map((id) => ({ _id: id, name: nameBy.get(String(id)) || '—' })),
+    councilBadges: (p.councilBadges || []).map((b) => ({
+      ...b,
+      councilName: nameBy.get(String(b.councilId)) || '—',
+    })),
   }));
 }
 
@@ -297,6 +432,8 @@ module.exports = {
   parseDateOfBirth,
   parseChurchRecordDate,
   mergeAddress,
+  normalizeCouncilBadges,
+  normalizePositionsHeld,
   attachCouncilNamesToProfile,
   attachCouncilNamesToProfiles,
 };

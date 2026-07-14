@@ -5,8 +5,24 @@ export type MemberAddress = {
   line2: string;
   city: string;
   stateOrProvince: string;
-  postalCode: string;
+  postalCode?: string;
   country: string;
+};
+
+export type CouncilBadge = {
+  councilId: string;
+  councilName?: string;
+  badgedVolunteerDate?: string | null;
+  badgedRuwadzanoDate?: string | null;
+};
+
+export type PositionHeld = {
+  _id?: string;
+  title: string;
+  organization?: string;
+  fromDate?: string | null;
+  toDate?: string | null;
+  notes?: string;
 };
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY';
@@ -27,10 +43,16 @@ export type AuthUser = {
   gender?: Gender | null;
   dateOfBirth?: string | null;
   date_of_birth?: string | null;
+  isFullMember?: boolean;
   membershipDate?: string | null;
   membership_date?: string | null;
+  admittedBy?: string;
   baptismDate?: string | null;
   baptism_date?: string | null;
+  baptismBy?: string;
+  baptismPlace?: string;
+  councilBadges?: CouncilBadge[];
+  positionsHeld?: PositionHeld[];
   address?: MemberAddress;
   conferences?: Array<
     | {

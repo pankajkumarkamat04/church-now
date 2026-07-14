@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { ProvinceField } from '@/components/forms/ProvinceField';
 import { useAuth } from '@/contexts/AuthContext';
 
 
@@ -30,8 +31,7 @@ export default function AdminMemberCreatePage() {
   const [line2, setLine2] = useState('');
   const [city, setCity] = useState('');
   const [stateOrProvince, setStateOrProvince] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry] = useState('');
+  const [country, setCountry] = useState('Zimbabwe');
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
@@ -91,7 +91,7 @@ export default function AdminMemberCreatePage() {
           dateOfBirth,
           gender,
           contactPhone,
-          address: { line1, line2, city, stateOrProvince, postalCode, country },
+          address: { line1, line2, city, stateOrProvince, country },
           membershipDate: membershipDate || undefined,
           baptismDate: baptismDate || undefined,
           memberBadgeType,
@@ -197,15 +197,14 @@ export default function AdminMemberCreatePage() {
               <input required type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Full membership date</label>
               <input
                 type="date"
                 value={membershipDate}
                 onChange={(e) => setMembershipDate(e.target.value)}
                 className={field}
-                title="Leave empty to use today’s date"
               />
-              <p className="mt-0.5 text-xs text-neutral-500">Optional — defaults to today if left blank</p>
+              <p className="mt-0.5 text-xs text-neutral-500">Optional — leave blank if not yet a full member</p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
@@ -248,14 +247,13 @@ export default function AdminMemberCreatePage() {
               <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
               <input required value={city} onChange={(e) => setCity(e.target.value)} className={field} />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">State / Province</label>
-              <input required value={stateOrProvince} onChange={(e) => setStateOrProvince(e.target.value)} className={field} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
-              <input required value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={field} />
-            </div>
+            <ProvinceField
+              value={stateOrProvince}
+              onChange={setStateOrProvince}
+              required
+              className={field}
+              labelClassName="mb-1 block text-xs font-medium text-neutral-600"
+            />
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
               <input required value={country} onChange={(e) => setCountry(e.target.value)} className={field} />

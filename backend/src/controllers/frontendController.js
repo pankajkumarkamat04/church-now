@@ -312,9 +312,7 @@ async function createMember(req, res) {
       return res.status(400).json({ message: patchResult.error });
     }
     member.memberBadgeType = normalizeMemberBadgeType(memberBadgeType);
-    if (member.membershipDate == null) {
-      member.membershipDate = new Date();
-    }
+    // Full membership date is optional — do not invent today's date for new members.
     try {
       member.memberId = await resolveMemberIdForChurch(churchId(req), null);
     } catch (e) {

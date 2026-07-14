@@ -6,7 +6,6 @@ const { signToken } = require('../utils/token');
 const {
   toProfileResponse,
   attachCouncilNamesToProfile,
-  normalizeMemberBadgeType,
   parseDateOfBirth,
   parseChurchRecordDate,
 } = require('../utils/memberProfile');
@@ -45,7 +44,6 @@ async function register(req, res) {
       membership_date,
       baptismDate,
       baptism_date,
-      memberBadgeType,
     } = req.body;
     const incomingConferenceIds = Array.isArray(conferenceIds)
       ? conferenceIds
@@ -80,11 +78,11 @@ async function register(req, res) {
       });
     }
     const addrIn = address && typeof address === 'object' ? address : {};
-    const addrRequired = ['line1', 'city', 'stateOrProvince', 'postalCode', 'country'];
+    const addrRequired = ['line1', 'city', 'stateOrProvince', 'country'];
     for (const k of addrRequired) {
       if (!String(addrIn[k] || '').trim()) {
         return res.status(400).json({
-          message: 'Complete residential address is required (line 1, city, state/province, postal code, country)',
+          message: 'Complete residential address is required (line 1, city, province, country)',
         });
       }
     }
@@ -120,8 +118,9 @@ async function register(req, res) {
     if (councilResult.error) {
       return res.status(400).json({ message: councilResult.error });
     }
+    // Baptism, full membership, and badge details are optional and completed later — not on initial signup.
     const mshipRaw = membershipDate !== undefined ? membershipDate : membership_date;
-    let membershipDateVal = new Date();
+    let membershipDateVal = null;
     if (mshipRaw !== undefined && mshipRaw !== null && mshipRaw !== '') {
       const parsed = parseChurchRecordDate(mshipRaw);
       if (!parsed) {
@@ -167,7 +166,7 @@ async function register(req, res) {
         line2: String(addrIn.line2 || '').trim(),
         city: String(addrIn.city || '').trim(),
         stateOrProvince: String(addrIn.stateOrProvince || '').trim(),
-        postalCode: String(addrIn.postalCode || '').trim(),
+        postalCode: '',
         country: String(addrIn.country || '').trim(),
       },
       role: 'MEMBER',
@@ -176,14 +175,16 @@ async function register(req, res) {
       councilIds: councilResult.ids,
       memberCategory: normalizedCategory,
       memberId,
+      isFullMember: Boolean(membershipDateVal),
       membershipDate: membershipDateVal,
       baptismDate: baptismDateVal,
-      memberBadgeType: normalizeMemberBadgeType(memberBadgeType),
+      memberBadgeType: 'NON_BADGED',
       approvalStatus: 'PENDING',
       registrationSource: 'SELF_SIGNUP',
     });
     return res.status(201).json({
-      message: 'Registration submitted. Wait for your church admin to approve your membership.',
+      message:
+        'Registration submitted. Your church admin will review and approve your membership before you can sign in.',
       requiresApproval: true,
       userId: user._id,
     });

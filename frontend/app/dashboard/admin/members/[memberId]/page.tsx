@@ -190,9 +190,29 @@ export default function AdminMemberViewPage() {
               <dd className="mt-0.5 text-sm text-neutral-900">{profile.contactPhone || '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-neutral-500">Membership date</dt>
+              <dt className="text-xs font-medium text-neutral-500">Full membership</dt>
               <dd className="mt-0.5 text-sm text-neutral-900">
-                {formatDate(profile.membershipDate || profile.membership_date || null)}
+                {profile.isFullMember || profile.membershipDate
+                  ? `Yes${profile.membershipDate || profile.membership_date ? ` · ${formatDate(profile.membershipDate || profile.membership_date || null)}` : ''}`
+                  : 'Not recorded'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-neutral-500">Admitted by (Mufundisi)</dt>
+              <dd className="mt-0.5 text-sm text-neutral-900">{profile.admittedBy || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-neutral-500">Baptism</dt>
+              <dd className="mt-0.5 text-sm text-neutral-900">
+                {profile.baptismDate || profile.baptism_date
+                  ? [
+                      formatDate(profile.baptismDate || profile.baptism_date || null),
+                      profile.baptismBy ? `by ${profile.baptismBy}` : null,
+                      profile.baptismPlace ? `at ${profile.baptismPlace}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : '—'}
               </dd>
             </div>
             <div className="sm:col-span-2">
@@ -201,6 +221,43 @@ export default function AdminMemberViewPage() {
                 {(profile.councils || []).length ? (profile.councils || []).map((c) => c.name).join(', ') : '—'}
               </dd>
             </div>
+            {(profile.councilBadges || []).some(
+              (b) => b.badgedVolunteerDate || b.badgedRuwadzanoDate
+            ) ? (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-neutral-500">Council badges</dt>
+                <dd className="mt-0.5 space-y-1 text-sm text-neutral-900">
+                  {(profile.councilBadges || []).map((b) => (
+                    <div key={b.councilId}>
+                      <span className="font-medium">{b.councilName || b.councilId}</span>
+                      {': '}
+                      {[
+                        b.badgedVolunteerDate ? `Volunteer ${formatDate(b.badgedVolunteerDate)}` : null,
+                        b.badgedRuwadzanoDate ? `Ruwadzano ${formatDate(b.badgedRuwadzanoDate)}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </div>
+                  ))}
+                </dd>
+              </div>
+            ) : null}
+            {(profile.positionsHeld || []).length > 0 ? (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-neutral-500">Positions held</dt>
+                <dd className="mt-0.5 space-y-1 text-sm text-neutral-900">
+                  {(profile.positionsHeld || []).map((p, i) => (
+                    <div key={p._id || i}>
+                      {p.title}
+                      {p.organization ? ` (${p.organization})` : ''}
+                      {p.fromDate || p.toDate
+                        ? ` · ${[formatDate(p.fromDate || null), formatDate(p.toDate || null)].filter((x) => x !== '—').join(' – ')}`
+                        : ''}
+                    </div>
+                  ))}
+                </dd>
+              </div>
+            ) : null}
             <div className="sm:col-span-2">
               <dt className="text-xs font-medium text-neutral-500">Account status</dt>
               <dd className="mt-0.5 text-sm text-neutral-900">

@@ -1,28 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
 import { consumeInactivityLogoutFlag, INACTIVITY_TIMEOUT_MINUTES } from '@/lib/inactivityLogout';
 
-export default function LoginPage() {
+function LoginForm() {
   const { login, user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [inactivityNotice, setInactivityNotice] = useState(false);
+  const [registrationNotice, setRegistrationNotice] = useState(false);
 
   useEffect(() => {
     if (consumeInactivityLogoutFlag()) {
       setInactivityNotice(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('registered') === '1') {
+      setRegistrationNotice(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -47,6 +55,15 @@ export default function LoginPage() {
   return (
     <AuthShell>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Sign in</h1>
+
+      {registrationNotice ? (
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-900"
+        >
+          Registration submitted. A church admin will approve your membership before you can sign in.
+        </p>
+      ) : null}
 
       {inactivityNotice ? (
         <p
@@ -125,5 +142,21 @@ export default function LoginPage() {
         </Link>
       </p>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell>
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-8 animate-spin text-neutral-700" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

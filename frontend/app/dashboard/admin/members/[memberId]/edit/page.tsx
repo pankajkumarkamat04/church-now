@@ -4,8 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Eye, KeyRound, Loader2 } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
+import { ProvinceField } from '@/components/forms/ProvinceField';
+import { MemberChurchRecordsFields } from '@/components/forms/MemberChurchRecordsFields';
 import { useParams, useRouter } from 'next/navigation';
-import { apiFetch, type AuthUser, type Gender, type MemberAddress } from '@/lib/api';
+import {
+  apiFetch,
+  type AuthUser,
+  type CouncilBadge,
+  type Gender,
+  type MemberAddress,
+  type PositionHeld,
+} from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 const field =
@@ -16,7 +25,6 @@ const emptyAddress: MemberAddress = {
   line2: '',
   city: '',
   stateOrProvince: '',
-  postalCode: '',
   country: '',
 };
 
@@ -29,8 +37,14 @@ export default function AdminMemberEditPage() {
   const [fullName, setFullName] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [isFullMember, setIsFullMember] = useState(false);
   const [membershipDate, setMembershipDate] = useState('');
+  const [admittedBy, setAdmittedBy] = useState('');
   const [baptismDate, setBaptismDate] = useState('');
+  const [baptismBy, setBaptismBy] = useState('');
+  const [baptismPlace, setBaptismPlace] = useState('');
+  const [councilBadges, setCouncilBadges] = useState<CouncilBadge[]>([]);
+  const [positionsHeld, setPositionsHeld] = useState<PositionHeld[]>([]);
   const [address, setAddress] = useState<MemberAddress>(emptyAddress);
   const [isActive, setIsActive] = useState(true);
   const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
@@ -49,8 +63,14 @@ export default function AdminMemberEditPage() {
     setFullName(p.fullName || '');
     setGender((p.gender as Gender) || '');
     setDateOfBirth(p.dateOfBirth || p.date_of_birth || '');
+    setIsFullMember(Boolean(p.isFullMember || p.membershipDate));
     setMembershipDate(p.membershipDate || p.membership_date || '');
+    setAdmittedBy(p.admittedBy || '');
     setBaptismDate(p.baptismDate || p.baptism_date || '');
+    setBaptismBy(p.baptismBy || '');
+    setBaptismPlace(p.baptismPlace || '');
+    setCouncilBadges(Array.isArray(p.councilBadges) ? p.councilBadges : []);
+    setPositionsHeld(Array.isArray(p.positionsHeld) ? p.positionsHeld : []);
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
     setIsActive(p.isActive !== false);
     setMemberBadgeType(p.memberBadgeType === 'BADGED' ? 'BADGED' : 'NON_BADGED');
@@ -91,8 +111,14 @@ export default function AdminMemberEditPage() {
           fullName,
           gender: gender || null,
           dateOfBirth: dateOfBirth || null,
+          isFullMember,
           membershipDate: membershipDate || null,
+          admittedBy,
           baptismDate: baptismDate || null,
+          baptismBy,
+          baptismPlace,
+          councilBadges,
+          positionsHeld,
           address,
           isActive,
           councilIds,
@@ -159,144 +185,141 @@ export default function AdminMemberEditPage() {
             Reset password
           </button>
         ) : null}
-        <form className="mt-6 grid gap-4 sm:grid-cols-2" onSubmit={onSubmit}>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value as Gender | '')}
-              className={field}
-            >
-              <option value="">—</option>
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
-              <option value="PREFER_NOT_SAY">Prefer not to say</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
-            <input
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Membership date</label>
-            <input
-              type="date"
-              value={membershipDate}
-              onChange={(e) => setMembershipDate(e.target.value)}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Baptism date</label>
-            <input
-              type="date"
-              value={baptismDate}
-              onChange={(e) => setBaptismDate(e.target.value)}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Badge category</label>
-            <select
-              value={memberBadgeType}
-              onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
-              className={field}
-            >
-              <option value="NON_BADGED">Non-badged</option>
-              <option value="BADGED">Badged</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
-            <select
-              multiple
-              value={councilIds}
-              onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((option) => option.value))}
-              className={`${field} min-h-[110px]`}
-            >
-              {councils.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
-            <input
-              value={address.line1}
-              onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
-            <input
-              value={address.line2}
-              onChange={(e) => setAddress({ ...address, line2: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
-            <input
-              value={address.city}
-              onChange={(e) => setAddress({ ...address, city: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">State / province</label>
-            <input
+        <form className="mt-6 space-y-8" onSubmit={onSubmit}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Full name</label>
+              <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as Gender | '')}
+                className={field}
+              >
+                <option value="">—</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+                <option value="PREFER_NOT_SAY">Prefer not to say</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Badge category</label>
+              <select
+                value={memberBadgeType}
+                onChange={(e) => setMemberBadgeType(e.target.value as 'BADGED' | 'NON_BADGED')}
+                className={field}
+              >
+                <option value="NON_BADGED">Non-badged</option>
+                <option value="BADGED">Badged</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
+              <select
+                multiple
+                value={councilIds}
+                onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((option) => option.value))}
+                className={`${field} min-h-[110px]`}
+              >
+                {councils.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>
+              <input
+                value={address.line1}
+                onChange={(e) => setAddress({ ...address, line1: e.target.value })}
+                className={field}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 2</label>
+              <input
+                value={address.line2}
+                onChange={(e) => setAddress({ ...address, line2: e.target.value })}
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">City</label>
+              <input
+                value={address.city}
+                onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                className={field}
+              />
+            </div>
+            <ProvinceField
               value={address.stateOrProvince}
-              onChange={(e) => setAddress({ ...address, stateOrProvince: e.target.value })}
+              onChange={(stateOrProvince) => setAddress({ ...address, stateOrProvince })}
               className={field}
+              labelClassName="mb-1 block text-xs font-medium text-neutral-600"
+            />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
+              <input
+                value={address.country}
+                onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                className={field}
+              />
+            </div>
+            <div className="sm:col-span-2 flex items-center gap-2 border-t border-neutral-100 pt-4">
+              <input
+                id="isActive"
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="size-4 rounded border-neutral-300"
+              />
+              <label htmlFor="isActive" className="text-sm text-neutral-800">
+                Account active (member can sign in)
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t border-neutral-100 pt-6">
+            <MemberChurchRecordsFields
+              fieldClass={field}
+              councilOptions={councils}
+              councilIds={councilIds}
+              isFullMember={isFullMember}
+              onIsFullMemberChange={setIsFullMember}
+              membershipDate={membershipDate}
+              onMembershipDateChange={setMembershipDate}
+              admittedBy={admittedBy}
+              onAdmittedByChange={setAdmittedBy}
+              baptismDate={baptismDate}
+              onBaptismDateChange={setBaptismDate}
+              baptismBy={baptismBy}
+              onBaptismByChange={setBaptismBy}
+              baptismPlace={baptismPlace}
+              onBaptismPlaceChange={setBaptismPlace}
+              councilBadges={councilBadges}
+              onCouncilBadgesChange={setCouncilBadges}
+              positionsHeld={positionsHeld}
+              onPositionsHeldChange={setPositionsHeld}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Postal code</label>
-            <input
-              value={address.postalCode}
-              onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Country</label>
-            <input
-              value={address.country}
-              onChange={(e) => setAddress({ ...address, country: e.target.value })}
-              className={field}
-            />
-          </div>
-          <div className="sm:col-span-2 flex items-center gap-2 border-t border-neutral-100 pt-4">
-            <input
-              id="isActive"
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="size-4 rounded border-neutral-300"
-            />
-            <label htmlFor="isActive" className="text-sm text-neutral-800">
-              Account active (member can sign in)
-            </label>
-          </div>
+
           {err ? (
-            <p className="sm:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {err}
-            </p>
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>
           ) : null}
-          <div className="sm:col-span-2 flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2">
             <button
               type="submit"
               disabled={busy}
