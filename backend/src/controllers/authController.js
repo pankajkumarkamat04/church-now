@@ -9,7 +9,7 @@ const {
   parseDateOfBirth,
   parseChurchRecordDate,
 } = require('../utils/memberProfile');
-const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { resolveMemberIdForChurch, isMemberIdDuplicateKeyError } = require('../utils/memberId');
 const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
 const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 const { getConferenceLeadershipSummaryForMe } = require('../utils/conferenceLeaderAccess');
@@ -189,6 +189,9 @@ async function register(req, res) {
       userId: user._id,
     });
   } catch (err) {
+    if (isMemberIdDuplicateKeyError(err)) {
+      return res.status(409).json({ message: 'Member ID already in use' });
+    }
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Email already registered' });
     }

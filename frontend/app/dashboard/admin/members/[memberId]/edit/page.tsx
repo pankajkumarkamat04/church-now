@@ -61,7 +61,7 @@ export default function AdminMemberEditPage() {
     const p = await apiFetch<AuthUser>(`/api/admin/members/${memberId}`, { token });
     setProfile(p);
     setFullName(p.fullName || '');
-    setGender((p.gender as Gender) || '');
+    setGender(p.gender === 'MALE' || p.gender === 'FEMALE' ? p.gender : '');
     setDateOfBirth(p.dateOfBirth || p.date_of_birth || '');
     setIsFullMember(Boolean(p.isFullMember || p.membershipDate));
     setMembershipDate(p.membershipDate || p.membership_date || '');
@@ -201,8 +201,6 @@ export default function AdminMemberEditPage() {
                 <option value="">—</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-                <option value="PREFER_NOT_SAY">Prefer not to say</option>
               </select>
             </div>
             <div>

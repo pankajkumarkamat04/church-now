@@ -311,8 +311,6 @@ export default function SignupPage() {
             >
               <option value="MALE">Male</option>
               <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
-              <option value="PREFER_NOT_SAY">Prefer not to say</option>
             </select>
           </div>
           <div>

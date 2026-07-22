@@ -15,6 +15,7 @@ import {
   loadStoredAuth,
   saveAuth,
   type Gender,
+  type MemberCategory,
   type Role,
 } from '@/lib/api';
 import {
@@ -31,7 +32,7 @@ type RegisterInput = {
   churchId: string;
   conferenceIds: string[];
   councilIds: string[];
-  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR';
+  memberCategory?: MemberCategory;
   firstName: string;
   surname: string;
   idNumber: string;

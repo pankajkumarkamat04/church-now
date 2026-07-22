@@ -1,3 +1,7 @@
+import type { MemberCategory } from './memberCategories';
+
+export type { MemberCategory };
+
 export type Role = 'SUPERADMIN' | 'CHURCH_ADMIN' | 'ADMIN' | 'MEMBER';
 
 export type MemberAddress = {
@@ -25,7 +29,7 @@ export type PositionHeld = {
   notes?: string;
 };
 
-export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY';
+export type Gender = 'MALE' | 'FEMALE';
 
 export type AuthUser = {
   id: string;
@@ -77,7 +81,7 @@ export type AuthUser = {
   councilIds?: string[];
   /** Global councils linked via councilIds (names from API) */
   councils?: Array<{ _id: string; name: string }>;
-  memberCategory?: 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR';
+  memberCategory?: MemberCategory;
   /** Badged vs non-badged congregation classification */
   memberBadgeType?: 'BADGED' | 'NON_BADGED';
   /** Labels from church localLeadership / councils (backend-computed). */
@@ -88,7 +92,7 @@ export type AuthUser = {
   memberRoleDisplay?: string;
   /** True when user is church treasurer or vice treasurer (from local leadership). */
   canManageTreasury?: boolean;
-  /** Congregation-unique member number (members and admins promoted from members). */
+  /** Globally unique member number (members and admins promoted from members). */
   memberId?: string;
   /** True for MEMBER, or ADMIN promoted from a member (home church + member id). Drives default portal. */
   canAccessMemberPortal?: boolean;

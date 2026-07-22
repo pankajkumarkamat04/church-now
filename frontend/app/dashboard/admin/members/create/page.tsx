@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type Gender } from '@/lib/api';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { ProvinceField } from '@/components/forms/ProvinceField';
@@ -25,7 +25,7 @@ export default function AdminMemberCreatePage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [membershipDate, setMembershipDate] = useState('');
   const [baptismDate, setBaptismDate] = useState('');
-  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY'>('MALE');
+  const [gender, setGender] = useState<Gender>('MALE');
   const [contactPhone, setContactPhone] = useState('');
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
@@ -212,11 +212,9 @@ export default function AdminMemberCreatePage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
-              <select value={gender} onChange={(e) => setGender(e.target.value as 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_SAY')} className={field}>
+              <select value={gender} onChange={(e) => setGender(e.target.value as Gender)} className={field}>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-                <option value="PREFER_NOT_SAY">Prefer not to say</option>
               </select>
             </div>
             <div>

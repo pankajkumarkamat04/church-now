@@ -5,8 +5,16 @@ const ROLES = ['SUPERADMIN', 'CHURCH_ADMIN', 'ADMIN', 'MEMBER'];
 const APPROVAL_STATUSES = ['PENDING', 'APPROVED'];
 const REGISTRATION_SOURCES = ['SYSTEM', 'SELF_SIGNUP'];
 
-const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_SAY'];
-const MEMBER_CATEGORIES = ['MEMBER', 'PRESIDENT', 'MODERATOR', 'PASTOR'];
+const GENDERS = ['MALE', 'FEMALE'];
+const MEMBER_CATEGORIES = [
+  'MEMBER',
+  'PRESIDENT',
+  'MODERATOR',
+  'PASTOR',
+  'CYF_PRESIDENT',
+  'CYF_TREASURER',
+  'CHAIRPERSON',
+];
 /** Congregation badge classification (distinct from memberCategory office roles). */
 const MEMBER_BADGE_TYPES = ['BADGED', 'NON_BADGED'];
 
@@ -116,7 +124,7 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     memberRoleDisplay: { type: String, trim: true, default: 'MEMBER' },
-    /** Congregation-unique member number (assigned to MEMBER; kept when promoted to ADMIN). */
+    /** Globally unique member number (assigned to MEMBER; kept when promoted to ADMIN). */
     memberId: { type: String, trim: true, default: '' },
     adminChurches: [
       {
@@ -155,7 +163,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index(
-  { church: 1, memberId: 1 },
+  { memberId: 1 },
   {
     unique: true,
     partialFilterExpression: {
@@ -163,6 +171,13 @@ userSchema.index(
     },
   }
 );
+
+/** Drop legacy gender values (OTHER, PREFER_NOT_SAY) so saves pass the Male/Female enum. */
+userSchema.pre('validate', function clearLegacyGender() {
+  if (this.gender != null && this.gender !== '' && !GENDERS.includes(this.gender)) {
+    this.gender = undefined;
+  }
+});
 
 userSchema.pre('save', async function hashPassword() {
   if (this.isModified('password')) {

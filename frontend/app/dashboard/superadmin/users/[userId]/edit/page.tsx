@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress, type Paginated, unwrapPaginatedArray } from '@/lib/api';
+import { MEMBER_CATEGORY_OPTIONS, type MemberCategory } from '@/lib/memberCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
 
@@ -43,7 +44,7 @@ export default function SuperadminUserEditPage() {
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [councilIds, setCouncilIds] = useState<string[]>([]);
-  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR'>('MEMBER');
+  const [memberCategory, setMemberCategory] = useState<MemberCategory>('MEMBER');
   const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
   const [fullName, setFullName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -95,13 +96,13 @@ export default function SuperadminUserEditPage() {
       setConferenceId(confId || '');
       setChurchId(cId || '');
       setCouncilIds(Array.isArray(u.councilIds) ? u.councilIds : []);
-      setMemberCategory((u.memberCategory as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR') || 'MEMBER');
+      setMemberCategory((u.memberCategory as MemberCategory) || 'MEMBER');
       setMemberBadgeType(u.memberBadgeType === 'BADGED' ? 'BADGED' : 'NON_BADGED');
       setFirstName(u.firstName || '');
       setSurname(u.surname || '');
       setIdNumber(u.idNumber || '');
       setContactPhone(u.contactPhone || '');
-      setGender(((u.gender as Gender) || '') as Gender | '');
+      setGender(u.gender === 'MALE' || u.gender === 'FEMALE' ? u.gender : '');
       setDateOfBirth(u.dateOfBirth || '');
       setMembershipDate(u.membershipDate || '');
       setBaptismDate(u.baptismDate || '');
@@ -321,8 +322,6 @@ export default function SuperadminUserEditPage() {
                     <option value="">—</option>
                     <option value="MALE">Male</option>
                     <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
-                    <option value="PREFER_NOT_SAY">Prefer not to say</option>
                   </select>
                 </div>
                 <div>
@@ -442,15 +441,14 @@ export default function SuperadminUserEditPage() {
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>
                 <select
                   value={memberCategory}
-                  onChange={(e) =>
-                    setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR')
-                  }
+                  onChange={(e) => setMemberCategory(e.target.value as MemberCategory)}
                   className={field}
                 >
-                  <option value="MEMBER">Member</option>
-                  <option value="PRESIDENT">President</option>
-                  <option value="MODERATOR">Moderator</option>
-                  <option value="PASTOR">Pastor</option>
+                  {MEMBER_CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="md:col-span-2">

@@ -23,7 +23,7 @@ const PastorTerm = require('../models/PastorTerm');
 const Event = require('../models/Event');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
 const { collectPastorUserIdsForRoster } = require('../utils/leadershipRosterPastors');
-const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { resolveMemberIdForChurch, isMemberIdDuplicateKeyError } = require('../utils/memberId');
 const { validateNewPassword } = require('../utils/passwordPolicy');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 const {
@@ -508,11 +508,10 @@ async function listUsers(req, res) {
         Object.assign(filter, { $and: [prev, catPart] });
       }
     } else if (memberCategoryFilter === 'LAY') {
+      // All non-PASTOR member categories (President, Moderator, CYF roles, Chairperson, etc.)
       const catPart = {
         $or: [
-          { memberCategory: 'MEMBER' },
-          { memberCategory: 'PRESIDENT' },
-          { memberCategory: 'MODERATOR' },
+          { memberCategory: { $ne: 'PASTOR' } },
           { memberCategory: { $exists: false } },
           { memberCategory: null },
         ],
@@ -891,6 +890,9 @@ async function createChurchAdmin(req, res) {
     return res.status(201).json(toUserListItem(populated, lean));
   } catch (err) {
     console.error(err);
+    if (isMemberIdDuplicateKeyError(err)) {
+      return res.status(409).json({ message: 'Member ID already in use' });
+    }
     if (err.name === 'ValidationError') {
       return res.status(400).json({ message: err.message });
     }
@@ -1036,6 +1038,9 @@ async function createMemberUser(req, res) {
     const lean = await churchLeanForUserRoles(church._id);
     return res.status(201).json(toUserListItem(safe, lean));
   } catch (err) {
+    if (isMemberIdDuplicateKeyError(err)) {
+      return res.status(409).json({ message: 'Member ID already in use' });
+    }
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Email already registered' });
     }

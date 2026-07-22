@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch, type Gender, type Paginated, unwrapPaginatedArray } from '@/lib/api';
+import { MEMBER_CATEGORY_OPTIONS, type MemberCategory } from '@/lib/memberCategories';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { ProvinceField } from '@/components/forms/ProvinceField';
@@ -33,7 +34,7 @@ export default function SuperadminMemberCreatePage() {
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
   const [councilIds, setCouncilIds] = useState<string[]>([]);
-  const [memberCategory, setMemberCategory] = useState<'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR'>('MEMBER');
+  const [memberCategory, setMemberCategory] = useState<MemberCategory>('MEMBER');
   const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
   const [gender, setGender] = useState<Gender>('MALE');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -258,8 +259,6 @@ export default function SuperadminMemberCreatePage() {
               >
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-                <option value="PREFER_NOT_SAY">Prefer not to say</option>
               </select>
             </div>
             <div>
@@ -277,15 +276,14 @@ export default function SuperadminMemberCreatePage() {
               <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>
               <select
                 value={memberCategory}
-                onChange={(e) =>
-                  setMemberCategory(e.target.value as 'MEMBER' | 'PRESIDENT' | 'MODERATOR' | 'PASTOR')
-                }
+                onChange={(e) => setMemberCategory(e.target.value as MemberCategory)}
                 className={field}
               >
-                <option value="MEMBER">Member</option>
-                <option value="PRESIDENT">President</option>
-                <option value="MODERATOR">Moderator</option>
-                <option value="PASTOR">Pastor</option>
+                {MEMBER_CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="md:col-span-2">

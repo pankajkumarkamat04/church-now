@@ -11,7 +11,7 @@ const {
   attachCouncilNamesToProfile,
   attachCouncilNamesToProfiles,
 } = require('../utils/memberProfile');
-const { resolveMemberIdForChurch } = require('../utils/memberId');
+const { resolveMemberIdForChurch, isMemberIdDuplicateKeyError } = require('../utils/memberId');
 const {
   validateChurchLeadershipPayload,
   populateLeadershipPaths,
@@ -324,6 +324,9 @@ async function createMember(req, res) {
       .populate('conferences', 'conferenceId name description email phone isActive');
     return res.status(201).json(await attachCouncilNamesToProfile(toProfileResponse(populated)));
   } catch (err) {
+    if (isMemberIdDuplicateKeyError(err)) {
+      return res.status(409).json({ message: 'Member ID already in use' });
+    }
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Email already registered' });
     }

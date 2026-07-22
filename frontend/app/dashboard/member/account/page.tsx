@@ -112,7 +112,7 @@ export default function MemberAccountPage() {
     setIdNumber(p.idNumber || '');
     setContactPhone(p.contactPhone || '');
     setFullName(p.fullName || '');
-    setGender((p.gender as Gender) || '');
+    setGender(p.gender === 'MALE' || p.gender === 'FEMALE' ? p.gender : '');
     setDateOfBirth(p.dateOfBirth || '');
     setAddress(p.address ? { ...emptyAddress, ...p.address } : emptyAddress);
     setIsFullMember(Boolean(p.isFullMember || p.membershipDate));
@@ -310,8 +310,6 @@ export default function MemberAccountPage() {
                 <option value="">—</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-                <option value="PREFER_NOT_SAY">Prefer not to say</option>
               </select>
             </div>
             <div>

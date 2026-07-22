@@ -7,7 +7,9 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "reset:system": "node src/scripts/resetSystem.js",
-    "reset:system:confirm": "node src/scripts/resetSystem.js --confirm"
+    "reset:system:confirm": "node src/scripts/resetSystem.js --confirm",
+    "rewrite:member-ids": "node src/scripts/rewriteMemberIds.js",
+    "rewrite:member-ids:confirm": "node src/scripts/rewriteMemberIds.js --confirm"
   },
   "engines": {
     "node": ">=20"
