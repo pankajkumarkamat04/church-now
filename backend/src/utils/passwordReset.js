@@ -5,9 +5,12 @@ function hashResetToken(token) {
 }
 
 function buildResetLink(email, rawToken) {
-  const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const frontendBase = String(process.env.FRONTEND_URL || '')
+    .trim()
+    .replace(/\/$/, '');
   const resetPath = `/reset-password?email=${encodeURIComponent(email)}&token=${rawToken}`;
-  return `${frontendBase.replace(/\/$/, '')}${resetPath}`;
+  // No hardcoded domain — set FRONTEND_URL on the server for absolute email links.
+  return frontendBase ? `${frontendBase}${resetPath}` : resetPath;
 }
 
 const { validateNewPassword } = require('./passwordPolicy');

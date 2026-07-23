@@ -167,7 +167,10 @@ function clearLegacyPersistentAuth(): void {
 }
 
 export function getApiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const fromEnv = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  // No hardcoded host — same-origin (proxy /api on the server) or set NEXT_PUBLIC_API_URL.
+  return '';
 }
 
 /** Session-only auth: cleared when the browser session ends (all tabs closed). */
