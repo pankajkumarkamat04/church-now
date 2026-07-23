@@ -161,11 +161,16 @@ function parseDateOfBirth(value) {
   if (value === null || value === '' || value === undefined) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return undefined;
-  const now = new Date();
-  const futureLimit = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // allow +2 days for tz
-  if (d > futureLimit) return undefined;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  // Must be a past calendar day (not today / future)
+  if (d >= todayStart) return undefined;
   const min = new Date('1900-01-01T00:00:00.000Z');
   if (d < min) return undefined;
+  // Reject implausible ages (> 120 years)
+  const oldest = new Date(todayStart);
+  oldest.setFullYear(oldest.getFullYear() - 120);
+  if (d < oldest) return undefined;
   return d;
 }
 
@@ -180,6 +185,26 @@ function parseChurchRecordDate(value) {
   const min = new Date('1800-01-01T00:00:00.000Z');
   if (d < min) return undefined;
   return d;
+}
+
+/** Baptism ≥ DOB; membership ≥ baptism (or DOB if no baptism). */
+function validateLifeDateSequence(user) {
+  const dob = user.dateOfBirth ? new Date(user.dateOfBirth) : null;
+  const bap = user.baptismDate ? new Date(user.baptismDate) : null;
+  const mship = user.membershipDate ? new Date(user.membershipDate) : null;
+  if (dob && Number.isNaN(dob.getTime())) return 'Invalid date of birth';
+  if (bap && Number.isNaN(bap.getTime())) return 'Invalid baptism date';
+  if (mship && Number.isNaN(mship.getTime())) return 'Invalid membership date';
+  if (dob && bap && bap < dob) {
+    return 'Baptism date cannot be before date of birth';
+  }
+  if (dob && mship && mship < dob) {
+    return 'Membership date cannot be before date of birth';
+  }
+  if (bap && mship && mship < bap) {
+    return 'Membership date cannot be before baptism date';
+  }
+  return null;
 }
 
 function mergeAddress(existing, patch) {
@@ -342,6 +367,21 @@ function applyMemberProfilePatch(user, body, options = {}) {
   if (body.baptismBy !== undefined) {
     user.baptismBy = String(body.baptismBy ?? '').trim();
   }
+
+  if (body.isDiaspora !== undefined) {
+    user.isDiaspora = Boolean(body.isDiaspora);
+  }
+
+  if (body.councilRegionIds !== undefined) {
+    const ids = Array.isArray(body.councilRegionIds)
+      ? body.councilRegionIds.map((id) => String(id)).filter(Boolean)
+      : [];
+    user.councilRegionIds = ids;
+  }
+
+  const seqErr = validateLifeDateSequence(user);
+  if (seqErr) return { error: seqErr };
+
   if (body.baptismPlace !== undefined) {
     user.baptismPlace = String(body.baptismPlace ?? '').trim();
   }
@@ -431,6 +471,7 @@ module.exports = {
   applyMemberProfilePatch,
   parseDateOfBirth,
   parseChurchRecordDate,
+  validateLifeDateSequence,
   mergeAddress,
   normalizeCouncilBadges,
   normalizePositionsHeld,

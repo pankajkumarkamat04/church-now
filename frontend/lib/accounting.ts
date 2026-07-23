@@ -85,21 +85,43 @@ export async function fetchCashBookSummary(token: string, scope: ApiScope, churc
   return apiFetch<CashBookSummary>(`${prefix}/accounting/ledger/cashbook-summary${q}`, { token });
 }
 
-export async function fetchBudgets(token: string, scope: ApiScope, churchId?: string, year?: number) {
+export async function fetchBudgets(
+  token: string,
+  scope: ApiScope,
+  churchId?: string,
+  year?: number,
+  owner?: { ownerType: string; ownerId: string }
+) {
   const { prefix } = base(scope, churchId);
   const params = new URLSearchParams();
-  if (churchId) params.set('churchId', churchId);
+  if (owner?.ownerType && owner?.ownerId) {
+    params.set('ownerType', owner.ownerType);
+    params.set('ownerId', owner.ownerId);
+  } else if (churchId) {
+    params.set('churchId', churchId);
+  }
   if (year) params.set('year', String(year));
   const qs = params.toString();
   return apiFetch<Budget[]>(`${prefix}/accounting/budget${qs ? `?${qs}` : ''}`, { token });
 }
 
-export async function fetchBudgetById(token: string, budgetId: string, scope: ApiScope, churchId?: string) {
+export async function fetchBudgetById(
+  token: string,
+  budgetId: string,
+  scope: ApiScope,
+  churchId?: string,
+  owner?: { ownerType: string; ownerId: string }
+) {
   const { prefix } = base(scope, churchId);
-  return apiFetch<Budget>(
-    withChurchQuery(`${prefix}/accounting/budget/${budgetId}`, churchId),
-    { token }
-  );
+  const params = new URLSearchParams();
+  if (owner?.ownerType && owner?.ownerId) {
+    params.set('ownerType', owner.ownerType);
+    params.set('ownerId', owner.ownerId);
+  } else if (churchId) {
+    params.set('churchId', churchId);
+  }
+  const qs = params.toString();
+  return apiFetch<Budget>(`${prefix}/accounting/budget/${budgetId}${qs ? `?${qs}` : ''}`, { token });
 }
 
 export async function createBudget(token: string, body: Record<string, unknown>, scope: ApiScope = 'admin') {
@@ -143,12 +165,27 @@ export async function activateBudget(token: string, budgetId: string, scope: Api
   });
 }
 
-export async function refreshBudgetActuals(token: string, budgetId: string, scope: ApiScope, churchId?: string) {
+export async function refreshBudgetActuals(
+  token: string,
+  budgetId: string,
+  scope: ApiScope,
+  churchId?: string,
+  owner?: { ownerType: string; ownerId: string }
+) {
   const { prefix } = base(scope, churchId);
-  return apiFetch<Budget>(
-    withChurchQuery(`${prefix}/accounting/budget/${budgetId}/refresh-actuals`, churchId),
-    { token, method: 'POST', body: JSON.stringify({}) }
-  );
+  const params = new URLSearchParams();
+  if (owner?.ownerType && owner?.ownerId) {
+    params.set('ownerType', owner.ownerType);
+    params.set('ownerId', owner.ownerId);
+  } else if (churchId) {
+    params.set('churchId', churchId);
+  }
+  const qs = params.toString();
+  return apiFetch<Budget>(`${prefix}/accounting/budget/${budgetId}/refresh-actuals${qs ? `?${qs}` : ''}`, {
+    token,
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
 }
 
 export async function fetchGlobalPaymentMembers(token: string, scope: ApiScope, search?: string, churchId?: string) {

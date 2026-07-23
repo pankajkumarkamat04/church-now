@@ -305,7 +305,7 @@ export default function MemberAccountPage() {
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Sex</label>
               <select value={gender} onChange={(e) => setGender(e.target.value as Gender | '')} className={field}>
                 <option value="">—</option>
                 <option value="MALE">Male</option>

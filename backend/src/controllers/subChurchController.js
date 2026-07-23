@@ -131,13 +131,21 @@ async function updateSubChurch(req, res) {
       previousAdminLeaderIds = collectLeadershipUserIdsForAdminSync(prevL, prevC);
       previousCommitteeIds = prevL.committeeMembers || [];
 
-      const leadershipSrc =
+      // Local spiritual pastor is assigned via Pastor Management / pastor terms — preserve on officer saves.
+      const existingSpiritualPastor =
+        row.localLeadership?.spiritualPastor?._id || row.localLeadership?.spiritualPastor || null;
+      const existingSpiritualId = existingSpiritualPastor ? String(existingSpiritualPastor) : null;
+      let leadershipSrc =
         req.body.localLeadership !== undefined
-          ? req.body.localLeadership
+          ? { ...req.body.localLeadership }
           : row.localLeadership?.toObject?.() || row.localLeadership || {};
+      if (req.body.localLeadership !== undefined) {
+        leadershipSrc = { ...leadershipSrc, spiritualPastor: existingSpiritualId };
+      }
       const councilsSrc =
         req.body.councils !== undefined ? req.body.councils : row.councils?.toObject?.() || row.councils || [];
       const { leadership, councils } = await validateChurchLeadershipPayload(row._id, leadershipSrc, councilsSrc);
+      leadership.spiritualPastor = existingSpiritualId;
       row.localLeadership = leadership;
       row.councils = councils;
     } catch (e) {

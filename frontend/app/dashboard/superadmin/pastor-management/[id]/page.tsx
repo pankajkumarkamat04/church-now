@@ -62,7 +62,7 @@ export default function SuperadminPastorDetailPage() {
 
   const [pastor, setPastor] = useState<PastorDetail | null>(null);
   const [terms, setTerms] = useState<PastorTerm[]>([]);
-  const [churches, setChurches] = useState<{ _id: string; name: string }[]>([]);
+  const [churches, setChurches] = useState<{ _id: string; name: string; churchType?: string }[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageErr, setPageErr] = useState<string | null>(null);
 
@@ -113,7 +113,7 @@ export default function SuperadminPastorDetailPage() {
       const [rec, termRes, churchRes] = await Promise.all([
         apiFetch<PastorDetail>(`/api/superadmin/pastors/${recordId}`, { token }),
         apiFetch<PastorTerm[] | Paginated<PastorTerm>>('/api/superadmin/pastor-terms?limit=200', { token }),
-        apiFetch<{ _id: string; name: string }[] | Paginated<{ _id: string; name: string }>>('/api/superadmin/churches?limit=500', { token }),
+        apiFetch<{ _id: string; name: string; churchType?: string }[] | Paginated<{ _id: string; name: string; churchType?: string }>>('/api/superadmin/churches?limit=500', { token }),
       ]);
       const termRows = unwrapPaginatedArray(termRes);
       const churchRows = unwrapPaginatedArray(churchRes);
@@ -125,7 +125,7 @@ export default function SuperadminPastorDetailPage() {
         return typeof p === 'object' ? String(p._id ?? '') : String(p);
       };
       setTerms(termRows.filter((t) => memberId && termPastorId(t) === memberId));
-      setChurches(churchRows);
+      setChurches(churchRows.filter((c) => c.churchType !== 'MAIN'));
 
       // Prefill edit fields
       setName(rec.personal?.name || rec.personal?.fullName || '');
@@ -243,6 +243,7 @@ export default function SuperadminPastorDetailPage() {
       setTransferToChurchId('');
       await load();
       setActionMsg('Pastor transferred successfully. Church membership updated.');
+      setTransferToChurchId('');
     } catch (e) { setActionErr(e instanceof Error ? e.message : 'Failed to transfer'); }
     finally { setBusyAction(null); }
   }

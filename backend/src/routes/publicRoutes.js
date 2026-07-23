@@ -13,6 +13,7 @@ router.get('/system-settings', asyncHandler(systemSettingController.getPublicSys
 router.get('/churches', asyncHandler(frontendController.listPublicChurches));
 router.get('/conferences', asyncHandler(conferenceController.listPublicConferences));
 router.get('/councils', asyncHandler(frontendController.listPublicCouncils));
+router.get('/council-regions', asyncHandler(frontendController.listPublicCouncilRegions));
 router.get('/events', asyncHandler(eventController.listPublicGlobal));
 
 module.exports = router;

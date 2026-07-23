@@ -13,7 +13,7 @@ type Props = {
 
 /** Labels aligned with ChurchLeadershipEditor single-role fields. */
 const VIEW_ROLE_LABELS: Record<string, string> = {
-  spiritualPastor: 'Spiritual pastor',
+  spiritualPastor: 'Spiritual leader / Pastor (Pastor Management)',
   churchPresident: 'Church president (minister)',
   vicePresident: 'Vice president (minister)',
   moderator: 'Moderator',

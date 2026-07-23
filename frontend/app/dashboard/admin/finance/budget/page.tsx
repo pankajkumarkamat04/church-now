@@ -94,6 +94,17 @@ export default function AdminBudgetPage() {
 
       {err ? <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p> : null}
 
+      {!busy && budgets.length === 0 ? (
+        <div className="mb-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-neutral-800">No budgets for this congregation yet</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            {canManage
+              ? 'Select Create budget to draft income and expense lines for the fiscal year.'
+              : 'Ask a treasurer to create the first budget for your congregation.'}
+          </p>
+        </div>
+      ) : null}
+
       <div className="grid gap-4">
         {budgets.map((budget) => (
           <Link

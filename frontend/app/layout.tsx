@@ -12,8 +12,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Church Management',
-  description: 'Multi-church management system',
+  title: {
+    default: 'UCCZ Connect',
+    template: '%s | UCCZ Connect',
+  },
+  description: 'United Congregational Church of Zimbabwe — membership and church administration',
 };
 
 export const viewport: Viewport = {

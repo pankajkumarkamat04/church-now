@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch, type Gender, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { MEMBER_CATEGORY_OPTIONS, type MemberCategory } from '@/lib/memberCategories';
-import { PasswordInput } from '@/components/auth/PasswordInput';
-import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { ProvinceField } from '@/components/forms/ProvinceField';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -26,7 +24,6 @@ export default function SuperadminMemberCreatePage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [idNumber, setIdNumber] = useState('');
@@ -36,7 +33,7 @@ export default function SuperadminMemberCreatePage() {
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [memberCategory, setMemberCategory] = useState<MemberCategory>('MEMBER');
   const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
-  const [gender, setGender] = useState<Gender>('MALE');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [membershipDate, setMembershipDate] = useState('');
   const [baptismDate, setBaptismDate] = useState('');
@@ -44,12 +41,14 @@ export default function SuperadminMemberCreatePage() {
   const [line2, setLine2] = useState('');
   const [city, setCity] = useState('');
   const [stateOrProvince, setStateOrProvince] = useState('');
-  const [country, setCountry] = useState('Zimbabwe');
+  const [country, setCountry] = useState('');
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [churches, setChurches] = useState<Church[]>([]);
   const [councils, setCouncils] = useState<Council[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activationLink, setActivationLink] = useState<string | null>(null);
+  const [activationMessage, setActivationMessage] = useState<string | null>(null);
 
   function toggleCouncil(id: string) {
     setCouncilIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -73,7 +72,6 @@ export default function SuperadminMemberCreatePage() {
       setConferences(conferenceRows);
       setChurches(churchRows);
       setCouncils(councilRows);
-      if (conferenceRows.length > 0) setConferenceId(conferenceRows[0]._id);
     }
     loadReferences().catch((e) => setErr(e instanceof Error ? e.message : 'Failed to load references'));
   }, [token, user]);
@@ -89,33 +87,39 @@ export default function SuperadminMemberCreatePage() {
   );
 
   useEffect(() => {
-    setChurchId((prev) => (prev && filteredChurches.some((church) => church._id === prev) ? prev : filteredChurches[0]?._id || ''));
+    setChurchId((prev) => (prev && filteredChurches.some((church) => church._id === prev) ? prev : ''));
   }, [filteredChurches]);
 
   useEffect(() => {
-    setCouncilIds((prev) => {
-      const kept = prev.filter((id) => councils.some((c) => c._id === id));
-      if (kept.length > 0) return kept;
-      return councils[0]?._id ? [councils[0]._id] : [];
-    });
+    setCouncilIds((prev) => prev.filter((id) => councils.some((c) => c._id === id)));
   }, [councils]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
+    if (!conferenceId || !churchId) {
+      setErr('Select conference and church');
+      return;
+    }
     if (councilIds.length === 0) {
       setErr('Select at least one council');
+      return;
+    }
+    if (!gender) {
+      setErr('Select sex');
       return;
     }
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch('/api/superadmin/members', {
+      const created = await apiFetch<{
+        activationLink?: string;
+        message?: string;
+      }>('/api/superadmin/members', {
         method: 'POST',
         token,
         body: JSON.stringify({
           email,
-          password,
           firstName,
           surname,
           idNumber,
@@ -132,7 +136,11 @@ export default function SuperadminMemberCreatePage() {
           address: { line1, line2, city, stateOrProvince, country },
         }),
       });
-      router.replace('/dashboard/superadmin/users');
+      setActivationLink(created.activationLink || null);
+      setActivationMessage(
+        created.message ||
+          'Member created. Share the activation link so they can set their own password.'
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to create member');
     } finally {
@@ -142,6 +150,42 @@ export default function SuperadminMemberCreatePage() {
 
   if (!user || user.role !== 'SUPERADMIN') return null;
 
+  if (activationLink || activationMessage) {
+    return (
+      <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
+        <Link href="/dashboard/superadmin/users" className="text-sm font-medium text-violet-700 hover:text-violet-900">
+          ← Back to members
+        </Link>
+        <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-neutral-900">Member created</h1>
+          <p className="mt-2 text-sm text-neutral-700">{activationMessage}</p>
+          {activationLink ? (
+            <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-3">
+              <p className="text-xs font-medium text-violet-900">One-time activation link (expires in 1 hour)</p>
+              <p className="mt-2 break-all text-sm text-violet-950">{activationLink}</p>
+              <button
+                type="button"
+                className="mt-3 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500"
+                onClick={() => navigator.clipboard?.writeText(activationLink)}
+              >
+                Copy link
+              </button>
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs text-neutral-500">
+            Do not invent or share a password for the member. They must set their own password via this link.
+          </p>
+          <Link
+            href="/dashboard/superadmin/users"
+            className="mt-6 inline-flex rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500"
+          >
+            Done
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
       <Link href="/dashboard/superadmin/users" className="text-sm font-medium text-violet-700 hover:text-violet-900">
@@ -149,6 +193,9 @@ export default function SuperadminMemberCreatePage() {
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Add member</h1>
+        <p className="mt-1 text-sm text-neutral-600">
+          After create, you will receive a one-time activation link for the member to set their own password.
+        </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -166,7 +213,7 @@ export default function SuperadminMemberCreatePage() {
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Church</label>
               <select required value={churchId} onChange={(e) => setChurchId(e.target.value)} className={field}>
-                <option value="">Select church</option>
+                <option value="">{conferenceId ? 'Select church' : 'Select a conference first'}</option>
                 {filteredChurches.map((church) => (
                   <option key={church._id} value={church._id}>
                     {church.name}
@@ -207,14 +254,9 @@ export default function SuperadminMemberCreatePage() {
                 )}
               </div>
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={field} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
-              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className={field} />
-              <PasswordRequirementsHint className="mt-1" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
@@ -230,7 +272,7 @@ export default function SuperadminMemberCreatePage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>
-              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
+              <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Date of birth</label>
@@ -251,12 +293,14 @@ export default function SuperadminMemberCreatePage() {
               <input type="date" value={baptismDate} onChange={(e) => setBaptismDate(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Sex</label>
               <select
+                required
                 value={gender}
-                onChange={(e) => setGender(e.target.value as Gender)}
+                onChange={(e) => setGender(e.target.value as Gender | '')}
                 className={field}
               >
+                <option value="">Select sex</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
               </select>

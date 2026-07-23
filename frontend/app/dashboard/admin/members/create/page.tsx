@@ -5,11 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch, type Gender } from '@/lib/api';
-import { PasswordInput } from '@/components/auth/PasswordInput';
-import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
 import { ProvinceField } from '@/components/forms/ProvinceField';
 import { useAuth } from '@/contexts/AuthContext';
-
 
 const field =
   'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20';
@@ -18,25 +15,26 @@ export default function AdminMemberCreatePage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [membershipDate, setMembershipDate] = useState('');
   const [baptismDate, setBaptismDate] = useState('');
-  const [gender, setGender] = useState<Gender>('MALE');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [contactPhone, setContactPhone] = useState('');
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
   const [city, setCity] = useState('');
   const [stateOrProvince, setStateOrProvince] = useState('');
-  const [country, setCountry] = useState('Zimbabwe');
+  const [country, setCountry] = useState('');
   const [councils, setCouncils] = useState<Array<{ _id: string; name: string }>>([]);
   const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [memberBadgeType, setMemberBadgeType] = useState<'BADGED' | 'NON_BADGED'>('NON_BADGED');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activationLink, setActivationLink] = useState<string | null>(null);
+  const [activationMessage, setActivationMessage] = useState<string | null>(null);
 
   function toggleCouncil(id: string) {
     setCouncilIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -48,8 +46,6 @@ export default function AdminMemberCreatePage() {
     }
   }, [loading, user, router]);
 
-
-
   useEffect(() => {
     async function loadGlobalCouncils() {
       if (!token || user?.role !== 'ADMIN') return;
@@ -58,7 +54,6 @@ export default function AdminMemberCreatePage() {
           token,
         });
         setCouncils(rows);
-        setCouncilIds((prev) => (prev.length > 0 ? prev : rows[0]?._id ? [rows[0]._id] : []));
       } catch {
         setCouncils([]);
       }
@@ -74,19 +69,21 @@ export default function AdminMemberCreatePage() {
       setErr('Select at least one council');
       return;
     }
+    if (!gender) {
+      setErr('Select sex');
+      return;
+    }
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch('/api/admin/members', {
+      const created = await apiFetch<{ activationLink?: string; message?: string }>('/api/admin/members', {
         method: 'POST',
         token,
         body: JSON.stringify({
           email,
-          password,
           firstName,
           surname,
           idNumber,
-
           councilIds,
           dateOfBirth,
           gender,
@@ -97,7 +94,11 @@ export default function AdminMemberCreatePage() {
           memberBadgeType,
         }),
       });
-      router.replace('/dashboard/admin/members');
+      setActivationLink(created.activationLink || null);
+      setActivationMessage(
+        created.message ||
+          'Member created. Share the activation link so they can set their own password.'
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -109,42 +110,64 @@ export default function AdminMemberCreatePage() {
     return null;
   }
 
+  if (activationLink || activationMessage) {
+    return (
+      <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
+        <Link href="/dashboard/admin/members" className="text-sm font-medium text-sky-700 hover:text-sky-900">
+          ← Back to members
+        </Link>
+        <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-neutral-900">Member created</h1>
+          <p className="mt-2 text-sm text-neutral-700">{activationMessage}</p>
+          {activationLink ? (
+            <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3">
+              <p className="text-xs font-medium text-sky-900">One-time activation link (expires in 1 hour)</p>
+              <p className="mt-2 break-all text-sm text-sky-950">{activationLink}</p>
+              <button
+                type="button"
+                className="mt-3 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500"
+                onClick={() => navigator.clipboard?.writeText(activationLink)}
+              >
+                Copy link
+              </button>
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs text-neutral-500">
+            Do not invent or share a password for the member. They must set their own password via this link.
+          </p>
+          <Link
+            href="/dashboard/admin/members"
+            className="mt-6 inline-flex rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-500"
+          >
+            Done
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-page dashboard-page--narrow w-full min-w-0">
-      <Link
-        href="/dashboard/admin/members"
-        className="text-sm font-medium text-sky-700 hover:text-sky-900"
-      >
+      <Link href="/dashboard/admin/members" className="text-sm font-medium text-sky-700 hover:text-sky-900">
         ← Back to members
       </Link>
       <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-neutral-900">Add member</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          New members are saved to your church via the API and can sign in immediately.
+          New members are saved to your church. You will get a one-time activation link so they can set their own
+          password — do not invent passwords for members.
         </p>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={field}
-            />
-            </div>
-            <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-600">Password</label>
-            <PasswordInput
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              className={field}
-            />
-            <PasswordRequirementsHint className="mt-1" />
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={field}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">First name</label>
@@ -211,8 +234,14 @@ export default function AdminMemberCreatePage() {
               <input type="date" value={baptismDate} onChange={(e) => setBaptismDate(e.target.value)} className={field} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
-              <select value={gender} onChange={(e) => setGender(e.target.value as Gender)} className={field}>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">Sex</label>
+              <select
+                required
+                value={gender}
+                onChange={(e) => setGender(e.target.value as Gender | '')}
+                className={field}
+              >
+                <option value="">Select sex</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
               </select>
@@ -231,7 +260,13 @@ export default function AdminMemberCreatePage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Contact phone</label>
-              <input required value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
+              <input
+                required
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                className={field}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>

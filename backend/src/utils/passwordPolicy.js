@@ -3,6 +3,8 @@
  * Enforced on register, reset, change-password, and admin-set passwords.
  */
 
+const crypto = require('crypto');
+
 const MIN_LENGTH = 8;
 const HAS_LOWER = /[a-z]/;
 const HAS_UPPER = /[A-Z]/;
@@ -44,9 +46,32 @@ function validateNewPassword(password) {
   return validatePassword(password);
 }
 
+/**
+ * Random password that satisfies policy. Used when admins create members —
+ * the member never sees this; they set their own password via activation link.
+ */
+function generateTemporaryPassword() {
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const special = '!@#$%&*';
+  const pick = (chars) => chars[crypto.randomInt(0, chars.length)];
+  const base = [pick(lower), pick(upper), pick(digits), pick(special)];
+  const all = lower + upper + digits + special;
+  while (base.length < 16) {
+    base.push(pick(all));
+  }
+  for (let i = base.length - 1; i > 0; i -= 1) {
+    const j = crypto.randomInt(0, i + 1);
+    [base[i], base[j]] = [base[j], base[i]];
+  }
+  return base.join('');
+}
+
 module.exports = {
   MIN_LENGTH,
   PASSWORD_REQUIREMENTS_SUMMARY,
   validatePassword,
   validateNewPassword,
+  generateTemporaryPassword,
 };

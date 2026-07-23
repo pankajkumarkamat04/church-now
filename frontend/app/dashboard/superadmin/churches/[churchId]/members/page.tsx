@@ -280,7 +280,7 @@ function SuperadminChurchMembersPageInner() {
         <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
           <p className="mb-4 text-sm text-neutral-600">
             {isMainChurch
-              ? 'Choose leaders from any active congregation member. Minister roles require pastors; moderator, secretary, treasurer, and committee use lay members. Use Select on each role to search and filter by conference or church.'
+              ? 'Choose officers from any active congregation member. Minister roles require pastors; moderator, secretary, treasurer, and committee use lay members. The main church spiritual leader is assigned only from Pastor Management → Main Church Pastor.'
               : 'Assign local church leaders from members registered at this congregation.'}
           </p>
           {savedMsg ? (

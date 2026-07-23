@@ -15,6 +15,7 @@ const {
   updateUser,
   deleteUser,
   listCouncils,
+  getCouncil,
   listCouncilMembers,
   createCouncil,
   updateCouncil,
@@ -47,6 +48,8 @@ const remittanceController = require('../controllers/remittanceController');
 const churchLogoController = require('../controllers/churchLogoController');
 const passwordAdminController = require('../controllers/passwordAdminController');
 const ledgerController = require('../controllers/ledgerController');
+const councilRegionController = require('../controllers/councilRegionController');
+const officeRoleController = require('../controllers/officeRoleController');
 const budgetController = require('../controllers/budgetController');
 const globalPaymentController = require('../controllers/globalPaymentController');
 
@@ -184,9 +187,24 @@ router.get('/users', asyncHandler(listUsers));
 router.get('/leadership-roster', asyncHandler(listLeadershipRoster));
 router.get('/councils', asyncHandler(listCouncils));
 router.get('/councils/:councilId/members', asyncHandler(listCouncilMembers));
+router.get('/councils/:councilId/regions', asyncHandler(councilRegionController.listRegions));
+router.post('/councils/:councilId/regions', asyncHandler(councilRegionController.createRegion));
+router.get('/councils/:councilId', asyncHandler(getCouncil));
 router.post('/councils', asyncHandler(createCouncil));
 router.put('/councils/:councilId', asyncHandler(updateCouncil));
 router.delete('/councils/:councilId', asyncHandler(deleteCouncil));
+router.get('/council-regions', asyncHandler(councilRegionController.listRegions));
+router.get('/council-regions/:regionId', asyncHandler(councilRegionController.getRegion));
+router.put('/council-regions/:regionId', asyncHandler(councilRegionController.updateRegion));
+router.delete('/council-regions/:regionId', asyncHandler(councilRegionController.deleteRegion));
+router.get('/office-roles', asyncHandler(officeRoleController.listOfficeRoles));
+router.post('/office-roles', asyncHandler(officeRoleController.createOfficeRole));
+router.put('/office-roles/:roleId', asyncHandler(officeRoleController.updateOfficeRole));
+router.delete('/office-roles/:roleId', asyncHandler(officeRoleController.deleteOfficeRole));
+router.get('/office-assignments', asyncHandler(officeRoleController.listAssignments));
+router.post('/office-assignments', asyncHandler(officeRoleController.createAssignment));
+router.put('/office-assignments/:assignmentId', asyncHandler(officeRoleController.updateAssignment));
+router.delete('/office-assignments/:assignmentId', asyncHandler(officeRoleController.deleteAssignment));
 router.get('/pastor-members', asyncHandler(pastorController.listEligibleMembersForSuperadmin));
 router.get('/pastor-members-all', asyncHandler(pastorController.listAllMembersForUpgradeForSuperadmin));
 router.get('/sub-church-pastors', asyncHandler(pastorController.listSubChurchPastorsManagement));
@@ -234,10 +252,10 @@ router.get('/accounting/budget', asyncHandler(budgetController.getBudgets));
 router.get('/accounting/budget/summary', asyncHandler(budgetController.getBudgetSummary));
 router.get('/accounting/budget/vs-actual', asyncHandler(budgetController.getBudgetVsActualReport));
 router.get('/accounting/budget/:budgetId', asyncHandler(budgetController.getBudgetById));
-router.post('/accounting/budget', superadminFinanceReadOnly);
-router.put('/accounting/budget/:budgetId', superadminFinanceReadOnly);
-router.put('/accounting/budget/:budgetId/approve', superadminFinanceReadOnly);
-router.put('/accounting/budget/:budgetId/activate', superadminFinanceReadOnly);
+router.post('/accounting/budget', asyncHandler(budgetController.createBudget));
+router.put('/accounting/budget/:budgetId', asyncHandler(budgetController.updateBudget));
+router.put('/accounting/budget/:budgetId/approve', asyncHandler(budgetController.approveBudget));
+router.put('/accounting/budget/:budgetId/activate', asyncHandler(budgetController.activateBudget));
 router.post('/accounting/budget/:budgetId/refresh-actuals', asyncHandler(budgetController.refreshBudgetActuals));
 
 router.get('/accounting/global-payments/members', asyncHandler(globalPaymentController.listMembers));

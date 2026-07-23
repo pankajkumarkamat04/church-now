@@ -24,7 +24,8 @@ const Event = require('../models/Event');
 const { populateLeadershipPaths } = require('../utils/churchLeadershipValidation');
 const { collectPastorUserIdsForRoster } = require('../utils/leadershipRosterPastors');
 const { resolveMemberIdForChurch, isMemberIdDuplicateKeyError } = require('../utils/memberId');
-const { validateNewPassword } = require('../utils/passwordPolicy');
+const { validateNewPassword, generateTemporaryPassword } = require('../utils/passwordPolicy');
+const { issuePasswordResetLink } = require('../utils/passwordReset');
 const { collectCongregationRoleLabelsForUser } = require('../utils/churchMemberRoles');
 const {
   syncChurchMemberRoleDisplays,
@@ -192,9 +193,12 @@ async function deleteChurch(req, res) {
   }
 }
 
-async function listCouncils(_req, res) {
+async function listCouncils(req, res) {
   try {
-    const rows = await GlobalCouncil.find({ isActive: true }).sort({ name: 1 }).lean();
+    const includeInactive =
+      String(req.query.includeInactive || '') === '1' || String(req.query.all || '') === '1';
+    const filter = includeInactive ? {} : { isActive: true };
+    const rows = await GlobalCouncil.find(filter).sort({ displayOrder: 1, name: 1 }).lean();
     return res.json(rows);
   } catch (err) {
     console.error(err);
@@ -202,10 +206,21 @@ async function listCouncils(_req, res) {
   }
 }
 
+async function getCouncil(req, res) {
+  try {
+    const row = await GlobalCouncil.findById(req.params.councilId).lean();
+    if (!row) return res.status(404).json({ message: 'Council not found' });
+    return res.json(row);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load council' });
+  }
+}
+
 async function listCouncilMembers(req, res) {
   try {
     const councilId = String(req.params.councilId || '').trim();
-    const council = await GlobalCouncil.findOne({ _id: councilId, isActive: true }).select('_id name').lean();
+    const council = await GlobalCouncil.findById(councilId).select('_id name isActive').lean();
     if (!council) {
       return res.status(404).json({ message: 'Council not found' });
     }
@@ -240,7 +255,12 @@ async function createCouncil(req, res) {
   try {
     const name = String(req.body?.name || '').trim();
     if (!name) return res.status(400).json({ message: 'Council name is required' });
-    const row = await GlobalCouncil.create({ name });
+    const isActive = req.body?.isActive === undefined ? true : Boolean(req.body.isActive);
+    const abbreviation = String(req.body?.abbreviation || '').trim().toUpperCase();
+    const displayOrder = Number.isFinite(Number(req.body?.displayOrder))
+      ? Number(req.body.displayOrder)
+      : 100;
+    const row = await GlobalCouncil.create({ name, abbreviation, displayOrder, isActive });
     return res.status(201).json(row);
   } catch (err) {
     if (err?.code === 11000) {
@@ -259,6 +279,12 @@ async function updateCouncil(req, res) {
       if (!updates.name) {
         return res.status(400).json({ message: 'Council name is required' });
       }
+    }
+    if (req.body?.abbreviation !== undefined) {
+      updates.abbreviation = String(req.body.abbreviation || '').trim().toUpperCase();
+    }
+    if (req.body?.displayOrder !== undefined) {
+      updates.displayOrder = Number(req.body.displayOrder) || 0;
     }
     if (req.body?.isActive !== undefined) {
       updates.isActive = Boolean(req.body.isActive);
@@ -282,7 +308,20 @@ async function deleteCouncil(req, res) {
   try {
     const removed = await GlobalCouncil.findByIdAndDelete(req.params.councilId);
     if (!removed) return res.status(404).json({ message: 'Council not found' });
-    await User.updateMany({}, { $pull: { councilIds: String(req.params.councilId) } });
+    const oid = removed._id;
+    const idStr = String(oid);
+    // Clear membership links whether stored as ObjectId or string.
+    await User.updateMany({}, { $pull: { councilIds: { $in: [oid, idStr] } } });
+    await User.updateMany({}, { $pull: { councilBadges: { councilId: { $in: [oid, idStr] } } } });
+    const CouncilRegion = require('../models/CouncilRegion');
+    const OfficeAssignment = require('../models/OfficeAssignment');
+    const regions = await CouncilRegion.find({ council: oid }).select('_id').lean();
+    const regionIds = regions.map((r) => r._id);
+    if (regionIds.length) {
+      await User.updateMany({}, { $pull: { councilRegionIds: { $in: regionIds } } });
+      await CouncilRegion.deleteMany({ council: oid });
+    }
+    await OfficeAssignment.deleteMany({ council: oid });
     return res.status(204).send();
   } catch (err) {
     console.error(err);
@@ -940,7 +979,6 @@ async function createMemberUser(req, res) {
   try {
     const {
       email,
-      password,
       firstName,
       surname,
       idNumber,
@@ -958,13 +996,11 @@ async function createMemberUser(req, res) {
       baptismDate,
       baptism_date,
     } = req.body;
-    if (!email || !password || !conferenceId || !churchId) {
-      return res.status(400).json({ message: 'email, password, conferenceId and churchId are required' });
+    if (!email || !conferenceId || !churchId) {
+      return res.status(400).json({ message: 'email, conferenceId and churchId are required' });
     }
-    const pwdErr = validateNewPassword(password);
-    if (pwdErr) {
-      return res.status(400).json({ message: pwdErr });
-    }
+    // Admins must not set member passwords (C-05). Issue an activation link instead.
+    const password = generateTemporaryPassword();
     const church = await Church.findOne({ _id: churchId, conference: conferenceId, isActive: true }).select(
       '_id conference'
     );
@@ -1033,10 +1069,19 @@ async function createMemberUser(req, res) {
       membershipDate: membershipDateVal,
       baptismDate: baptismDateVal,
       memberBadgeType: normalizeMemberBadgeType(memberBadgeType),
+      approvalStatus: 'APPROVED',
+      registrationSource: 'SYSTEM',
     });
+    const { resetLink: activationLink, expiresAt: activationExpiresAt } = await issuePasswordResetLink(user);
     const safe = await User.findById(user._id).populate('church', 'name conference').select('-password');
     const lean = await churchLeanForUserRoles(church._id);
-    return res.status(201).json(toUserListItem(safe, lean));
+    return res.status(201).json({
+      ...toUserListItem(safe, lean),
+      activationLink,
+      activationExpiresAt,
+      message:
+        'Member created. Share the one-time activation link so they can set their own password. Do not invent or share a password for them.',
+    });
   } catch (err) {
     if (isMemberIdDuplicateKeyError(err)) {
       return res.status(409).json({ message: 'Member ID already in use' });
@@ -1167,6 +1212,7 @@ async function listLeadershipRoster(req, res) {
 module.exports = {
   listLeadershipRoster,
   listCouncils,
+  getCouncil,
   listCouncilMembers,
   createCouncil,
   updateCouncil,

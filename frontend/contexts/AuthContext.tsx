@@ -32,6 +32,10 @@ type RegisterInput = {
   churchId: string;
   conferenceIds: string[];
   councilIds: string[];
+  /** Optional council region memberships (e.g. CYF regions). */
+  councilRegionIds?: string[];
+  /** True when the member lives outside Zimbabwe (diaspora). Not a province. */
+  isDiaspora?: boolean;
   memberCategory?: MemberCategory;
   firstName: string;
   surname: string;

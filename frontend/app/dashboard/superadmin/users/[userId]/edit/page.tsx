@@ -313,7 +313,7 @@ export default function SuperadminUserEditPage() {
                   <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={field} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-neutral-600">Gender</label>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600">Sex</label>
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value as Gender | '')}

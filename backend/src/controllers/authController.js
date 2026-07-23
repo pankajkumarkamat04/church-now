@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Church = require('../models/Church');
 const Conference = require('../models/Conference');
 const { MEMBER_CATEGORIES } = require('../models/User');
+const { GENDERS } = require('../models/User');
 const { signToken } = require('../utils/token');
 const {
   toProfileResponse,
@@ -44,6 +45,8 @@ async function register(req, res) {
       membership_date,
       baptismDate,
       baptism_date,
+      isDiaspora,
+      councilRegionIds,
     } = req.body;
     const incomingConferenceIds = Array.isArray(conferenceIds)
       ? conferenceIds
@@ -74,8 +77,22 @@ async function register(req, res) {
     const dobVal = parseDateOfBirth(dateOfBirth);
     if (dobVal === undefined) {
       return res.status(400).json({
-        message: 'Invalid date of birth (use ISO date, not in the future)',
+        message: 'Invalid date of birth (use a valid past date)',
       });
+    }
+    const sex = String(gender || '').toUpperCase();
+    if (!GENDERS.includes(sex)) {
+      return res.status(400).json({ message: 'Sex is required (Male or Female)' });
+    }
+    const phone = String(contactPhone || '').trim();
+    if (!/^\+?[0-9()\-\s]{7,20}$/.test(phone)) {
+      return res.status(400).json({
+        message: 'Enter a valid contact phone number (digits, spaces, or + country code)',
+      });
+    }
+    const idNum = String(idNumber || '').trim();
+    if (idNum.length < 3 || idNum.length > 40) {
+      return res.status(400).json({ message: 'National ID / passport number looks invalid' });
     }
     const addrIn = address && typeof address === 'object' ? address : {};
     const addrRequired = ['line1', 'city', 'stateOrProvince', 'country'];
@@ -118,6 +135,31 @@ async function register(req, res) {
     if (councilResult.error) {
       return res.status(400).json({ message: councilResult.error });
     }
+    let normalizedRegionIds = [];
+    if (councilRegionIds !== undefined && councilRegionIds !== null) {
+      if (!Array.isArray(councilRegionIds)) {
+        return res.status(400).json({ message: 'councilRegionIds must be an array' });
+      }
+      const regionIdStrings = Array.from(
+        new Set(councilRegionIds.map((id) => String(id || '').trim()).filter(Boolean))
+      );
+      if (regionIdStrings.length > 0) {
+        const CouncilRegion = require('../models/CouncilRegion');
+        const regions = await CouncilRegion.find({
+          _id: { $in: regionIdStrings },
+          isActive: true,
+          council: { $in: councilResult.ids },
+        })
+          .select('_id')
+          .lean();
+        if (regions.length !== regionIdStrings.length) {
+          return res.status(400).json({
+            message: 'One or more council regions are invalid for the selected councils',
+          });
+        }
+        normalizedRegionIds = regions.map((r) => r._id);
+      }
+    }
     // Baptism, full membership, and badge details are optional and completed later — not on initial signup.
     const mshipRaw = membershipDate !== undefined ? membershipDate : membership_date;
     let membershipDateVal = null;
@@ -157,9 +199,9 @@ async function register(req, res) {
       firstName: String(firstName).trim(),
       surname: String(surname).trim(),
       fullName: `${String(firstName).trim()} ${String(surname).trim()}`.trim(),
-      idNumber: String(idNumber || '').trim(),
-      contactPhone: String(contactPhone).trim(),
-      gender: gender || undefined,
+      idNumber: idNum,
+      contactPhone: phone,
+      gender: sex,
       dateOfBirth: dobVal,
       address: {
         line1: String(addrIn.line1 || '').trim(),
@@ -173,6 +215,8 @@ async function register(req, res) {
       church: church._id,
       conferences: [selectedConferenceIds[0]],
       councilIds: councilResult.ids,
+      councilRegionIds: normalizedRegionIds,
+      isDiaspora: Boolean(isDiaspora),
       memberCategory: normalizedCategory,
       memberId,
       isFullMember: Boolean(membershipDateVal),

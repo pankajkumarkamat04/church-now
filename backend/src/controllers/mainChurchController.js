@@ -68,6 +68,12 @@ async function createMainChurch(req, res) {
   return res.status(201).json(row);
 }
 
+function leadershipId(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'object' && value._id) return String(value._id);
+  return String(value).trim() || null;
+}
+
 async function updateMainChurch(req, res) {
   const row = await Church.findOne({ _id: req.params.id, churchType: 'MAIN' });
   if (!row) return res.status(404).json({ message: 'Main church not found' });
@@ -85,15 +91,29 @@ async function updateMainChurch(req, res) {
       previousAdminLeaderIds = collectLeadershipUserIdsForAdminSync(prevL, prevC);
       previousCommitteeIds = prevL.committeeMembers || [];
 
-      const leadershipSrc =
+      // MAIN spiritual leader is assigned only via Pastor Management → Main Church Pastor.
+      const existingSpiritualPastor = leadershipId(row.localLeadership?.spiritualPastor);
+      let leadershipSrc =
         req.body.localLeadership !== undefined
-          ? req.body.localLeadership
+          ? { ...req.body.localLeadership }
           : row.localLeadership?.toObject?.() || row.localLeadership || {};
+      if (req.body.localLeadership !== undefined && Object.prototype.hasOwnProperty.call(req.body.localLeadership, 'spiritualPastor')) {
+        const incoming = leadershipId(req.body.localLeadership.spiritualPastor);
+        if (incoming !== existingSpiritualPastor) {
+          return res.status(400).json({
+            message:
+              'Main church spiritual leader must be selected and assigned from Pastor Management (Main Church Pastor tab).',
+          });
+        }
+      }
+      leadershipSrc = { ...leadershipSrc, spiritualPastor: existingSpiritualPastor };
+
       const councilsSrc =
         req.body.councils !== undefined ? req.body.councils : row.councils?.toObject?.() || row.councils || [];
       const { leadership, councils } = await validateChurchLeadershipPayload(row._id, leadershipSrc, councilsSrc, {
         churchType: 'MAIN',
       });
+      leadership.spiritualPastor = existingSpiritualPastor;
       row.localLeadership = leadership;
       row.councils = councils;
     } catch (e) {

@@ -13,9 +13,42 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+const forceHttps = process.env.FORCE_HTTPS === 'true' || process.env.NODE_ENV === 'production';
+if (forceHttps || process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
+app.use((req, res, next) => {
+  if (!forceHttps) return next();
+  const host = String(req.headers.host || '');
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return next();
+  const proto = String(req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http'))
+    .split(',')[0]
+    .trim();
+  if (proto === 'https') return next();
+  return res.redirect(308, `https://${host}${req.originalUrl}`);
+});
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    hsts: forceHttps
+      ? { maxAge: 63072000, includeSubDomains: true, preload: true }
+      : false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
 app.use(cors({ origin: true, credentials: true }));

@@ -53,10 +53,14 @@ export type BudgetCategory = {
 
 export type Budget = {
   _id: string;
+  ownerType?: 'CHURCH' | 'COUNCIL' | 'COUNCIL_REGION' | 'CONFERENCE' | 'NATIONAL';
+  ownerId?: string;
+  church?: string;
   year: number;
   period: 'Annual' | 'Q1' | 'Q2' | 'Q3' | 'Q4';
   name: string;
   description?: string;
+  currency?: string;
   incomeCategories: BudgetCategory[];
   expenseCategories: BudgetCategory[];
   totalIncomeBudget: number;

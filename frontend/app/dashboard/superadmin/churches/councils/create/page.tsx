@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function SuperadminChurchCouncilsCreateRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/dashboard/superadmin/councils');
+    router.replace('/dashboard/superadmin/councils/create');
   }, [router]);
   return null;
 }

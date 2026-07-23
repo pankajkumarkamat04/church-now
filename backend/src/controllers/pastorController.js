@@ -748,11 +748,12 @@ async function transferPastor(req, res) {
   if (!targetChurch) return res.status(400).json({ message: 'Target church not found or inactive' });
 
   if (targetChurch.churchType === 'MAIN') {
-    const resolved = await resolvePastorForSpiritualAssignment(toChurchId, row.pastor);
-    if (resolved.error) {
-      return res.status(resolved.error.status).json({ message: resolved.error.message });
-    }
+    return res.status(400).json({
+      message:
+        'Main church spiritual leader must be assigned from Pastor Management → Main Church Pastor tab. Transfer only to sub-churches.',
+    });
   }
+
   const targetActiveLeader = await PastorTerm.findOne({
     church: toChurchId,
     status: { $in: ACTIVE_PASTOR_TERM_STATUSES },
@@ -769,17 +770,30 @@ async function transferPastor(req, res) {
     });
   }
 
-  const targetChurchDoc = await Church.findById(toChurchId).select('localLeadership councils');
+  const targetChurchDoc = await Church.findById(toChurchId).select('localLeadership councils churchType');
   if (userHasAnyLeadershipRole(targetChurchDoc, row.pastor)) {
     return res.status(409).json({ message: 'Pastor cannot be transferred to a church where they already hold another leadership role' });
   }
 
+  const leadershipPastorId = spiritualPastorIdFromChurch(targetChurchDoc);
+  if (leadershipPastorId && leadershipPastorId !== String(row.pastor)) {
+    const leaderUser = await User.findById(leadershipPastorId).select('fullName email').lean();
+    return res.status(409).json({
+      message: `Target church already has a spiritual pastor in leadership (${leaderDisplayName(leaderUser)}). Remove them before transferring.`,
+    });
+  }
+
+  if (await isMainChurchSpiritualLeader(row.pastor)) {
+    return res.status(409).json({
+      message:
+        'This pastor is the main church spiritual leader. Unassign from Main Church Pastor Management before transferring.',
+    });
+  }
+
   const pastor = await User.findById(row.pastor);
   if (!pastor) return res.status(404).json({ message: 'Pastor user not found' });
-  if (targetChurch.churchType !== 'MAIN') {
-    pastor.church = targetChurch._id;
-    await pastor.save();
-  }
+  pastor.church = targetChurch._id;
+  await pastor.save();
 
   row.status = 'TRANSFERRED';
   row.transferredToChurch = targetChurch._id;
@@ -814,6 +828,8 @@ async function transferPastor(req, res) {
     }
     await syncChurchMemberRoleDisplays(fromChurchDoc.toObject ? fromChurchDoc.toObject() : fromChurchDoc);
   }
+
+  await setPastorLocalSpiritual(pastor);
 
   const populated = await PastorTerm.findById(next._id).populate('pastor', 'fullName email memberId').populate('church', 'name');
   if (targetChurchDoc) await syncChurchMemberRoleDisplays(targetChurchDoc.toObject ? targetChurchDoc.toObject() : targetChurchDoc);

@@ -18,16 +18,12 @@ export default function ForgotPasswordPage() {
     setMessage(null);
     setBusy(true);
     try {
-      const res = await apiFetch<{ message: string; resetToken?: string; resetLink?: string }>(
+      const res = await apiFetch<{ message: string }>(
         '/api/auth/forgot-password',
         { method: 'POST', body: JSON.stringify({ email }) }
       );
       setMessage(res.message);
-      if (res.resetLink) {
-        setMessage(
-          `${res.message} (Dev: use this link to reset: ${res.resetLink})`
-        );
-      }
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -44,8 +40,8 @@ export default function ForgotPasswordPage() {
       </div>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Forgot password</h1>
       <p className="mt-1 text-center text-sm text-neutral-600">
-        Enter your email. If an account exists, we will send reset instructions (check the server
-        log in development, or your email when configured).
+        Enter your email. If an account exists for that address, we will send password reset
+        instructions.
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>

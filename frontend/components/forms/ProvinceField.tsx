@@ -56,6 +56,7 @@ export function ProvinceField({
       <div>
         <label htmlFor={id} className={labelClassName}>
           {label}
+          {required ? <span className="text-red-600"> *</span> : null}
         </label>
         <select
           id={id}

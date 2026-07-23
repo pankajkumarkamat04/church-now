@@ -19,6 +19,8 @@ const {
 const { syncChurchMemberRoleDisplays } = require('../utils/memberRoleSync');
 const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 const { getPaginationParams, paginatedResponse } = require('../utils/paginate');
+const { generateTemporaryPassword } = require('../utils/passwordPolicy');
+const { issuePasswordResetLink } = require('../utils/passwordReset');
 
 const CHURCH_POPULATE =
   'name churchType conference mainChurch address city stateOrProvince postalCode country phone email latitude longitude isActive localLeadership councils';
@@ -240,7 +242,6 @@ async function createMember(req, res) {
   try {
     const {
       email,
-      password,
       firstName,
       surname,
       idNumber,
@@ -257,17 +258,13 @@ async function createMember(req, res) {
       baptism_date,
       memberBadgeType,
     } = req.body;
-    if (!email || !password || !firstName || !surname || !idNumber || !contactPhone) {
+    if (!email || !firstName || !surname || !idNumber || !contactPhone) {
       return res.status(400).json({
-        message:
-          'Email, password, firstName, surname, idNumber, and contactPhone are required',
+        message: 'Email, firstName, surname, idNumber, and contactPhone are required',
       });
     }
-    const { validateNewPassword } = require('../utils/passwordPolicy');
-    const pwdErr = validateNewPassword(password);
-    if (pwdErr) {
-      return res.status(400).json({ message: pwdErr });
-    }
+    // Admins must not set member passwords (C-05). Issue an activation link instead.
+    const password = generateTemporaryPassword();
     if (!churchId(req)) {
       return res.status(400).json({ message: 'No church assigned' });
     }
@@ -289,6 +286,8 @@ async function createMember(req, res) {
       contactPhone: String(contactPhone).trim(),
       role: 'MEMBER',
       church: churchId(req),
+      approvalStatus: 'APPROVED',
+      registrationSource: 'SYSTEM',
     });
     const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
     if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
@@ -319,10 +318,18 @@ async function createMember(req, res) {
       return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid member ID' });
     }
     await member.save();
+    const { resetLink: activationLink, expiresAt: activationExpiresAt } = await issuePasswordResetLink(member);
     const populated = await User.findById(member._id)
       .populate('church', CHURCH_POPULATE)
       .populate('conferences', 'conferenceId name description email phone isActive');
-    return res.status(201).json(await attachCouncilNamesToProfile(toProfileResponse(populated)));
+    const profile = await attachCouncilNamesToProfile(toProfileResponse(populated));
+    return res.status(201).json({
+      ...profile,
+      activationLink,
+      activationExpiresAt,
+      message:
+        'Member created. Share the one-time activation link so they can set their own password. Do not invent or share a password for them.',
+    });
   } catch (err) {
     if (isMemberIdDuplicateKeyError(err)) {
       return res.status(409).json({ message: 'Member ID already in use' });
@@ -516,11 +523,29 @@ async function listPublicChurches(_req, res) {
 /** Public list of active global councils (same data as admin global councils; no auth). */
 async function listPublicCouncils(_req, res) {
   try {
-    const rows = await GlobalCouncil.find({ isActive: true }).sort({ name: 1 }).lean();
+    const rows = await GlobalCouncil.find({ isActive: true }).sort({ displayOrder: 1, name: 1 }).lean();
     return res.json(rows);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to load councils' });
+  }
+}
+
+/** Public list of active council regions (optional ?councilId=). */
+async function listPublicCouncilRegions(req, res) {
+  try {
+    const CouncilRegion = require('../models/CouncilRegion');
+    const filter = { isActive: true };
+    const councilId = String(req.query.councilId || '').trim();
+    if (councilId) filter.council = councilId;
+    const rows = await CouncilRegion.find(filter)
+      .populate('council', 'name abbreviation')
+      .sort({ sortOrder: 1, name: 1 })
+      .lean();
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to load council regions' });
   }
 }
 
@@ -539,4 +564,5 @@ module.exports = {
   rejectMember,
   listPublicChurches,
   listPublicCouncils,
+  listPublicCouncilRegions,
 };

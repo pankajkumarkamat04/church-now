@@ -220,13 +220,30 @@ export function ChurchLeadershipEditor({
           <h2 className="text-lg font-semibold text-neutral-900">{churchName}</h2>
           <p className="mt-1 text-sm text-neutral-600">
             {isMainChurch
-              ? 'Assign leaders from all active congregation members (pastors for minister roles; lay members for moderator, secretary, treasurer, and committee).'
+              ? 'Assign officers from all active congregation members. The main church spiritual leader is assigned only from Pastor Management → Main Church Pastor.'
               : 'Assign leaders from members of this congregation.'}
           </p>
         </div>
       ) : null}
 
       <section className="space-y-4">
+        {isMainChurch ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-3">
+            <label className="mb-1 block text-xs font-medium text-neutral-600">Spiritual leader / Pastor</label>
+            <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800">
+              {(() => {
+                const sp = row.localLeadership?.spiritualPastor;
+                const id = memberRefId(sp);
+                const label = labelFromRef(sp) || (id ? labelForId(id) : '');
+                return label || '— None —';
+              })()}
+            </div>
+            <p className="mt-1.5 text-xs text-amber-900">
+              Select and assign from Pastor Management → Main Church Pastor (leadership side). Not editable here.
+            </p>
+          </div>
+        ) : null}
+
         <div className="grid gap-3 sm:grid-cols-2">
           {(churchType === 'MAIN' ? MAIN_LEADERSHIP_KEYS : SUB_LEADERSHIP_KEYS).map((key) => {
             const selectedId = singleRoles[key];

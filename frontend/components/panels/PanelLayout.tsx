@@ -191,6 +191,11 @@ function superadminNavGroups(): AdminNavGroup[] {
         { href: '/dashboard/superadmin/conferences', label: 'Conferences', icon: <Building2 className="size-3.5 opacity-70" /> },
         { href: '/dashboard/superadmin/councils', label: 'Councils', icon: <Users className="size-3.5 opacity-70" /> },
         {
+          href: '/dashboard/superadmin/office-roles',
+          label: 'Office roles',
+          icon: <Shield className="size-3.5 opacity-70" />,
+        },
+        {
           href: '/dashboard/superadmin/churches/service-councils',
           label: 'Service Councils',
           icon: <Users className="size-3.5 opacity-70" />,
@@ -253,7 +258,9 @@ function superadminPathInGroup(
     return (
       pathname.startsWith('/dashboard/superadmin/churches') ||
       pathname.startsWith('/dashboard/superadmin/conferences') ||
-      pathname.startsWith('/dashboard/superadmin/councils')
+      pathname.startsWith('/dashboard/superadmin/councils') ||
+      pathname.startsWith('/dashboard/superadmin/office-roles') ||
+      pathname.startsWith('/dashboard/superadmin/office-assignments')
     );
   }
   if (groupId === 'users') {

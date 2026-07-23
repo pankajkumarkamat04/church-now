@@ -104,6 +104,10 @@ const userSchema = new mongoose.Schema(
       },
     ],
     councilIds: [{ type: mongoose.Schema.Types.ObjectId }],
+    /** Council regions (e.g. CYF regions) — independent of church conference. */
+    councilRegionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CouncilRegion' }],
+    /** Diaspora membership classification (not a province). */
+    isDiaspora: { type: Boolean, default: false, index: true },
     memberCategory: {
       type: String,
       enum: MEMBER_CATEGORIES,
