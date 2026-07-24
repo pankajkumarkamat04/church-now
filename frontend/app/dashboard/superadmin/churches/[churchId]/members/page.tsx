@@ -3,10 +3,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Eye, KeyRound, Loader2, Pencil, Plus, Shield, Users } from 'lucide-react';
+import { Eye, KeyRound, Loader2, Pencil, Plus, Shield, UserCheck, Users } from 'lucide-react';
 import { ChurchLeadershipEditor, leadershipSummary } from '@/components/church/ChurchLeadershipEditor';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
+import { RegistrationApprovalModal } from '@/components/members/RegistrationApprovalModal';
 import { apiFetch, type AuthUser } from '@/lib/api';
+import { btn } from '@/lib/uiClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 import type { ChurchRecord } from '../../types';
@@ -14,9 +16,6 @@ import type { ChurchRecord } from '../../types';
 type MemberRow = AuthUser & { id: string };
 
 type PageTab = 'members' | 'leadership';
-
-const btn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 function normalizeMemberRoleLabel(value: string): string {
   const raw = String(value || '').trim();
@@ -67,6 +66,7 @@ function SuperadminChurchMembersPageInner() {
   const [err, setErr] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [approvalTarget, setApprovalTarget] = useState<{ id: string; name: string } | null>(null);
 
   const returnPath = `/dashboard/superadmin/churches/${churchId}/members`;
 
@@ -453,6 +453,16 @@ function SuperadminChurchMembersPageInner() {
                       </span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
+                      {m.role === 'MEMBER' && m.approvalStatus === 'PENDING' ? (
+                        <button
+                          type="button"
+                          onClick={() => setApprovalTarget({ id: m.id, name: m.fullName || m.email })}
+                          className={`${btn} border-violet-200 text-violet-800 hover:bg-violet-50`}
+                        >
+                          <UserCheck className="mr-1 size-3.5" aria-hidden />
+                          Complete &amp; approve
+                        </button>
+                      ) : null}
                       <Link href={links.view} className={btn}>
                         <Eye className="mr-1 size-3.5" aria-hidden />
                         View
@@ -555,6 +565,16 @@ function SuperadminChurchMembersPageInner() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap justify-end gap-2">
+                            {m.role === 'MEMBER' && m.approvalStatus === 'PENDING' ? (
+                              <button
+                                type="button"
+                                onClick={() => setApprovalTarget({ id: m.id, name: m.fullName || m.email })}
+                                className={`${btn} border-violet-200 text-violet-800 hover:bg-violet-50`}
+                              >
+                                <UserCheck className="mr-1 size-3.5" aria-hidden />
+                                Complete &amp; approve
+                              </button>
+                            ) : null}
                             <Link href={links.view} className={btn}>
                               <Eye className="mr-1 size-3.5" aria-hidden />
                               View
@@ -621,6 +641,20 @@ function SuperadminChurchMembersPageInner() {
           userEmail={resetTarget.email}
           userName={resetTarget.name}
           accent="violet"
+        />
+      ) : null}
+      {token && approvalTarget ? (
+        <RegistrationApprovalModal
+          open
+          onClose={() => setApprovalTarget(null)}
+          token={token}
+          memberId={approvalTarget.id}
+          memberLabel={approvalTarget.name}
+          mode="superadmin"
+          accent="violet"
+          onCompleted={() => {
+            void loadMembers().catch(() => {});
+          }}
         />
       ) : null}
     </div>

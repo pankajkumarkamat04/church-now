@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    // Optional same-origin /api → backend proxy (used when NEXT_PUBLIC_API_URL is empty).
+    const backend = (process.env.BACKEND_PROXY_URL || 'http://localhost:5000').replace(/\/$/, '');
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backend}/api/:path*`,
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: '/dashboard/admin/donations', destination: '/dashboard/admin/payments', permanent: false },

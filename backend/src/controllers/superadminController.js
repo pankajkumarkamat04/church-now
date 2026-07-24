@@ -1102,6 +1102,7 @@ async function listPendingApprovals(req, res) {
     const churchFilter = String(req.query.churchId || '').trim();
     const q = { role: 'MEMBER', approvalStatus: 'PENDING' };
     if (churchFilter) q.church = churchFilter;
+    const { getMemberApprovalBlockers } = require('../utils/memberApprovalGate');
     const members = await User.find(q)
       .sort({ createdAt: 1 })
       .select('-password')
@@ -1109,6 +1110,7 @@ async function listPendingApprovals(req, res) {
     return res.json(
       members.map((m) => {
         const obj = m.toObject ? m.toObject() : m;
+        const blocker = getMemberApprovalBlockers(m);
         return {
           id: String(obj._id),
           _id: String(obj._id),
@@ -1122,6 +1124,8 @@ async function listPendingApprovals(req, res) {
           createdAt: obj.createdAt,
           church: obj.church,
           approvalStatus: obj.approvalStatus,
+          profileComplete: !blocker,
+          profileBlocker: blocker,
         };
       })
     );
@@ -1135,10 +1139,16 @@ async function approvePendingMember(req, res) {
   try {
     const member = await User.findOne({ _id: req.params.memberId, role: 'MEMBER', approvalStatus: 'PENDING' });
     if (!member) return res.status(404).json({ message: 'Pending member not found' });
+    const { assertMemberReadyForApproval } = require('../utils/memberApprovalGate');
+    try {
+      assertMemberReadyForApproval(member);
+    } catch (gateErr) {
+      return res.status(gateErr.statusCode || 400).json({ message: gateErr.message });
+    }
     member.approvalStatus = 'APPROVED';
-    if (member.isActive === false) member.isActive = true;
+    member.isActive = true;
     await member.save();
-    return res.json({ id: member._id, approvalStatus: member.approvalStatus });
+    return res.json({ id: member._id, approvalStatus: member.approvalStatus, isActive: member.isActive });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Failed to approve member' });

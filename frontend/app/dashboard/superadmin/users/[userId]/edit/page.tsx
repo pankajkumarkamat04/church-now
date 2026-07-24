@@ -8,10 +8,10 @@ import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModa
 import { apiFetch, type AuthUser, type Gender, type MemberAddress, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { MEMBER_CATEGORY_OPTIONS, type MemberCategory } from '@/lib/memberCategories';
 import { useAuth } from '@/contexts/AuthContext';
+import { approveBtn, fieldViolet, primaryBtnViolet, secondaryBtn } from '@/lib/uiClasses';
 import type { ChurchRecord } from '@/app/dashboard/superadmin/churches/types';
 
-const field =
-  'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
+const field = fieldViolet;
 
 const emptyAddress: MemberAddress = {
   line1: '',
@@ -142,12 +142,13 @@ export default function SuperadminUserEditPage() {
       const isLegacyChurchAdmin = row.role === 'ADMIN' && !String(row.memberId || '').trim();
       const isMemberForm =
         row.role === 'MEMBER' || (row.role === 'ADMIN' && String(row.memberId || '').trim() !== '');
+      const pendingMember = isMemberForm && row.approvalStatus === 'PENDING';
       const updated = await apiFetch<UserDetail>(`/api/superadmin/users/${userId}`, {
         method: 'PUT',
         token,
         body: JSON.stringify({
           ...(!isMemberForm ? { fullName } : {}),
-          isActive,
+          isActive: pendingMember ? false : isActive,
           ...(isLegacyChurchAdmin ? { churchIds } : {}),
           ...(isMemberForm
             ? {
@@ -170,10 +171,47 @@ export default function SuperadminUserEditPage() {
         }),
       });
       router.replace(
-        updated.role === 'ADMIN' && !String(updated.memberId || '').trim()
-          ? '/dashboard/superadmin/admins'
-          : '/dashboard/superadmin/users',
+        pendingMember
+          ? '/dashboard/superadmin/pending-approvals'
+          : updated.role === 'ADMIN' && !String(updated.memberId || '').trim()
+            ? '/dashboard/superadmin/admins'
+            : '/dashboard/superadmin/users',
       );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSaveAndApprove() {
+    if (!token || !row || row.approvalStatus !== 'PENDING') return;
+    setErr(null);
+    setBusy(true);
+    try {
+      await apiFetch<UserDetail>(`/api/superadmin/users/${userId}`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({
+          isActive: false,
+          conferenceId,
+          churchId,
+          memberCategory,
+          councilIds,
+          memberBadgeType,
+          firstName,
+          surname,
+          idNumber,
+          contactPhone,
+          gender: gender || null,
+          dateOfBirth: dateOfBirth || null,
+          membershipDate: membershipDate || null,
+          baptismDate: baptismDate || null,
+          address,
+        }),
+      });
+      await apiFetch(`/api/superadmin/members/${userId}/approve`, { method: 'PATCH', token });
+      router.replace('/dashboard/superadmin/pending-approvals');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -272,6 +310,12 @@ export default function SuperadminUserEditPage() {
         <p className="mt-1 text-xs text-neutral-500">
           Update display name, sign-in access, and—where applicable—congregation and role details.
         </p>
+        {row.approvalStatus === 'PENDING' ? (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Pending self-registration. Complete ID, sex, date of birth, address and councils, then use{' '}
+            <strong>Save &amp; Approve</strong> to activate login.
+          </div>
+        ) : null}
         {row.memberId ? (
           <p className="mt-2 text-sm text-neutral-700">
             Member ID: <span className="font-mono font-semibold text-neutral-900">{row.memberId}</span>
@@ -513,35 +557,48 @@ export default function SuperadminUserEditPage() {
             </>
           ) : null}
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="userActive"
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="size-4 rounded border-neutral-300"
-            />
-            <label htmlFor="userActive" className="text-sm text-neutral-800">
-              Account active
-            </label>
-          </div>
+          {row.approvalStatus === 'PENDING' ? null : (
+            <div className="flex items-center gap-2">
+              <input
+                id="userActive"
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="size-4 rounded border-neutral-300"
+              />
+              <label htmlFor="userActive" className="text-sm text-neutral-800">
+                Account active
+              </label>
+            </div>
+          )}
           {err ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {err}
             </p>
           ) : null}
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+              className={`${primaryBtnViolet} flex-1`}
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
               Save
             </button>
+            {row.approvalStatus === 'PENDING' ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onSaveAndApprove()}
+                className={`${approveBtn} flex-1`}
+              >
+                {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                Save &amp; Approve
+              </button>
+            ) : null}
             <Link
-              href={backHref}
-              className="inline-flex items-center justify-center rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              href={row.approvalStatus === 'PENDING' ? '/dashboard/superadmin/pending-approvals' : backHref}
+              className={secondaryBtn}
             >
               Cancel
             </Link>

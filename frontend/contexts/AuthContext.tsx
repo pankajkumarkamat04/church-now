@@ -31,28 +31,28 @@ type RegisterInput = {
   password: string;
   churchId: string;
   conferenceIds: string[];
-  councilIds: string[];
-  /** Optional council region memberships (e.g. CYF regions). */
+  /** Optional on short self-signup; admin completes councils later. */
+  councilIds?: string[];
   councilRegionIds?: string[];
-  /** True when the member lives outside Zimbabwe (diaspora). Not a province. */
   isDiaspora?: boolean;
   memberCategory?: MemberCategory;
   firstName: string;
   surname: string;
-  idNumber: string;
-  dateOfBirth: string;
-  gender: Gender;
   contactPhone: string;
+  /** Remaining profile fields are optional — filled by admin on approval. */
+  idNumber?: string;
+  dateOfBirth?: string;
+  gender?: Gender;
   membershipDate?: string;
   baptismDate?: string;
   memberBadgeType?: 'BADGED' | 'NON_BADGED';
-  address: {
-    line1: string;
+  address?: {
+    line1?: string;
     line2?: string;
-    city: string;
-    stateOrProvince: string;
+    city?: string;
+    stateOrProvince?: string;
     postalCode?: string;
-    country: string;
+    country?: string;
   };
 };
 

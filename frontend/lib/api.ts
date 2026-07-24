@@ -169,7 +169,11 @@ function clearLegacyPersistentAuth(): void {
 export function getApiBase(): string {
   const fromEnv = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
   if (fromEnv) return fromEnv;
-  // No hardcoded host — same-origin (proxy /api on the server) or set NEXT_PUBLIC_API_URL.
+  // Local default: Express API. In production set NEXT_PUBLIC_API_URL (or leave empty only if
+  // the reverse proxy forwards /api to the backend and you add a Next rewrite).
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:5000';
+  }
   return '';
 }
 

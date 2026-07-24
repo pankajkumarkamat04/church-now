@@ -10,10 +10,8 @@ import { leadershipSummary } from '@/components/church/ChurchLeadershipEditor';
 import { ChurchViewModal } from '@/components/church/ChurchViewModal';
 import { localMinisterFromChurch, withRevMinisterPrefix } from '@/lib/churchLocalMinister';
 import { Pagination } from '@/components/ui/Pagination';
+import { btn } from '@/lib/uiClasses';
 import type { ChurchRecord } from './types';
-
-const btn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 export default function SuperadminChurchesListPage() {
   const { user, token, loading } = useAuth();

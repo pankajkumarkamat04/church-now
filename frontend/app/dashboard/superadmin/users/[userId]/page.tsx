@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { KeyRound, Loader2, Pencil } from 'lucide-react';
+import { KeyRound, Loader2, Pencil, UserCheck } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
+import { RegistrationApprovalModal } from '@/components/members/RegistrationApprovalModal';
 import { apiFetch, type AuthUser } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -40,6 +41,7 @@ export default function SuperadminUserViewPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loadBusy, setLoadBusy] = useState(true);
   const [resetOpen, setResetOpen] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
 
   const backHref = returnTo || '/dashboard/superadmin/users';
   const editHref = `/dashboard/superadmin/users/${userId}/edit${
@@ -114,9 +116,19 @@ export default function SuperadminUserViewPage() {
           <p className="mt-1 text-sm text-neutral-600">{profile.email}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {profile.role === 'MEMBER' && profile.approvalStatus === 'PENDING' ? (
+            <button
+              type="button"
+              onClick={() => setApprovalOpen(true)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-900 hover:bg-violet-100"
+            >
+              <UserCheck className="size-4" aria-hidden />
+              Complete &amp; approve
+            </button>
+          ) : null}
           <Link
             href={editHref}
-            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
           >
             <Pencil className="size-4" aria-hidden />
             Edit
@@ -125,7 +137,7 @@ export default function SuperadminUserViewPage() {
             <button
               type="button"
               onClick={() => setResetOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-medium text-violet-800 shadow-sm hover:bg-violet-50"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-medium text-violet-800 shadow-sm hover:bg-violet-50"
             >
               <KeyRound className="size-4" aria-hidden />
               Reset password
@@ -234,6 +246,20 @@ export default function SuperadminUserViewPage() {
           userEmail={profile.email}
           userName={profile.fullName || profile.name || ''}
           accent="violet"
+        />
+      ) : null}
+      {token && profile && approvalOpen ? (
+        <RegistrationApprovalModal
+          open
+          onClose={() => setApprovalOpen(false)}
+          token={token}
+          memberId={userId}
+          memberLabel={profile.fullName || profile.name || profile.email}
+          mode="superadmin"
+          accent="violet"
+          onCompleted={() => {
+            void load();
+          }}
         />
       ) : null}
     </div>

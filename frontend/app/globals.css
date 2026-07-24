@@ -44,6 +44,25 @@ body {
   color: var(--app-text);
 }
 
+/* Match link cursor on interactive controls (override Tailwind preflight cursor: default) */
+button:not(:disabled),
+[type='button']:not(:disabled),
+[type='submit']:not(:disabled),
+[type='reset']:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+a[href],
+summary {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[type='button']:disabled,
+[type='submit']:disabled,
+[type='reset']:disabled,
+button[aria-disabled='true'] {
+  cursor: not-allowed !important;
+}
+
 /* Media never overflows small viewports */
 img,
 video {

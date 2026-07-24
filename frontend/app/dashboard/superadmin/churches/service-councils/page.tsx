@@ -5,14 +5,12 @@ import Link from 'next/link';
 import { Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { btn } from '@/lib/uiClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 import type { ChurchRecord, ServiceCouncil } from '../types';
 
 const SERVICE_COUNCILS_PAGE_DEFAULT = 20;
-
-const btn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 export default function SuperadminServiceCouncilsPage() {
   const { user, token, loading } = useAuth();

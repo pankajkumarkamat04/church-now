@@ -61,7 +61,7 @@ function LoginForm() {
           role="status"
           className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-900"
         >
-          Registration submitted. A church admin will approve your membership before you can sign in.
+          Registration submitted. Your church admin will complete your profile and approve your membership before you can sign in.
         </p>
       ) : null}
 

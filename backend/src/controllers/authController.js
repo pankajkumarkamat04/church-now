@@ -1,18 +1,10 @@
 const User = require('../models/User');
 const Church = require('../models/Church');
 const Conference = require('../models/Conference');
-const { MEMBER_CATEGORIES } = require('../models/User');
-const { GENDERS } = require('../models/User');
 const { signToken } = require('../utils/token');
-const {
-  toProfileResponse,
-  attachCouncilNamesToProfile,
-  parseDateOfBirth,
-  parseChurchRecordDate,
-} = require('../utils/memberProfile');
+const { toProfileResponse, attachCouncilNamesToProfile } = require('../utils/memberProfile');
 const { resolveMemberIdForChurch, isMemberIdDuplicateKeyError } = require('../utils/memberId');
 const { syncMemberActiveStatusByPayments } = require('../utils/memberPaymentActivity');
-const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
 const { getConferenceLeadershipSummaryForMe } = require('../utils/conferenceLeaderAccess');
 
 const CHURCH_FIELDS =
@@ -24,84 +16,33 @@ const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
 
 /**
- * POST /api/auth/register — self-serve member signup for an existing church.
+ * POST /api/auth/register — short self-serve signup.
+ * Member provides affiliation + account + contact only.
+ * Church admin / superadmin complete remaining profile fields on approval.
  */
 async function register(req, res) {
   try {
-    const {
-      email,
-      password,
-      churchId,
-      conferenceIds,
-      memberCategory,
-      firstName,
-      surname,
-      idNumber,
-      dateOfBirth,
-      gender,
-      contactPhone,
-      address,
-      membershipDate,
-      membership_date,
-      baptismDate,
-      baptism_date,
-      isDiaspora,
-      councilRegionIds,
-    } = req.body;
+    const { email, password, churchId, conferenceIds, firstName, surname, contactPhone } = req.body;
     const incomingConferenceIds = Array.isArray(conferenceIds)
       ? conferenceIds
       : req.body.conferenceId
         ? [req.body.conferenceId]
         : [];
-    if (
-      !email ||
-      !password ||
-      !churchId ||
-      !firstName ||
-      !surname ||
-      !contactPhone ||
-      !String(idNumber || '').trim()
-    ) {
+    if (!email || !password || !churchId || !firstName || !surname || !contactPhone) {
       return res.status(400).json({
         message:
-          'Email, password, church selection, first name, surname, ID number, and contact phone are required',
+          'Email, password, church selection, first name, surname, and contact phone are required',
       });
     }
     const passwordErr = validateNewPassword(password);
     if (passwordErr) {
       return res.status(400).json({ message: passwordErr });
     }
-    if (!dateOfBirth || String(dateOfBirth).trim() === '') {
-      return res.status(400).json({ message: 'Date of birth is required' });
-    }
-    const dobVal = parseDateOfBirth(dateOfBirth);
-    if (dobVal === undefined) {
-      return res.status(400).json({
-        message: 'Invalid date of birth (use a valid past date)',
-      });
-    }
-    const sex = String(gender || '').toUpperCase();
-    if (!GENDERS.includes(sex)) {
-      return res.status(400).json({ message: 'Sex is required (Male or Female)' });
-    }
     const phone = String(contactPhone || '').trim();
     if (!/^\+?[0-9()\-\s]{7,20}$/.test(phone)) {
       return res.status(400).json({
         message: 'Enter a valid contact phone number (digits, spaces, or + country code)',
       });
-    }
-    const idNum = String(idNumber || '').trim();
-    if (idNum.length < 3 || idNum.length > 40) {
-      return res.status(400).json({ message: 'National ID / passport number looks invalid' });
-    }
-    const addrIn = address && typeof address === 'object' ? address : {};
-    const addrRequired = ['line1', 'city', 'stateOrProvince', 'country'];
-    for (const k of addrRequired) {
-      if (!String(addrIn[k] || '').trim()) {
-        return res.status(400).json({
-          message: 'Complete residential address is required (line 1, city, province, country)',
-        });
-      }
     }
     const church = await Church.findOne({ _id: churchId, isActive: true });
     if (!church) {
@@ -131,57 +72,6 @@ async function register(req, res) {
     if (!church.conference || String(church.conference) !== selectedConferenceIds[0]) {
       return res.status(400).json({ message: 'Selected church does not belong to the selected conference' });
     }
-    const councilResult = await normalizeAndValidateGlobalCouncilIds(req.body.councilIds);
-    if (councilResult.error) {
-      return res.status(400).json({ message: councilResult.error });
-    }
-    let normalizedRegionIds = [];
-    if (councilRegionIds !== undefined && councilRegionIds !== null) {
-      if (!Array.isArray(councilRegionIds)) {
-        return res.status(400).json({ message: 'councilRegionIds must be an array' });
-      }
-      const regionIdStrings = Array.from(
-        new Set(councilRegionIds.map((id) => String(id || '').trim()).filter(Boolean))
-      );
-      if (regionIdStrings.length > 0) {
-        const CouncilRegion = require('../models/CouncilRegion');
-        const regions = await CouncilRegion.find({
-          _id: { $in: regionIdStrings },
-          isActive: true,
-          council: { $in: councilResult.ids },
-        })
-          .select('_id')
-          .lean();
-        if (regions.length !== regionIdStrings.length) {
-          return res.status(400).json({
-            message: 'One or more council regions are invalid for the selected councils',
-          });
-        }
-        normalizedRegionIds = regions.map((r) => r._id);
-      }
-    }
-    // Baptism, full membership, and badge details are optional and completed later — not on initial signup.
-    const mshipRaw = membershipDate !== undefined ? membershipDate : membership_date;
-    let membershipDateVal = null;
-    if (mshipRaw !== undefined && mshipRaw !== null && mshipRaw !== '') {
-      const parsed = parseChurchRecordDate(mshipRaw);
-      if (!parsed) {
-        return res.status(400).json({ message: 'Invalid membership date' });
-      }
-      membershipDateVal = parsed;
-    }
-    const bapRaw = baptismDate !== undefined ? baptismDate : baptism_date;
-    let baptismDateVal = null;
-    if (bapRaw !== undefined && bapRaw !== null && bapRaw !== '') {
-      baptismDateVal = parseChurchRecordDate(bapRaw);
-      if (!baptismDateVal) {
-        return res.status(400).json({ message: 'Invalid baptism date' });
-      }
-    }
-    const normalizedCategory = String(memberCategory || 'MEMBER').toUpperCase();
-    if (!MEMBER_CATEGORIES.includes(normalizedCategory)) {
-      return res.status(400).json({ message: `memberCategory must be one of: ${MEMBER_CATEGORIES.join(', ')}` });
-    }
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
       return res.status(409).json({ message: 'Email already registered' });
@@ -192,43 +82,37 @@ async function register(req, res) {
     } catch (e) {
       return res.status(e.statusCode || 400).json({ message: e.message || 'Invalid member ID' });
     }
-    // Self-serve signup is always MEMBER; never accept role from the client.
+    const normalizedFirstName = String(firstName).trim();
+    const normalizedSurname = String(surname).trim();
+    // Self-serve signup is always MEMBER; profile details completed by admin later.
     const user = await User.create({
       email: email.toLowerCase().trim(),
       password,
-      firstName: String(firstName).trim(),
-      surname: String(surname).trim(),
-      fullName: `${String(firstName).trim()} ${String(surname).trim()}`.trim(),
-      idNumber: idNum,
+      firstName: normalizedFirstName,
+      surname: normalizedSurname,
+      fullName: `${normalizedFirstName} ${normalizedSurname}`.trim(),
+      idNumber: '',
       contactPhone: phone,
-      gender: sex,
-      dateOfBirth: dobVal,
-      address: {
-        line1: String(addrIn.line1 || '').trim(),
-        line2: String(addrIn.line2 || '').trim(),
-        city: String(addrIn.city || '').trim(),
-        stateOrProvince: String(addrIn.stateOrProvince || '').trim(),
-        postalCode: '',
-        country: String(addrIn.country || '').trim(),
-      },
       role: 'MEMBER',
       church: church._id,
       conferences: [selectedConferenceIds[0]],
-      councilIds: councilResult.ids,
-      councilRegionIds: normalizedRegionIds,
-      isDiaspora: Boolean(isDiaspora),
-      memberCategory: normalizedCategory,
+      councilIds: [],
+      councilRegionIds: [],
+      isDiaspora: false,
+      memberCategory: 'MEMBER',
       memberId,
-      isFullMember: Boolean(membershipDateVal),
-      membershipDate: membershipDateVal,
-      baptismDate: baptismDateVal,
+      isFullMember: false,
+      membershipDate: null,
+      baptismDate: null,
       memberBadgeType: 'NON_BADGED',
       approvalStatus: 'PENDING',
       registrationSource: 'SELF_SIGNUP',
+      isActive: false,
+      address: {},
     });
     return res.status(201).json({
       message:
-        'Registration submitted. Your church admin will review and approve your membership before you can sign in.',
+        'Registration submitted. Your church admin will complete your profile and approve your membership before you can sign in.',
       requiresApproval: true,
       userId: user._id,
     });
@@ -267,7 +151,8 @@ async function login(req, res) {
     }
     if (user.role === 'MEMBER' && user.approvalStatus === 'PENDING') {
       return res.status(403).json({
-        message: 'Your membership is pending approval by your church admin.',
+        message:
+          'Your registration is pending. Your church admin must complete your profile and approve your membership before you can sign in.',
       });
     }
     await syncMemberActiveStatusByPayments(user);

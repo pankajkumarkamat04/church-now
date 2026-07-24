@@ -7,14 +7,9 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SuperadminEventRecord } from '@/lib/superadminContentTypes';
+import { btn, field } from '@/lib/uiClasses';
 import { useSuperadminChurches } from '@/app/dashboard/superadmin/useSuperadminChurches';
 import { Pagination } from '@/components/ui/Pagination';
-
-const field =
-  'w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20';
-
-const btn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 type EventRow = SuperadminEventRecord & {
   churchId: string;

@@ -26,9 +26,9 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-semibold text-neutral-900">What we collect</h2>
           <p className="mt-1">
-            Depending on the form, we may collect your name, email address, contact phone, national ID or passport
-            number, date of birth, sex, residential address, congregation/conference/council affiliation, and
-            membership or baptism dates recorded by church officers.
+            At self-registration we collect your name, email, phone and congregation. Church administrators may later
+            add national ID or passport number, date of birth, sex, residential address, council affiliation, and
+            membership or baptism dates when completing your record.
           </p>
         </section>
 

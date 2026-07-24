@@ -3,16 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { KeyRound, Pencil, Shield, Trash2, UserCog } from 'lucide-react';
+import { KeyRound, Pencil, Shield, Trash2, UserCheck, UserCog } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
+import { RegistrationApprovalModal } from '@/components/members/RegistrationApprovalModal';
 import { apiFetch, type AuthUser, type Paginated, unwrapPaginatedArray } from '@/lib/api';
+import { btn } from '@/lib/uiClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
 type UserRow = AuthUser & { id: string };
-
-const btn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 function normalizeMemberRoleLabel(value: string): string {
   const raw = String(value || '').trim();
@@ -43,6 +42,7 @@ export default function SuperadminUsersListPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [approvalTarget, setApprovalTarget] = useState<{ id: string; name: string } | null>(null);
   const roleLabel =
     roleFilter === 'ALL' ? 'member and admin' : roleFilter === 'MEMBER' ? 'member' : 'admin';
   const usersFilterMessage = !conferenceId
@@ -303,12 +303,14 @@ export default function SuperadminUsersListPage() {
                 </span>
                 <span
                   className={
-                    u.isActive === false
-                      ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
-                      : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
+                    u.approvalStatus === 'PENDING'
+                      ? 'rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-900'
+                      : u.isActive === false
+                        ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
+                        : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
                   }
                 >
-                  {u.isActive === false ? 'Inactive' : 'Active'}
+                  {u.approvalStatus === 'PENDING' ? 'Pending approval' : u.isActive === false ? 'Inactive' : 'Active'}
                 </span>
               </div>
               <p className="mt-2 text-xs text-neutral-700">
@@ -323,6 +325,16 @@ export default function SuperadminUsersListPage() {
                     : '—'}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
+                {u.role === 'MEMBER' && u.approvalStatus === 'PENDING' ? (
+                  <button
+                    type="button"
+                    onClick={() => setApprovalTarget({ id: u.id, name: u.fullName || u.email })}
+                    className={`${btn} border-violet-200 text-violet-800 hover:bg-violet-50`}
+                  >
+                    <UserCheck className="mr-1 size-3.5" aria-hidden />
+                    Complete &amp; approve
+                  </button>
+                ) : null}
                 <Link href={`/dashboard/superadmin/users/${u.id}/edit`} className={btn}>
                   <Pencil className="mr-1 size-3.5" aria-hidden />
                   Edit
@@ -405,16 +417,32 @@ export default function SuperadminUsersListPage() {
                   <td className="px-4 py-3">
                     <span
                       className={
-                        u.isActive === false
-                          ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
-                          : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
+                        u.approvalStatus === 'PENDING'
+                          ? 'rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-900'
+                          : u.isActive === false
+                            ? 'rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900'
+                            : 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
                       }
                     >
-                      {u.isActive === false ? 'Inactive' : 'Active'}
+                      {u.approvalStatus === 'PENDING'
+                        ? 'Pending approval'
+                        : u.isActive === false
+                          ? 'Inactive'
+                          : 'Active'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-2">
+                      {u.role === 'MEMBER' && u.approvalStatus === 'PENDING' ? (
+                        <button
+                          type="button"
+                          onClick={() => setApprovalTarget({ id: u.id, name: u.fullName || u.email })}
+                          className={`${btn} border-violet-200 text-violet-800 hover:bg-violet-50`}
+                        >
+                          <UserCheck className="mr-1 size-3.5" aria-hidden />
+                          Complete &amp; approve
+                        </button>
+                      ) : null}
                       <Link href={`/dashboard/superadmin/users/${u.id}/edit`} className={btn}>
                         <Pencil className="mr-1 size-3.5" aria-hidden />
                         Edit
@@ -477,6 +505,20 @@ export default function SuperadminUsersListPage() {
           userEmail={resetTarget.email}
           userName={resetTarget.name}
           accent="violet"
+        />
+      ) : null}
+      {token && approvalTarget ? (
+        <RegistrationApprovalModal
+          open
+          onClose={() => setApprovalTarget(null)}
+          token={token}
+          memberId={approvalTarget.id}
+          memberLabel={approvalTarget.name}
+          mode="superadmin"
+          accent="violet"
+          onCompleted={() => {
+            void load().catch(() => {});
+          }}
         />
       ) : null}
     </div>

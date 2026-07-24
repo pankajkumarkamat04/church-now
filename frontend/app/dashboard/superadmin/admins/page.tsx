@@ -5,15 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pencil, Shield, Trash2, UserCog, Users } from 'lucide-react';
 import { apiFetch, type AuthUser } from '@/lib/api';
+import { btn } from '@/lib/uiClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
 const ADMINS_PAGE_DEFAULT = 20;
 
 type UserRow = AuthUser & { id: string };
-
-const btn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 export default function SuperadminAdminsPage() {
   const { user, token, loading } = useAuth();

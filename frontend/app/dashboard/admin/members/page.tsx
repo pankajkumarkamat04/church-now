@@ -6,13 +6,11 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Eye, KeyRound, Pencil, Plus, UserX } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { apiFetch, type AuthUser } from '@/lib/api';
+import { inputBtn } from '@/lib/uiClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
 
 type MemberRow = AuthUser & { id: string };
-
-const inputBtn =
-  'inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50';
 
 function normalizeMemberRoleLabel(value: string): string {
   const raw = String(value || '').trim();

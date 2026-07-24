@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Clock, UserCheck, UserX, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Pencil, UserCheck, UserX, XCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import {
+  approveBtnOutline,
+  dangerBtnOutline,
+  skyBtnOutline,
+} from '@/lib/uiClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Pagination } from '@/components/ui/Pagination';
+import { RegistrationApprovalModal } from '@/components/members/RegistrationApprovalModal';
 
 type PendingMember = {
   id: string;
@@ -20,6 +26,8 @@ type PendingMember = {
   createdAt?: string;
   church?: { name?: string } | string | null;
   approvalStatus?: string;
+  profileComplete?: boolean;
+  profileBlocker?: string | null;
 };
 
 export default function AdminPendingApprovalsPage() {
@@ -31,6 +39,7 @@ export default function AdminPendingApprovalsPage() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [modalMember, setModalMember] = useState<PendingMember | null>(null);
   const totalPages = Math.max(1, Math.ceil(members.length / pageSize));
   const paged = useMemo(() => members.slice((page - 1) * pageSize, page * pageSize), [members, page, pageSize]);
 
@@ -58,13 +67,22 @@ export default function AdminPendingApprovalsPage() {
     setTimeout(() => setToast(null), 4000);
   }
 
-  async function approve(memberId: string) {
+  async function approve(memberId: string, ready?: boolean) {
     if (!token) return;
+    if (ready === false) {
+      const row = members.find((m) => m.id === memberId);
+      if (row) {
+        setModalMember(row);
+        return;
+      }
+      showToast('error', 'Complete the member profile first (ID, DOB, sex, address, councils), then approve.');
+      return;
+    }
     setBusyId(memberId);
     setErr(null);
     try {
       await apiFetch(`/api/admin/members/${memberId}/approve`, { method: 'PATCH', token });
-      showToast('success', 'Member approved — they can now log in.');
+      showToast('success', 'Member approved and activated — they can now log in.');
       await load();
     } catch (e) {
       showToast('error', e instanceof Error ? e.message : 'Failed to approve');
@@ -93,7 +111,6 @@ export default function AdminPendingApprovalsPage() {
 
   return (
     <div className="dashboard-page w-full min-w-0">
-      {/* Toast */}
       {toast && (
         <div
           className={`fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg transition-all ${
@@ -111,7 +128,6 @@ export default function AdminPendingApprovalsPage() {
         </div>
       )}
 
-      {/* Header */}
       <div className="page-header-row mb-6 flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Member management</p>
@@ -119,7 +135,8 @@ export default function AdminPendingApprovalsPage() {
             Pending Approvals
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Members who self-registered and are waiting for your approval before they can log in.
+            Self-registered members wait here. Complete their full profile (ID, address, councils, etc.), then approve
+            so they can sign in.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -136,15 +153,14 @@ export default function AdminPendingApprovalsPage() {
         <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</p>
       ) : null}
 
-      {/* Info banner */}
       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
         <p className="text-sm text-blue-800">
-          <strong>How approval works:</strong> When a member registers themselves via the public signup page, their
-          account is placed here. Approve to grant login access, or Reject to permanently remove their registration.
+          <strong>Workflow:</strong> Self-registration creates a <em>pending inactive</em> account. Use{' '}
+          <strong>Complete profile</strong> to fill required details in the modal, then{' '}
+          <strong>Save &amp; Approve</strong> to activate login access.
         </p>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
         {members.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
@@ -156,7 +172,6 @@ export default function AdminPendingApprovalsPage() {
           </div>
         ) : (
           <>
-            {/* Mobile cards */}
             <div className="space-y-3 p-3 md:hidden">
               {paged.map((m) => (
                 <div key={m.id} className="rounded-lg border border-amber-100 bg-amber-50/40 p-3">
@@ -166,7 +181,7 @@ export default function AdminPendingApprovalsPage() {
                       <p className="text-xs text-neutral-600">{m.email}</p>
                     </div>
                     <span className="shrink-0 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
-                      Pending
+                      {m.profileComplete ? 'Ready' : 'Incomplete'}
                     </span>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-neutral-600">
@@ -178,12 +193,21 @@ export default function AdminPendingApprovalsPage() {
                       {m.createdAt ? new Date(m.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={busyId === m.id}
-                      onClick={() => approve(m.id)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setModalMember(m)}
+                      className={`${skyBtnOutline} flex-1 px-3 py-2`}
+                    >
+                      <Pencil className="size-3.5" />
+                      Complete profile
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === m.id || m.profileComplete === false}
+                      title={m.profileBlocker || undefined}
+                      onClick={() => approve(m.id, m.profileComplete !== false)}
+                      className={`${approveBtnOutline} flex-1 px-3 py-2`}
                     >
                       <UserCheck className="size-3.5" />
                       {busyId === m.id ? 'Working…' : 'Approve'}
@@ -192,7 +216,7 @@ export default function AdminPendingApprovalsPage() {
                       type="button"
                       disabled={busyId === m.id}
                       onClick={() => reject(m.id, m.fullName)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      className={`${dangerBtnOutline} flex-1 px-3 py-2`}
                     >
                       <UserX className="size-3.5" />
                       {busyId === m.id ? '…' : 'Reject'}
@@ -202,7 +226,6 @@ export default function AdminPendingApprovalsPage() {
               ))}
             </div>
 
-            {/* Desktop table */}
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[800px] text-left text-sm">
                 <thead>
@@ -243,16 +266,25 @@ export default function AdminPendingApprovalsPage() {
                           {m.memberBadgeType === 'BADGED' ? 'Badged' : 'Non-badged'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-neutral-500 text-xs">
+                      <td className="px-4 py-3 text-xs text-neutral-500">
                         {m.createdAt ? new Date(m.createdAt).toLocaleString() : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
-                            disabled={busyId === m.id}
-                            onClick={() => approve(m.id)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => setModalMember(m)}
+                            className={skyBtnOutline}
+                          >
+                            <Pencil className="size-3.5" />
+                            Complete profile
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busyId === m.id || m.profileComplete === false}
+                            title={m.profileBlocker || undefined}
+                            onClick={() => approve(m.id, m.profileComplete !== false)}
+                            className={approveBtnOutline}
                           >
                             <UserCheck className="size-3.5" />
                             {busyId === m.id ? '…' : 'Approve'}
@@ -261,7 +293,7 @@ export default function AdminPendingApprovalsPage() {
                             type="button"
                             disabled={busyId === m.id}
                             onClick={() => reject(m.id, m.fullName)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className={dangerBtnOutline}
                           >
                             <UserX className="size-3.5" />
                             {busyId === m.id ? '…' : 'Reject'}
@@ -287,6 +319,27 @@ export default function AdminPendingApprovalsPage() {
           }}
         />
       </div>
+
+      {token && modalMember ? (
+        <RegistrationApprovalModal
+          open
+          onClose={() => setModalMember(null)}
+          token={token}
+          memberId={modalMember.id}
+          memberLabel={modalMember.fullName}
+          mode="admin"
+          accent="sky"
+          onCompleted={(action) => {
+            showToast(
+              'success',
+              action === 'approved'
+                ? 'Member approved and activated — they can now log in.'
+                : 'Profile saved. Approve when ready to activate login.'
+            );
+            void load();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
