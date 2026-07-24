@@ -1139,12 +1139,7 @@ async function approvePendingMember(req, res) {
   try {
     const member = await User.findOne({ _id: req.params.memberId, role: 'MEMBER', approvalStatus: 'PENDING' });
     if (!member) return res.status(404).json({ message: 'Pending member not found' });
-    const { assertMemberReadyForApproval } = require('../utils/memberApprovalGate');
-    try {
-      assertMemberReadyForApproval(member);
-    } catch (gateErr) {
-      return res.status(gateErr.statusCode || 400).json({ message: gateErr.message });
-    }
+    // Superadmin may approve with or without completing the full profile.
     member.approvalStatus = 'APPROVED';
     member.isActive = true;
     await member.save();

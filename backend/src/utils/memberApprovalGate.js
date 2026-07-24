@@ -1,9 +1,10 @@
 const { GENDERS } = require('../models/User');
 
 /**
- * Fields that must be completed by admin before a self-registered member can be approved/activated.
+ * Optional profile completeness for UI badges only.
+ * Approval is allowed without these fields — members can complete them after login.
  * @param {import('mongoose').Document | object} member
- * @returns {string|null} Error message, or null if ready
+ * @returns {string|null} Hint message when incomplete, or null if complete
  */
 function getMemberApprovalBlockers(member) {
   const missing = [];
@@ -26,19 +27,9 @@ function getMemberApprovalBlockers(member) {
   if (!member.church) missing.push('church');
 
   if (missing.length === 0) return null;
-  return `Complete the member profile before approval. Missing: ${missing.join(', ')}.`;
-}
-
-function assertMemberReadyForApproval(member) {
-  const msg = getMemberApprovalBlockers(member);
-  if (msg) {
-    const err = new Error(msg);
-    err.statusCode = 400;
-    throw err;
-  }
+  return `Optional profile fields still empty: ${missing.join(', ')}. Member can complete these after approval.`;
 }
 
 module.exports = {
   getMemberApprovalBlockers,
-  assertMemberReadyForApproval,
 };

@@ -6,6 +6,7 @@ import { Eye, KeyRound, Loader2 } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
 import { ProvinceField } from '@/components/forms/ProvinceField';
 import { MemberChurchRecordsFields } from '@/components/forms/MemberChurchRecordsFields';
+import { CouncilCardSelect } from '@/components/forms/CouncilCardSelect';
 import { useParams, useRouter } from 'next/navigation';
 import {
   apiFetch,
@@ -211,8 +212,8 @@ export default function AdminMemberEditPage() {
         <p className="mt-1 text-sm text-neutral-600">{profile.email}</p>
         {profile.approvalStatus === 'PENDING' ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Pending self-registration. Fill ID, sex, date of birth, address and councils, then use{' '}
-            <strong>Save &amp; Approve</strong> to activate login.
+            Pending self-registration. You can fill optional details (ID, DOB, sex, address) or leave them for the
+            member. Use <strong>Save &amp; Approve</strong> or approve from the pending list.
           </div>
         ) : null}
         {profile.isActive !== false && token ? (
@@ -272,19 +273,15 @@ export default function AdminMemberEditPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
-              <select
-                multiple
+              <CouncilCardSelect
+                id="admin-member-councils"
+                options={councils}
                 value={councilIds}
-                onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((option) => option.value))}
-                className={`${field} min-h-[110px]`}
-              >
-                {councils.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setCouncilIds}
+                multiple
+                size="sm"
+                label="Councils"
+              />
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-neutral-600">Address line 1</label>

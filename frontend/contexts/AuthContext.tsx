@@ -31,8 +31,8 @@ type RegisterInput = {
   password: string;
   churchId: string;
   conferenceIds: string[];
-  /** Optional on short self-signup; admin completes councils later. */
-  councilIds?: string[];
+  /** At least one council required on self-signup. */
+  councilIds: string[];
   councilRegionIds?: string[];
   isDiaspora?: boolean;
   memberCategory?: MemberCategory;

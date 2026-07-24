@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { ResetUserPasswordModal } from '@/components/users/ResetUserPasswordModal';
+import { CouncilCardSelect } from '@/components/forms/CouncilCardSelect';
 import { apiFetch, type AuthUser, type Gender, type MemberAddress, type Paginated, unwrapPaginatedArray } from '@/lib/api';
 import { MEMBER_CATEGORY_OPTIONS, type MemberCategory } from '@/lib/memberCategories';
 import { useAuth } from '@/contexts/AuthContext';
@@ -312,8 +313,8 @@ export default function SuperadminUserEditPage() {
         </p>
         {row.approvalStatus === 'PENDING' ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Pending self-registration. Complete ID, sex, date of birth, address and councils, then use{' '}
-            <strong>Save &amp; Approve</strong> to activate login.
+            Pending self-registration. Optional details can be filled now or left for the member after approval. Use{' '}
+            <strong>Save &amp; Approve</strong> or approve from Pending Approvals.
           </div>
         ) : null}
         {row.memberId ? (
@@ -467,19 +468,15 @@ export default function SuperadminUserEditPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-neutral-600">Councils</label>
-                <select
-                  multiple
+                <CouncilCardSelect
+                  id="superadmin-user-councils"
+                  options={councils}
                   value={councilIds}
-                  onChange={(e) => setCouncilIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}
-                  className={`${field} min-h-[120px]`}
-                >
-                  {councils.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                      </option>
-                    ))}
-                </select>
+                  onChange={setCouncilIds}
+                  multiple
+                  size="sm"
+                  label="Councils"
+                />
               </div>
               <div className="md:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-neutral-600">Member role option</label>

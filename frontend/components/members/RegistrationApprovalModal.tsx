@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, UserCheck, X } from 'lucide-react';
 import { ProvinceField } from '@/components/forms/ProvinceField';
+import { CouncilCardSelect } from '@/components/forms/CouncilCardSelect';
 import {
   apiFetch,
   type AuthUser,
@@ -151,14 +152,6 @@ export function RegistrationApprovalModal({
   function validateClient(): string | null {
     if (!firstName.trim() && !surname.trim()) return 'Enter first name and surname';
     if (!contactPhone.trim()) return 'Contact phone is required';
-    if (!idNumber.trim()) return 'National ID / passport is required';
-    if (!dateOfBirth) return 'Date of birth is required';
-    if (!gender) return 'Sex is required';
-    if (!address.line1.trim()) return 'Address line 1 is required';
-    if (!address.city.trim()) return 'City is required';
-    if (!address.stateOrProvince.trim()) return 'Province / region is required';
-    if (!address.country.trim()) return 'Country is required';
-    if (councilIds.length === 0) return 'Select at least one council';
     return null;
   }
 
@@ -177,7 +170,7 @@ export function RegistrationApprovalModal({
           gender: gender || null,
           dateOfBirth: dateOfBirth || null,
           address,
-          councilIds,
+          ...(councilIds.length > 0 ? { councilIds } : {}),
           memberBadgeType,
           isActive: false,
         }),
@@ -193,7 +186,7 @@ export function RegistrationApprovalModal({
         conferenceId: conferenceId || undefined,
         churchId: churchId || undefined,
         memberCategory,
-        councilIds,
+        ...(councilIds.length > 0 ? { councilIds } : {}),
         memberBadgeType,
         firstName: firstName.trim(),
         surname: surname.trim(),
@@ -268,7 +261,7 @@ export function RegistrationApprovalModal({
         <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-5 py-4">
           <div className="min-w-0">
             <h3 id="registration-approval-title" className="text-lg font-semibold text-neutral-900">
-              Complete registration
+              Edit registration details
             </h3>
             <p className="mt-1 truncate text-sm text-neutral-600">
               {memberLabel || email || 'Pending member'}
@@ -280,7 +273,8 @@ export function RegistrationApprovalModal({
               ) : null}
             </p>
             <p className="mt-1 text-xs text-neutral-500">
-              Fill required details, then approve to activate their login.
+              All extra fields are optional. You can save what you have, approve now, or leave the rest for the member
+              after login.
             </p>
           </div>
           <button
@@ -307,7 +301,7 @@ export function RegistrationApprovalModal({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  First name <span className="text-red-600">*</span>
+                  First name
                 </label>
                 <input
                   value={firstName}
@@ -318,7 +312,7 @@ export function RegistrationApprovalModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Surname <span className="text-red-600">*</span>
+                  Surname
                 </label>
                 <input
                   value={surname}
@@ -329,13 +323,13 @@ export function RegistrationApprovalModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  National ID / passport <span className="text-red-600">*</span>
+                  National ID / passport
                 </label>
                 <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className={f} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Contact phone <span className="text-red-600">*</span>
+                  Contact phone
                 </label>
                 <input
                   value={contactPhone}
@@ -346,7 +340,7 @@ export function RegistrationApprovalModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Sex <span className="text-red-600">*</span>
+                  Sex
                 </label>
                 <select
                   value={gender}
@@ -360,7 +354,7 @@ export function RegistrationApprovalModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Date of birth <span className="text-red-600">*</span>
+                  Date of birth
                 </label>
                 <input
                   type="date"
@@ -381,28 +375,20 @@ export function RegistrationApprovalModal({
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Councils <span className="text-red-600">*</span>
-                </label>
-                <select
-                  multiple
+                <CouncilCardSelect
+                  id="approval-councils"
+                  options={councils}
                   value={councilIds}
-                  onChange={(e) =>
-                    setCouncilIds(Array.from(e.target.selectedOptions).map((o) => o.value))
-                  }
-                  className={`${f} min-h-[100px]`}
-                >
-                  {councils.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-neutral-500">Hold Ctrl/Cmd to select multiple.</p>
+                  onChange={setCouncilIds}
+                  disabled={busy || loading}
+                  multiple
+                  size="sm"
+                  hint="Optional — select one or more councils. Leave as-is if already chosen at signup."
+                />
               </div>
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Address line 1 <span className="text-red-600">*</span>
+                  Address line 1
                 </label>
                 <input
                   value={address.line1}
@@ -420,7 +406,7 @@ export function RegistrationApprovalModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  City <span className="text-red-600">*</span>
+                  City
                 </label>
                 <input
                   value={address.city}
@@ -433,12 +419,12 @@ export function RegistrationApprovalModal({
                 onChange={(stateOrProvince) => setAddress({ ...address, stateOrProvince })}
                 className={f}
                 labelClassName="mb-1 block text-xs font-medium text-neutral-600"
-                label="Province / region *"
-                required
+                label="Province / region"
+                required={false}
               />
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Country <span className="text-red-600">*</span>
+                  Country
                 </label>
                 <input
                   value={address.country}

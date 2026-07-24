@@ -89,21 +89,12 @@ export default function SuperadminPendingApprovalsPage() {
     return m.church.name || '—';
   }
 
-  async function approve(memberId: string, ready?: boolean) {
+  async function approve(memberId: string) {
     if (!token) return;
-    if (ready === false) {
-      const row = members.find((m) => m.id === memberId);
-      if (row) {
-        setModalMember(row);
-        return;
-      }
-      showToast('error', 'Complete the member profile first (ID, DOB, sex, address, councils), then approve.');
-      return;
-    }
     setBusyId(memberId);
     try {
       await apiFetch(`/api/superadmin/members/${memberId}/approve`, { method: 'PATCH', token });
-      showToast('success', 'Member approved and activated — they can now log in.');
+      showToast('success', 'Member approved and activated — they can log in and complete their profile.');
       await load();
     } catch (e) {
       showToast('error', e instanceof Error ? e.message : 'Failed to approve');
@@ -155,8 +146,8 @@ export default function SuperadminPendingApprovalsPage() {
             Pending Approvals
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Self-registered members across churches. Complete their profile in the modal, then approve so they can sign
-            in.
+            Approve self-registered members across churches. Optionally edit details first, or leave the rest for the
+            member to complete after login.
           </p>
         </div>
         {members.length > 0 ? (
@@ -173,9 +164,9 @@ export default function SuperadminPendingApprovalsPage() {
 
       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
         <p className="text-sm text-blue-800">
-          <strong>Workflow:</strong> Self-registration creates a <em>pending inactive</em> account. Use{' '}
-          <strong>Complete profile</strong> to fill required details in the modal, then{' '}
-          <strong>Save &amp; Approve</strong> to activate login access. Reject removes the registration permanently.
+          <strong>Workflow:</strong> You can <strong>Approve</strong> immediately, or use{' '}
+          <strong>Edit details</strong> to fill optional fields before approving. After approval, the member can
+          finish their profile under Account. Reject removes the registration permanently.
         </p>
       </div>
 
@@ -219,8 +210,15 @@ export default function SuperadminPendingApprovalsPage() {
                       <p className="text-sm font-semibold text-neutral-900">{m.fullName || '—'}</p>
                       <p className="text-xs text-neutral-600">{m.email}</p>
                     </div>
-                    <span className="shrink-0 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
-                      {m.profileComplete ? 'Ready' : 'Incomplete'}
+                    <span
+                      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                        m.profileComplete
+                          ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                          : 'border-amber-200 bg-amber-100 text-amber-800'
+                      }`}
+                      title={m.profileBlocker || undefined}
+                    >
+                      {m.profileComplete ? 'Full profile' : 'Basic only'}
                     </span>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-y-1 text-xs text-neutral-600">
@@ -238,13 +236,12 @@ export default function SuperadminPendingApprovalsPage() {
                       className={`${violetBtnOutline} flex-1 px-3 py-2`}
                     >
                       <Pencil className="size-3.5" />
-                      Complete profile
+                      Edit details
                     </button>
                     <button
                       type="button"
-                      disabled={busyId === m.id || m.profileComplete === false}
-                      title={m.profileBlocker || undefined}
-                      onClick={() => approve(m.id, m.profileComplete !== false)}
+                      disabled={busyId === m.id}
+                      onClick={() => approve(m.id)}
                       className={`${approveBtnOutline} flex-1 px-3 py-2`}
                     >
                       <UserCheck className="size-3.5" />
@@ -317,13 +314,12 @@ export default function SuperadminPendingApprovalsPage() {
                             className={violetBtnOutline}
                           >
                             <Pencil className="size-3.5" />
-                            Complete profile
+                            Edit details
                           </button>
                           <button
                             type="button"
-                            disabled={busyId === m.id || m.profileComplete === false}
-                            title={m.profileBlocker || undefined}
-                            onClick={() => approve(m.id, m.profileComplete !== false)}
+                            disabled={busyId === m.id}
+                            onClick={() => approve(m.id)}
                             className={approveBtnOutline}
                           >
                             <UserCheck className="size-3.5" />

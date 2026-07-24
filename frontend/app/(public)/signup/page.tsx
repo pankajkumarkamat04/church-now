@@ -7,6 +7,7 @@ import { Church, Loader2 } from 'lucide-react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordRequirementsHint } from '@/components/auth/PasswordRequirementsHint';
+import { CouncilCardSelect } from '@/components/forms/CouncilCardSelect';
 import { validatePassword } from '@/lib/passwordPolicy';
 import { apiFetch } from '@/lib/api';
 import { getDefaultDashboardPath, useAuth } from '@/contexts/AuthContext';
@@ -24,10 +25,11 @@ type ChurchRow = {
   city?: string;
   country?: string;
 };
+type CouncilRow = { _id: string; name: string; abbreviation?: string };
 
 /**
- * Short self-registration: affiliation + account + contact only.
- * Church admin / superadmin complete ID, address, councils, baptism, etc. on approval.
+ * Self-registration: affiliation (conference, church, councils) + account + contact.
+ * Church admin / superadmin complete ID, address, baptism, etc. on approval.
  */
 export default function SignupPage() {
   const { user, loading, register } = useAuth();
@@ -35,8 +37,10 @@ export default function SignupPage() {
 
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [churches, setChurches] = useState<ChurchRow[]>([]);
+  const [councils, setCouncils] = useState<CouncilRow[]>([]);
   const [conferenceId, setConferenceId] = useState('');
   const [churchId, setChurchId] = useState('');
+  const [councilIds, setCouncilIds] = useState<string[]>([]);
   const [refsLoading, setRefsLoading] = useState(true);
   const [refsLoaded, setRefsLoaded] = useState(false);
 
@@ -45,7 +49,6 @@ export default function SignupPage() {
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,11 +64,13 @@ export default function SignupPage() {
     Promise.all([
       apiFetch<Conference[]>('/api/public/conferences'),
       apiFetch<ChurchRow[]>('/api/public/churches'),
+      apiFetch<CouncilRow[]>('/api/public/councils'),
     ])
-      .then(([confRows, churchRows]) => {
+      .then(([confRows, churchRows, councilRows]) => {
         if (cancelled) return;
         setConferences(confRows);
         setChurches(churchRows);
+        setCouncils(councilRows);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load signup options'))
       .finally(() => {
@@ -105,6 +110,10 @@ export default function SignupPage() {
       setError('Select your congregation');
       return;
     }
+    if (councilIds.length === 0) {
+      setError('Select at least one council');
+      return;
+    }
     if (!firstName.trim() || !surname.trim()) {
       setError('Enter your first name and surname');
       return;
@@ -122,10 +131,6 @@ export default function SignupPage() {
       setError('Enter a valid contact phone number');
       return;
     }
-    if (!privacyAccepted) {
-      setError('Please acknowledge the privacy notice before submitting');
-      return;
-    }
 
     setBusy(true);
     try {
@@ -134,7 +139,7 @@ export default function SignupPage() {
         password,
         churchId,
         conferenceIds: [conferenceId],
-        councilIds: [],
+        councilIds,
         firstName: firstName.trim(),
         surname: surname.trim(),
         contactPhone: contactPhone.trim(),
@@ -156,8 +161,8 @@ export default function SignupPage() {
       </div>
       <h1 className="text-center text-xl font-semibold text-neutral-900">Member registration</h1>
       <p className="mt-3 text-center text-sm text-neutral-600">
-        Enter a few details to request membership. Your church admin will complete your full profile and approve your
-        account before you can sign in.
+        Enter your details to request membership. After your church admin approves you, you can sign in and complete any
+        remaining profile fields yourself.
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
@@ -218,6 +223,17 @@ export default function SignupPage() {
             ))}
           </select>
         </div>
+
+        <CouncilCardSelect
+          id="signup-councils"
+          options={councils}
+          value={councilIds}
+          onChange={setCouncilIds}
+          required
+          multiple
+          loading={refsLoading}
+          disabled={!refsLoaded || councils.length === 0}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -303,36 +319,10 @@ export default function SignupPage() {
           />
         </div>
 
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-          <p className="text-sm text-neutral-700">
-            We collect your name, email, phone and congregation so your church can review and complete your membership
-            record. See our{' '}
-            <Link href="/privacy" className="font-medium text-neutral-900 underline underline-offset-2" target="_blank">
-              privacy policy
-            </Link>
-            .
-          </p>
-          <label htmlFor="signup-privacy" className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-neutral-800">
-            <input
-              id="signup-privacy"
-              name="privacyAccepted"
-              type="checkbox"
-              checked={privacyAccepted}
-              onChange={(e) => setPrivacyAccepted(e.target.checked)}
-              required
-              className="mt-0.5 size-4 rounded border-neutral-300"
-            />
-            <span>
-              I agree to the processing of my details for membership registration.{' '}
-              <span className="text-red-600">*</span>
-            </span>
-          </label>
-        </div>
-
         <button
           type="submit"
           disabled={busy || refsLoading || !refsLoaded}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-neutral-900 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-neutral-900 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? (
             <>

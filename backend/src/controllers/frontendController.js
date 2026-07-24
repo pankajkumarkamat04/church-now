@@ -464,12 +464,8 @@ async function approveMember(req, res) {
         isActive: member.isActive,
       });
     }
-    const { assertMemberReadyForApproval } = require('../utils/memberApprovalGate');
-    try {
-      assertMemberReadyForApproval(member);
-    } catch (gateErr) {
-      return res.status(gateErr.statusCode || 400).json({ message: gateErr.message });
-    }
+    // Admin may approve with or without completing the full profile.
+    // Member can finish remaining details after login via Account.
     member.approvalStatus = 'APPROVED';
     member.isActive = true;
     await member.save();

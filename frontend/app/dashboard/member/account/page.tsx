@@ -260,6 +260,12 @@ export default function MemberAccountPage() {
   const councilOptions = (profile.councils || []).map((c) => ({ _id: c._id, name: c.name }));
   const councilIds = Array.isArray(profile.councilIds) ? profile.councilIds : councilOptions.map((c) => c._id);
 
+  const profileGaps: string[] = [];
+  if (!String(idNumber || '').trim()) profileGaps.push('national ID');
+  if (!dateOfBirth) profileGaps.push('date of birth');
+  if (!gender) profileGaps.push('sex');
+  if (!String(address.line1 || '').trim() || !String(address.city || '').trim()) profileGaps.push('address');
+
   return (
     <div className="dashboard-page w-full min-w-0">
       <div className="mb-8">
@@ -276,6 +282,16 @@ export default function MemberAccountPage() {
           Change password →
         </Link>
       </div>
+
+      {profileGaps.length > 0 ? (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">Complete your profile</p>
+          <p className="mt-1 text-amber-900/90">
+            Still missing: {profileGaps.join(', ')}. Fill these in below and save — your church admin may have left them
+            for you after approval.
+          </p>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
         <form className="space-y-8" onSubmit={onSubmit}>

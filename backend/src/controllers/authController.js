@@ -16,13 +16,13 @@ const GENERIC_FORGOT_MESSAGE =
   'If an account exists for that email, password reset instructions have been sent.';
 
 /**
- * POST /api/auth/register — short self-serve signup.
- * Member provides affiliation + account + contact only.
+ * POST /api/auth/register — self-serve signup.
+ * Member provides affiliation (conference, church, councils) + account + contact.
  * Church admin / superadmin complete remaining profile fields on approval.
  */
 async function register(req, res) {
   try {
-    const { email, password, churchId, conferenceIds, firstName, surname, contactPhone } = req.body;
+    const { email, password, churchId, conferenceIds, councilIds, firstName, surname, contactPhone } = req.body;
     const incomingConferenceIds = Array.isArray(conferenceIds)
       ? conferenceIds
       : req.body.conferenceId
@@ -72,6 +72,11 @@ async function register(req, res) {
     if (!church.conference || String(church.conference) !== selectedConferenceIds[0]) {
       return res.status(400).json({ message: 'Selected church does not belong to the selected conference' });
     }
+    const { normalizeAndValidateGlobalCouncilIds } = require('../utils/globalCouncilIds');
+    const councilResult = await normalizeAndValidateGlobalCouncilIds(councilIds);
+    if (councilResult.error) {
+      return res.status(400).json({ message: councilResult.error });
+    }
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
       return res.status(409).json({ message: 'Email already registered' });
@@ -84,7 +89,7 @@ async function register(req, res) {
     }
     const normalizedFirstName = String(firstName).trim();
     const normalizedSurname = String(surname).trim();
-    // Self-serve signup is always MEMBER; profile details completed by admin later.
+    // Self-serve signup is always MEMBER; remaining profile details completed by admin later.
     const user = await User.create({
       email: email.toLowerCase().trim(),
       password,
@@ -96,7 +101,7 @@ async function register(req, res) {
       role: 'MEMBER',
       church: church._id,
       conferences: [selectedConferenceIds[0]],
-      councilIds: [],
+      councilIds: councilResult.ids,
       councilRegionIds: [],
       isDiaspora: false,
       memberCategory: 'MEMBER',
@@ -112,7 +117,7 @@ async function register(req, res) {
     });
     return res.status(201).json({
       message:
-        'Registration submitted. Your church admin will complete your profile and approve your membership before you can sign in.',
+        'Registration submitted. Your church admin will approve your membership. After approval you can sign in and complete remaining profile details yourself.',
       requiresApproval: true,
       userId: user._id,
     });
@@ -152,7 +157,7 @@ async function login(req, res) {
     if (user.role === 'MEMBER' && user.approvalStatus === 'PENDING') {
       return res.status(403).json({
         message:
-          'Your registration is pending. Your church admin must complete your profile and approve your membership before you can sign in.',
+          'Your registration is pending approval by your church admin. Once approved, you can sign in and complete your profile details.',
       });
     }
     await syncMemberActiveStatusByPayments(user);
